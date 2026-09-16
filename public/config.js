@@ -1,12 +1,10 @@
-// Runtime configuration for the deployed FLIP console.
-//
-// Loaded before the app bundle (see index.html), so it can redirect the frontend at a hosted
-// backend WITHOUT rebuilding. Edit these to your deployed backend + Keycloak, or leave them to
-// fall back to localhost for local development. This file must contain NO secrets - it is public.
+// Runtime configuration for the deployed FLIP super-admin console (Vercel).
+// Loaded before the app bundle (see index.html); edit + redeploy to retarget. No secrets here.
 window.__FLIP_CONFIG__ = {
-  // e.g. "https://flip-admin.onrender.com/flip-admin"
-  API_BASE_URL: 'http://localhost:8085/flip-admin',
-  KEYCLOAK_BASE_URL: 'http://localhost:8080',
-  KEYCLOAK_REALM: 'kanerika-local',
+  // flip-admin-app is internal (localhost:8085) in SIT, reached only via the gateway.
+  // The gateway must route /flip-admin/** to it and allow this origin (CORS).
+  API_BASE_URL: 'https://sit.flipnow.cloud/flip-admin',
+  KEYCLOAK_BASE_URL: 'https://sit-auth-admin.flipnow.cloud',
+  KEYCLOAK_REALM: 'flip-super-admin',
   KEYCLOAK_CLIENT_ID: 'super-admin'
 };
