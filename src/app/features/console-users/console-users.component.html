@@ -1,0 +1,86 @@
+<app-page-header
+  eyebrow="Access control"
+  title="Console users"
+  subtitle="Everyone who can sign into this console, and what they can see once they're in."
+>
+  <button type="button" class="btn primary" (click)="openAdd()">Add console user</button>
+</app-page-header>
+
+<div class="panel">
+  <table class="dtable" *ngIf="sorted().length; else noUsers">
+    <thead>
+      <tr>
+        <th>Email</th>
+        <th>Name</th>
+        <th>Role</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let u of sorted()">
+        <td class="strong mono">{{ u.email }}</td>
+        <td>{{ u.displayName || '—' }}</td>
+        <td><app-status-pill [label]="u.role === 'SUPER_ADMIN' ? 'Super admin' : 'Sales'" [tone]="roleTone(u.role)"></app-status-pill></td>
+        <td>
+          <app-status-pill
+            [label]="u.keycloakSubjectId ? 'Active' : 'Invited — not signed in yet'"
+            [tone]="u.keycloakSubjectId ? 'success' : 'warning'"
+          ></app-status-pill>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+  <ng-template #noUsers>
+    <p class="text-muted" style="padding:24px 0;text-align:center">
+      No console users yet — every Kanerika login currently gets full access. Add someone below to start scoping access by role.
+    </p>
+  </ng-template>
+</div>
+
+<app-modal-shell *ngIf="addOpen()" title="Add a console user" [width]="480" (close)="closeAdd()">
+  <div class="field">
+    <label>Email</label>
+    <input class="input mono" type="email" [(ngModel)]="email" placeholder="name@kanerika.com" [disabled]="submitting()" />
+    <p class="hint">If they already have a Kanerika login, we'll use it. Otherwise we'll create one and show you a temporary password to share with them.</p>
+  </div>
+  <div class="row gap-16 field-row">
+    <div class="field">
+      <label>First name</label>
+      <input class="input" [(ngModel)]="firstName" placeholder="Jordan" [disabled]="submitting()" />
+    </div>
+    <div class="field">
+      <label>Last name</label>
+      <input class="input" [(ngModel)]="lastName" placeholder="Ellis" [disabled]="submitting()" />
+    </div>
+  </div>
+  <div class="field">
+    <label>Role</label>
+    <select class="input" [(ngModel)]="role" [disabled]="submitting()">
+      <option value="SALES">Sales — organizations, subscriptions, notifications, and the business dashboard</option>
+      <option value="SUPER_ADMIN">Super admin — full technical access, including plans, limits, and provisioning</option>
+    </select>
+  </div>
+  <div class="wizard-actions">
+    <button type="button" class="btn ghost" (click)="closeAdd()">Cancel</button>
+    <div class="spacer"></div>
+    <button type="button" class="btn primary" [disabled]="!canSubmit() || submitting()" (click)="submit()">
+      {{ submitting() ? 'Adding…' : 'Add user' }}
+    </button>
+  </div>
+</app-modal-shell>
+
+<app-modal-shell *ngIf="created() as c" title="Console login created" [width]="480" (close)="closeCreated()">
+  <p class="hint" style="margin-top:0">
+    Save this now — the password won't be shown again. It's temporary; {{ c.displayName }} will be asked to set their own on first sign-in.
+  </p>
+  <div class="cred-box">
+    <div class="cred-row"><span class="k">Console</span><span class="v">FLIP Platform Console</span></div>
+    <div class="cred-row"><span class="k">Email</span><span class="v mono">{{ c.email }}</span></div>
+    <div class="cred-row"><span class="k">Temporary password</span><span class="v mono">{{ c.temporaryPassword }}</span></div>
+  </div>
+  <div class="wizard-actions">
+    <button type="button" class="btn ghost" (click)="copyCredentials()">Copy to clipboard</button>
+    <div class="spacer"></div>
+    <button type="button" class="btn primary" (click)="closeCreated()">Done</button>
+  </div>
+</app-modal-shell>

@@ -1,0 +1,27 @@
+// Matches the one-time credential reveal styling already established in the onboarding wizard
+// (onboarding-wizard.component.scss's .cred-box/.cred-row) — duplicated rather than shared since
+// Angular component styles are view-scoped and this is the only other place that needs it.
+.cred-box {
+  background: var(--paper-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  margin-bottom: 14px;
+}
+
+.cred-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 5px 0;
+  font-size: 12.5px;
+}
+
+.cred-row .k {
+  color: var(--ink-faint);
+}
+
+.cred-row .v {
+  color: var(--ink);
+  font-weight: 600;
+}

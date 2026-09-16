@@ -1,0 +1,753 @@
+@use 'application-settings';
+@use 'application-explorer';
+// ---------------------------------------------------------------------------
+// FLIP Super Admin Console — global design tokens & utility classes
+// Palette, type and shape lifted from flip-ui's own theme (src/styles.scss)
+// so this console reads as part of the same product family.
+// ---------------------------------------------------------------------------
+
+:root {
+  // surfaces
+  --paper: #fbfbfb;
+  --paper-raised: #ffffff;
+  --paper-sunken: #f4f5f6;
+
+  // ink (flip-ui neutral scale)
+  --ink: #272b34;
+  --ink-soft: #4a5264;
+  --ink-faint: #70798c;
+
+  // lines
+  --line: #e6e9ee;
+  --line-strong: #c4cad4;
+
+  // accent — the Overview dashboard's violet, promoted to the shared accent so every screen
+  // (buttons, links, pills, focus rings, eyebrows) reads as one product rather than the Overview
+  // being violet and everything behind it orange.
+  --accent: #7c46a3;
+  --accent-ink: #6a3a8c;
+  --accent-soft: #f2eaf8;
+  --accent-hover: #6a3a8c;
+
+  // The Overview's own header band and panel accents, shared so other pages can reuse them.
+  // The rose end is deepened from the original #d96188: white small text over that stop measured
+  // 2.71:1, which fails AA for anything that reaches the right of a wide band.
+  --ui-header-grad: linear-gradient(115deg, #7434b5, #963dad 58%, #c04f7d);
+  --ui-violet: #7c46a3;
+  --ui-violet-soft: #eadcf5;
+  --ui-violet-wash: #faf5ff;
+  --ui-rose: #dc83af;
+  --ui-peach: #ecaa82;
+  --ui-eyebrow: #7850a5;
+
+  // Limit kinds - design-time (build) vs runtime (execution) get their own hue so a row of
+  // numbers can be told apart at a glance instead of by reading the column header.
+  --limit-design: #7c46a3;
+  --limit-design-soft: #f1e7f9;
+  --limit-design-line: #d9c2ec;
+  --limit-runtime: #1f7a6b;
+  --limit-runtime-soft: #e0f2ed;
+  --limit-runtime-line: #a9d8cc;
+
+  // Kept for the few places that still want the original FLIP orange on purpose.
+  --brand-orange: #f36f21;
+
+  // semantic
+  --success: #3daa5f;
+  --success-soft: #daf2e8;
+  --warning: #d5a01b;
+  --warning-soft: #fdf6d8;
+  --critical: #d54e4e;
+  --critical-soft: #ffe8e8;
+  --muted: #a7afbe;
+
+  // shape / elevation
+  --radius-sm: 4px;
+  --radius: 8px;
+  --radius-lg: 12px;
+  --shadow-sm: 0 2px 12px 0 rgba(0, 0, 0, 0.06);
+  --shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.06), 0 4px 8px 0 rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 4px 16px 0 rgba(0, 0, 0, 0.12);
+
+  // type
+  --font-sans: "Roboto", "Lato", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", Menlo, Consolas, monospace;
+
+  // -------------------------------------------------------------------------
+  // kanerika.com brand system — palette, type and the signature CTA gradient
+  // read off the live site (Elementor kit variables + computed styles).
+  // -------------------------------------------------------------------------
+  --k-blue: #004f98;
+  --k-blue-deep: #073d73;
+  --k-blue-bright: #1664df;
+  --k-blue-sky: #2da5ff;
+  --k-blue-pale: #daefff;
+  --k-blue-mist: #f8fbff;
+  --k-ink: #04264d;
+  --k-ink-soft: #152c56;
+  --k-purple: #8c48ff;
+  --k-purple-deep: #330b6a;
+  --k-purple-pale: #f6f2ff;
+  --k-coral: #ff5f3d;
+  --k-orange: #ff4f00;
+  --k-grad-cta: linear-gradient(79.86deg, #8c48ff -10.68%, #ff5f3d 96.14%);
+
+  --k-font-display: "Space Grotesk", "Roboto", "Helvetica Neue", Arial, sans-serif;
+  --k-font-body: "Schibsted Grotesk", "Roboto", "Helvetica Neue", Arial, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: 14.5px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5 {
+  margin: 0;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+
+p {
+  margin: 0;
+}
+
+a {
+  color: var(--accent-ink);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+button {
+  font-family: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Layout helpers
+// ---------------------------------------------------------------------------
+
+.scroll-x {
+  overflow-x: auto;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+}
+
+.gap-4 {
+  gap: 4px;
+}
+.gap-8 {
+  gap: 8px;
+}
+.gap-12 {
+  gap: 12px;
+}
+.gap-16 {
+  gap: 16px;
+}
+.gap-24 {
+  gap: 24px;
+}
+
+.spacer {
+  flex: 1;
+}
+
+// ---------------------------------------------------------------------------
+// Typography utilities
+// ---------------------------------------------------------------------------
+
+.eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent-ink);
+}
+
+.text-muted {
+  color: var(--ink-soft);
+}
+
+.text-faint {
+  color: var(--ink-faint);
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+// ---------------------------------------------------------------------------
+// Buttons
+// ---------------------------------------------------------------------------
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line-strong);
+  background: var(--paper-raised);
+  color: var(--ink);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.12s ease, border-color 0.12s ease;
+}
+
+.btn:hover {
+  background: var(--paper-sunken);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #ffffff;
+}
+
+.btn.primary:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+.btn.ghost {
+  background: transparent;
+  border-color: transparent;
+}
+
+.btn.ghost:hover {
+  background: var(--paper-sunken);
+}
+
+.btn.danger {
+  background: var(--paper-raised);
+  border-color: var(--critical);
+  color: var(--critical);
+}
+
+.btn.danger:hover {
+  background: var(--critical-soft);
+}
+
+.btn.danger.solid {
+  background: var(--critical);
+  border-color: var(--critical);
+  color: #fff;
+}
+
+.btn.sm {
+  padding: 5px 10px;
+  font-size: 12px;
+}
+
+// ---------------------------------------------------------------------------
+// Cards / panels
+// ---------------------------------------------------------------------------
+
+.card {
+  background: var(--paper-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+}
+
+.panel {
+  background: var(--paper-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 20px 22px;
+}
+
+// ---------------------------------------------------------------------------
+// Chips / pills / status
+// ---------------------------------------------------------------------------
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  padding: 5px 11px;
+  border-radius: 20px;
+  border: 1px solid var(--line-strong);
+  color: var(--ink-soft);
+  background: var(--paper-raised);
+  cursor: pointer;
+}
+
+.chip.dashed {
+  border-style: dashed;
+  color: var(--ink-faint);
+}
+
+.chip.removable::after {
+  content: "×";
+  margin-left: 2px;
+  font-weight: 700;
+}
+
+// ---------------------------------------------------------------------------
+// Forms
+// ---------------------------------------------------------------------------
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.field .hint {
+  font-size: 11.5px;
+  color: var(--ink-faint);
+}
+
+.optional-tag {
+  font-weight: 400;
+  color: var(--ink-faint);
+  text-transform: none;
+}
+
+.input,
+select.input,
+textarea.input {
+  font-family: inherit;
+  font-size: 13.5px;
+  padding: 9px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line-strong);
+  background: var(--paper-raised);
+  color: var(--ink);
+  width: 100%;
+}
+
+.input:focus,
+select.input:focus,
+textarea.input:focus {
+  border-color: var(--accent);
+}
+
+.input.mono {
+  font-family: var(--font-mono);
+}
+
+.input.invalid {
+  border-color: var(--critical);
+}
+
+.error-text {
+  font-size: 11.5px;
+  color: var(--critical);
+}
+
+// ---------------------------------------------------------------------------
+// Tables
+// ---------------------------------------------------------------------------
+
+// Tables must never force the page to scroll horizontally — the direct parent of any .dtable
+// becomes its own scroll container, so wide tables (many columns, mono-width cells) scroll
+// internally on narrow viewports instead of blowing out the layout.
+*:has(> table.dtable) {
+  overflow-x: auto;
+}
+
+table.dtable {
+  width: 100%;
+  min-width: 560px;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+table.dtable th {
+  text-align: left;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  padding: 0 12px 12px;
+  border-bottom: 1px solid var(--line-strong);
+  white-space: nowrap;
+}
+
+table.dtable td {
+  padding: 14px 12px;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink-soft);
+  vertical-align: middle;
+  line-height: 1.45;
+}
+
+// Opt-in, not blanket. This was applied to EVERY table's first column, so any table whose first
+// column carries real content (an organization name, a timestamp) was crushed to 42px and centred -
+// "Kanerika Software Pvt. Ltd." wrapped onto three lines, "Sep 15, 2026, 4:49 PM" onto five.
+// Only tables with a genuine leading icon/expander column want this.
+table.dtable.lead-icon td:first-child {
+  width: 42px;
+  text-align: center;
+}
+
+// A first column holding real content should size to it rather than wrap mid-word.
+table.dtable:not(.lead-icon) td:first-child {
+  min-width: 160px;
+}
+
+table.dtable tbody tr {
+  transition: background-color 0.1s ease;
+}
+
+table.dtable tbody tr:hover {
+  background: var(--paper-sunken);
+}
+
+table.dtable td.strong,
+table.dtable td a.row-link {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+// ---------------------------------------------------------------------------
+// Tabs
+// ---------------------------------------------------------------------------
+
+.tabbar {
+  display: flex;
+  gap: 22px;
+  border-bottom: 1px solid var(--line);
+  overflow-x: auto;
+}
+
+.tabbar button {
+  background: none;
+  border: none;
+  padding: 0 0 11px;
+  font-size: 13px;
+  color: var(--ink-faint);
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.tabbar button.active {
+  color: var(--ink);
+  font-weight: 600;
+  border-bottom-color: var(--accent);
+}
+
+// ---------------------------------------------------------------------------
+// Empty / loading
+// ---------------------------------------------------------------------------
+
+.skeleton-line {
+  height: 12px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--paper-sunken) 25%, var(--line) 37%, var(--paper-sunken) 63%);
+  background-size: 400% 100%;
+  animation: shimmer 1.4s ease infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0 50%;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Application hierarchy (tree) primitives — shared by the limits panel, the plan
+// builder and plan detail so all three read as the same control.
+// ---------------------------------------------------------------------------
+
+.tree-lead {
+  display: flex;
+  align-items: center;
+  align-self: stretch;
+  gap: 2px;
+  min-width: 0;
+}
+
+.tree-lead .rails {
+  display: flex;
+  align-items: stretch;
+  align-self: stretch;
+  flex: none;
+}
+
+.tree-lead .rail,
+.tree-lead .rail-elbow {
+  position: relative;
+  width: 22px;
+  flex: none;
+}
+
+.tree-lead .rail.on::before,
+.tree-lead .rail-elbow::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: -10px;
+  bottom: -10px;
+  width: 1px;
+  background: var(--line-strong);
+}
+
+.tree-lead .rail-elbow.last::before {
+  bottom: 50%;
+}
+
+.tree-lead .rail-elbow::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 9px;
+  height: 1px;
+  background: var(--line-strong);
+}
+
+.tree-lead .twisty {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex: none;
+  margin-right: 4px;
+  padding: 0;
+  color: var(--ink-faint);
+  background: transparent;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.tree-lead .twisty:hover {
+  color: var(--ink);
+  background: var(--line);
+}
+
+.tree-lead .twisty svg {
+  width: 12px;
+  height: 12px;
+  transition: transform 0.14s ease;
+}
+
+.tree-lead .twisty svg.open {
+  transform: rotate(90deg);
+}
+
+.tree-lead .twisty-spacer {
+  width: 24px;
+  flex: none;
+}
+
+.tree-lead .tree-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nested-count {
+  margin-left: 8px;
+  padding: 1px 7px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--ink-faint);
+  background: var(--paper-sunken);
+  border-radius: 999px;
+}
+
+.app-row.is-dimmed {
+  opacity: 0.62;
+}
+
+// ---------------------------------------------------------------------------
+// Shared tree rows — modernised
+// Used by the plan builder's Applications step and the plan detail's
+// Applications & limits table. Deep nesting previously drew four or five grey
+// verticals per row and gave every row identical weight, so hierarchy had to be
+// traced by eye rather than seen.
+// ---------------------------------------------------------------------------
+
+.tree-lead .rail.on::before,
+.tree-lead .rail-elbow::before,
+.tree-lead .rail-elbow::after {
+  background: color-mix(in srgb, var(--ui-violet) 20%, transparent);
+}
+
+// Elbows round into the row instead of meeting at a hard right angle.
+.tree-lead .rail-elbow::after {
+  width: 10px;
+  border-radius: 1px;
+}
+
+.tree-lead .twisty {
+  border-radius: 6px;
+  color: var(--ui-violet);
+  transition: background-color 0.12s ease;
+}
+
+.tree-lead .twisty:hover {
+  background: var(--ui-violet-soft);
+}
+
+// --- row weight: a top-level application should look like one ---------------
+
+.app-row,
+.limit-row {
+  border-radius: 8px;
+  transition: background-color 0.12s ease;
+}
+
+.app-row:hover,
+.limit-row:not(.limit-header):hover {
+  background: var(--ui-violet-wash);
+}
+
+.app-row.family-row,
+.limit-row.family-row {
+  background: linear-gradient(90deg, var(--ui-violet-wash), transparent 70%);
+  box-shadow: inset 3px 0 0 0 var(--ui-violet-soft);
+}
+
+.app-row.family-row:hover,
+.limit-row.family-row:hover {
+  background: linear-gradient(90deg, #f3e9fb, transparent 74%);
+}
+
+.app-row.family-row .tree-name,
+.limit-row.family-row .name {
+  font-weight: 700;
+  color: var(--ink);
+}
+
+// Child names step back so the parent reads as the anchor of its group.
+.app-row:not(.family-row) .tree-name,
+.limit-row:not(.family-row):not(.limit-header) .name {
+  font-weight: 500;
+  color: var(--ink-soft);
+}
+
+// --- the access radio group, which repeats on every row ---------------------
+
+.access-radios {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 999px;
+  background: var(--paper-sunken);
+}
+
+.access-radios .radio-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  color: var(--ink-faint);
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.access-radios .radio-inline:hover {
+  color: var(--ink);
+}
+
+// Only the chosen option carries weight; the other two stay quiet, so a long
+// tree is not three columns of identical radio buttons shouting at once.
+.access-radios .radio-inline:has(input:checked) {
+  background: var(--paper-raised);
+  color: var(--ink);
+  font-weight: 700;
+  box-shadow: 0 1px 2px rgba(35, 16, 54, 0.12);
+}
+
+.access-radios .radio-inline:has(input[value='ENABLED']:checked),
+.access-radios .radio-inline.is-enabled:has(input:checked) {
+  color: #1f7a45;
+}
+
+.access-radios input[type='radio'] {
+  width: 13px;
+  height: 13px;
+  accent-color: var(--ui-violet);
+  margin: 0;
+}
+
+// --- scope chip -------------------------------------------------------------
+
+.scope-preview {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  width: fit-content;
+  padding: 3px 9px;
+  border-radius: 6px;
+  background: var(--ui-violet-soft);
+  color: var(--ui-violet);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+

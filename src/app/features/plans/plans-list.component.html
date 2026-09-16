@@ -1,0 +1,49 @@
+<app-page-header eyebrow="Manage plans" title="Plans" subtitle="Default plans plus every custom plan built for a specific organization." [showBack]="showBack" [backUrl]="backUrl">
+  <a class="btn primary" routerLink="/plans/new">Create custom plan</a>
+</app-page-header>
+
+<div class="filterbar">
+  <input class="input search" placeholder="Search plans…" [(ngModel)]="search" />
+  <select class="input select" [(ngModel)]="typeFilter">
+    <option value="">Any type</option>
+    <option value="DEFAULT">Default</option>
+    <option value="CUSTOM">Custom</option>
+  </select>
+</div>
+
+<div class="plan-grid">
+  <a
+    class="plan-card"
+    *ngFor="let p of filtered()"
+    [class.is-default]="p.planType === 'DEFAULT'"
+    [routerLink]="['/plans', p.planId]"
+    [queryParams]="showBack ? { from: 'overview' } : null">
+
+    <div class="pc-head">
+      <span class="pc-type">{{ p.planType }}</span>
+      <app-status-pill [label]="p.planState" [tone]="tone(p.planState)"></app-status-pill>
+    </div>
+
+    <h3 class="pc-name">{{ p.planName }}</h3>
+
+    <!-- The primary application is what a subscription bills and de-duplicates against, so it
+         belongs in the card rather than buried in a run of meta text. -->
+    <span class="pc-app" *ngIf="primaryAppName(p.primaryAppId) as appName">
+      <i class="ti ti-app-window" aria-hidden="true"></i>{{ appName }}
+    </span>
+
+    <p class="pc-desc" *ngIf="p.description">{{ p.description }}</p>
+
+    <div class="pc-foot">
+      <span class="pc-stat">
+        <strong>{{ appCount(p.planId) }}</strong>
+        <small>applications</small>
+      </span>
+      <span class="pc-stat">
+        <strong>{{ orgsInUse(p.planId) }}</strong>
+        <small>organizations</small>
+      </span>
+      <span class="pc-billing">{{ p.billingMode }}</span>
+    </div>
+  </a>
+</div>

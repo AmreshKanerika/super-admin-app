@@ -1,0 +1,305 @@
+<app-page-header
+  eyebrow="Onboarding"
+  [title]="mode === 'NEW_ORGANIZATION' ? 'Onboard organization' : 'Add subscriptions'"
+  [subtitle]="mode === 'NEW_ORGANIZATION'
+    ? 'Creates the organization, its admin user and one subscription-scoped role set per purchased plan.'
+    : 'Adds more subscriptions to an existing organization. Each one gets its own admin role.'"
+  [showBack]="true"
+  [backUrl]="'/organizations'">
+</app-page-header>
+
+<div class="stepper">
+  <ng-container *ngFor="let label of stepLabels(); let i = index">
+    <button
+      type="button"
+      class="step"
+      [class.done]="i < step()"
+      [class.current]="i === step()"
+      [disabled]="step() === provisioningStep()"
+      (click)="goToStep(i)">
+      <span class="n">{{ i < step() ? '✓' : i + 1 }}</span>{{ label }}
+    </button>
+    <div class="step-sep" *ngIf="i < stepLabels().length - 1"></div>
+  </ng-container>
+</div>
+
+<div class="panel">
+  <div *ngIf="mode === 'NEW_ORGANIZATION' && step() === organizationStep()" class="step-body">
+    <div class="field">
+      <label>Organization name</label>
+      <input
+        class="input"
+        [class.invalid]="organizationName && !nameAvailable()"
+        [(ngModel)]="organizationName"
+        placeholder="e.g. Harborview Logistics" />
+      <p class="error-text" *ngIf="organizationName && !nameAvailable()">An organization with this name already exists.</p>
+    </div>
+
+    <div class="row gap-16 field-row">
+      <div class="field">
+        <label>Web address</label>
+        <input
+          class="input mono"
+          [class.invalid]="domainPrefix && !domainAvailable()"
+          [(ngModel)]="domainPrefix"
+          (ngModelChange)="onDomainPrefixChange()"
+          placeholder="harborview" />
+        <p class="hint" *ngIf="fullWebAddress() as url">
+          {{ url }}
+          <button type="button" class="link-btn" (click)="toggleEditDomainName()">
+            {{ editDomainName ? 'Use the default' : 'Edit URL' }}
+          </button>
+        </p>
+        <p class="hint" *ngIf="baseDomain()">
+          Base domain <strong>{{ baseDomain() }}</strong>
+          <ng-container *ngIf="baseDomainDerived()"> — derived from the {{ environmentLabel() }} database</ng-container>
+          <ng-container *ngIf="!baseDomainDerived()"> — configured default ({{ environmentLabel() }} datasource)</ng-container>
+        </p>
+        <p class="error-text" *ngIf="domainPrefix && !domainChecking() && !domainAvailable()">This web address is already taken.</p>
+      </div>
+      <div class="field" *ngIf="editDomainName">
+        <label>Full URL</label>
+        <input class="input mono" [(ngModel)]="domainName" placeholder="acme.sit.flipnow.cloud" />
+        <p class="hint">Overrides the derived base domain for this organization only.</p>
+      </div>
+
+      <div class="field">
+        <label>Tier</label>
+        <select class="input" [(ngModel)]="paidOrg">
+          <option [ngValue]="true">Paid</option>
+          <option [ngValue]="false">Trial</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="row gap-16 field-row">
+      <div class="field">
+        <label>Email domain (optional)</label>
+        <input class="input mono" [(ngModel)]="emailDomain" placeholder="harborview.com" />
+        <p class="hint">Groups this organization with the company's other domains.</p>
+      </div>
+      <div class="field">
+        <label>External tenant id (optional)</label>
+        <input class="input mono" [(ngModel)]="orgExternalId" placeholder="Azure AD tenant id" />
+      </div>
+    </div>
+
+    <div class="field">
+      <label>
+        <input type="checkbox" [(ngModel)]="dedicatedSchemaRequired" />
+        Provision a dedicated database schema
+      </label>
+      <p class="hint">Leave unchecked to place this organization on the shared trial schema.</p>
+    </div>
+
+    <div class="field">
+      <label>
+        <input type="checkbox" [(ngModel)]="diAppProvisionRequired" />
+        Provision the data integration app
+      </label>
+    </div>
+
+    <p class="hint reservation-note">
+      The URL is only <strong>reserved</strong> during onboarding — no DNS record is created yet, so onboarding
+      cannot be blocked by the DNS provider. Activate the domain from the organization page when setup is ready.
+      A reservation that is never activated is released automatically after {{ reservationDays() }} days.
+    </p>
+  </div>
+
+  <div *ngIf="step() === adminStep()" class="step-body">
+    <ng-container *ngIf="mode === 'NEW_ORGANIZATION'">
+      <div class="row gap-16 field-row">
+        <div class="field">
+          <label>First name</label>
+          <input class="input" [(ngModel)]="adminFirstName" placeholder="Callum" />
+        </div>
+        <div class="field">
+          <label>Last name</label>
+          <input class="input" [(ngModel)]="adminLastName" placeholder="Reyes" />
+        </div>
+      </div>
+      <div class="field">
+        <label>Email (used as username)</label>
+        <input class="input mono" type="email" [(ngModel)]="adminEmail" placeholder="callum.reyes@example.com" />
+      </div>
+      <p class="hint">
+        This user receives the admin role of every subscription purchased below. A temporary password is generated and
+        shown once, at the end of provisioning.
+      </p>
+    </ng-container>
+
+    <ng-container *ngIf="mode === 'EXISTING_ORGANIZATION'">
+      <div class="field">
+        <label>Subscription admin (optional)</label>
+        <input class="input mono" type="email" [(ngModel)]="subscriptionAdminUsername" placeholder="existing.user@example.com" />
+        <p class="hint">
+          The existing user who becomes admin of the new subscriptions. Leave blank to assign them to yourself.
+        </p>
+      </div>
+    </ng-container>
+  </div>
+
+  <div *ngIf="step() === subscriptionsStep()" class="step-body">
+    <p class="hint" *ngIf="plansLoading()">Loading plans…</p>
+    <p class="error-text" *ngIf="plansError()">{{ plansError() }}</p>
+
+    <div class="subscription-card" *ngFor="let subscription of subscriptions; let i = index">
+      <div class="subscription-card-head">
+        <strong>Subscription {{ i + 1 }}</strong>
+        <button type="button" class="btn ghost sm" *ngIf="subscriptions.length > 1" (click)="removeSubscription(i)">Remove</button>
+      </div>
+
+      <div class="field">
+        <label>Plan</label>
+        <div class="plan-picker">
+          <select class="input" [(ngModel)]="subscription.planId" (ngModelChange)="onPlanChange(i)">
+            <option value="">Select a plan…</option>
+            <option
+              *ngFor="let plan of readyPlans()"
+              [value]="plan.planId"
+              [disabled]="planIsSelectedElsewhere(plan.planId, i)">
+              {{ plan.planName }} — {{ plan.primaryAppName }}
+            </option>
+          </select>
+          <button type="button" class="btn ghost sm new-plan-btn" (click)="openPlanBuilder(i)">+ New plan</button>
+        </div>
+        <p class="hint" *ngIf="!plansLoading() && !readyPlans().length">
+          No plan is ready for onboarding yet — create one with <strong>+ New plan</strong>.
+        </p>
+        <p class="hint" *ngIf="planById(subscription.planId) as plan">
+          Admin role template: <strong>{{ plan.adminRoleTemplateName }}</strong> · {{ plan.entitledAppNames.length }} applications
+        </p>
+      </div>
+
+      <div class="row gap-16 field-row">
+        <div class="field">
+          <label>Start date</label>
+          <input class="input" type="date" [(ngModel)]="subscription.planStartDate" />
+        </div>
+        <div class="field">
+          <label>End date</label>
+          <input class="input" type="date" [(ngModel)]="subscription.planEndDate" />
+        </div>
+        <div class="field">
+          <label>Organization run limit</label>
+          <input class="input" type="number" [(ngModel)]="subscription.orgPlanLimit" placeholder="Unlimited" />
+          <p class="hint">Leave blank for unlimited.</p>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>
+          <input
+            type="checkbox"
+            [(ngModel)]="subscription.provisionDeveloperRole"
+            [disabled]="!planById(subscription.planId)?.developerRoleTemplateAvailable" />
+          Also provision this subscription's developer role
+        </label>
+        <p class="hint" *ngIf="subscription.planId && !planById(subscription.planId)?.developerRoleTemplateAvailable">
+          This plan has no developer role template.
+        </p>
+      </div>
+    </div>
+
+    <button type="button" class="btn ghost sm" (click)="addSubscription()">+ Add another subscription</button>
+
+    <div class="blocked-plans" *ngIf="blockedPlans().length">
+      <p class="hint">Plans that cannot be onboarded yet:</p>
+      <p class="hint" *ngFor="let plan of blockedPlans()">{{ plan.planName }} — {{ plan.readinessMessage }}</p>
+    </div>
+  </div>
+
+  <div *ngIf="step() === reviewStep()" class="step-body">
+    <div class="review-grid">
+      <div class="kv-item"><p class="k">Organization</p><p class="v">{{ organizationLabel() }}</p></div>
+      <ng-container *ngIf="mode === 'NEW_ORGANIZATION'">
+        <div class="kv-item"><p class="k">Web address</p><p class="v mono">{{ fullWebAddress() || domainPrefix }}</p></div>
+        <div class="kv-item"><p class="k">Tier</p><p class="v">{{ paidOrg ? 'Paid' : 'Trial' }}</p></div>
+        <div class="kv-item"><p class="k">Schema</p><p class="v">{{ dedicatedSchemaRequired ? 'Dedicated' : 'Shared trial schema' }}</p></div>
+        <div class="kv-item"><p class="k">Admin user</p><p class="v">{{ adminFirstName }} {{ adminLastName }} · {{ adminEmail }}</p></div>
+      </ng-container>
+      <ng-container *ngIf="mode === 'EXISTING_ORGANIZATION'">
+        <div class="kv-item">
+          <p class="k">Subscription admin</p>
+          <p class="v">{{ subscriptionAdminUsername || 'You' }}</p>
+        </div>
+      </ng-container>
+      <div class="kv-item" *ngFor="let subscription of subscriptions; let i = index">
+        <p class="k">Subscription {{ i + 1 }}</p>
+        <p class="v">
+          {{ planName(subscription.planId) }} · {{ subscription.planStartDate }} → {{ subscription.planEndDate }}
+          <span *ngIf="subscription.provisionDeveloperRole"> · with developer role</span>
+        </p>
+      </div>
+    </div>
+    <p class="error-text" *ngFor="let error of errors">{{ error }}</p>
+  </div>
+
+  <div *ngIf="step() === provisioningStep()" class="step-body">
+    <p class="hint" *ngIf="runStatus() === 'RUNNING'">Provisioning — this can take a minute…</p>
+
+    <div class="run-banner failed" *ngIf="runStatus() === 'FAILED'">
+      <p><strong>Onboarding failed.</strong> {{ runMessage() }}</p>
+      <div class="row gap-8">
+        <button type="button" class="btn primary sm" [disabled]="submitting()" (click)="retry()">
+          {{ submitting() ? 'Retrying…' : 'Retry' }}
+        </button>
+        <button type="button" class="btn ghost sm" [disabled]="submitting()" (click)="startOver()">Start over</button>
+      </div>
+    </div>
+
+    <div class="run-banner success" *ngIf="runStatus() === 'SUCCEEDED'">
+      <p><strong>{{ organizationLabel() }} is ready.</strong> {{ runMessage() }}</p>
+      <p class="hint" *ngIf="organizationResult()">
+        Nothing has been created in DNS or Keycloak yet. Activating the URL creates the DNS record
+        (or adopts one DevOps already made), the sign-in realm and the data integration app.
+      </p>
+
+      <div class="cred-box" *ngIf="organizationResult() as result">
+        <div class="cred-row"><span class="k">Login URL</span><span class="v mono">{{ result.domainName }}</span></div>
+        <div class="cred-row"><span class="k">Username</span><span class="v mono">{{ result.adminUser.username }}</span></div>
+        <div class="cred-row">
+          <span class="k">Sign-in</span>
+          <span class="v">Created when you activate the URL — the temporary password is shown then.</span>
+        </div>
+        <div class="cred-row"><span class="k">Schema</span><span class="v mono">{{ result.schemaName }}</span></div>
+        <div class="cred-row"><span class="k">Domain status</span><span class="v mono">{{ result.domainStatus }} — activate to bring the URL online</span></div>
+      </div>
+
+      <div class="cred-box">
+        <div class="cred-row" *ngFor="let subscription of provisionedSubscriptions()">
+          <span class="k">{{ subscription.planName }}</span>
+          <span class="v mono">
+            {{ subscription.primaryAppName }} · admin role {{ subscription.adminSubscriptionRoleName }}
+            <ng-container *ngIf="subscription.developerSubscriptionRoleName">
+              · developer role {{ subscription.developerSubscriptionRoleName }}
+            </ng-container>
+          </span>
+        </div>
+      </div>
+
+      <p class="warning-note" *ngFor="let warning of warnings()">⚠ {{ warning }}</p>
+
+      <div class="row gap-8">
+        <button type="button" class="btn ghost sm" *ngIf="organizationResult()" (click)="copyCredentials()">Copy to clipboard</button>
+        <button type="button" class="btn ghost sm" *ngIf="organizationResult()" (click)="downloadCredentials()">Download as .txt</button>
+        <div class="spacer"></div>
+        <button type="button" class="btn primary sm" (click)="goToOrganization()">View organization</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="wizard-actions" *ngIf="step() <= reviewStep()">
+    <a class="btn ghost" routerLink="/organizations">Cancel</a>
+    <div class="spacer"></div>
+    <button type="button" class="btn ghost" *ngIf="step() > 0" (click)="back()">Back</button>
+    <button type="button" class="btn primary" [disabled]="!canGoNext() || submitting()" (click)="next()">
+      {{ step() === reviewStep() ? (submitting() ? 'Provisioning…' : 'Start provisioning') : 'Next' }}
+    </button>
+  </div>
+</div>
+
+<app-modal-shell *ngIf="planModalOpen()" title="Create a plan" [width]="860" (close)="closePlanBuilder()">
+  <p class="error-text" *ngIf="planModalError()">{{ planModalError() }}</p>
+  <app-plan-builder [embedded]="true" (created)="onPlanCreated($event)" (cancelled)="closePlanBuilder()"></app-plan-builder>
+</app-modal-shell>

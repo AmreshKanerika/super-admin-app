@@ -1,0 +1,149 @@
+<section class="application-workspace"><div class="workspace-intro"><div><span class="workspace-eyebrow">APPLICATION MANAGEMENT</span><h2>Access &amp; allowances</h2><p>Explore your application hierarchy. Select an application to configure its access and usage.</p></div><button class="btn ghost sm" (click)="resetUsage()">Reset usage</button></div>
+<div class="workspace-filters"><div class="filter-chips" role="group" aria-label="Filter by access status">
+        <button type="button" class="chip" [class.active]="statusFilter() === 'ALL'" (click)="setStatusFilter('ALL')">
+          All <span class="chip-count">{{ summary().total }}</span>
+        </button>
+        <button type="button" class="chip enabled" [class.active]="statusFilter() === 'ENABLED'" (click)="setStatusFilter('ENABLED')">
+          Enabled <span class="chip-count">{{ summary().enabled }}</span>
+        </button>
+        <button type="button" class="chip disabled" [class.active]="statusFilter() === 'DISABLED'" (click)="setStatusFilter('DISABLED')">
+          Disabled <span class="chip-count">{{ summary().disabled }}</span>
+        </button>
+        <button type="button" class="chip hidden" [class.active]="statusFilter() === 'HIDDEN'" (click)="setStatusFilter('HIDDEN')">
+          Hidden <span class="chip-count">{{ summary().hidden }}</span>
+        </button>
+        <button
+          type="button"
+          class="chip modified"
+          [class.active]="statusFilter() === 'MODIFIED'"
+          [disabled]="!dirtyCount()"
+          (click)="setStatusFilter('MODIFIED')">
+          Modified <span class="chip-count">{{ dirtyCount() }}</span>
+        </button>
+      </div>
+</div>
+<div class="limits-empty" *ngIf="noConfigurableApps(); else explorer">
+  <div class="limits-empty-icon" aria-hidden="true"><i class="ti ti-adjustments-off"></i></div>
+  <h3 *ngIf="!hasActiveSubscription()">No active subscription</h3>
+  <h3 *ngIf="hasActiveSubscription()">No applications to configure</h3>
+  <p *ngIf="!hasActiveSubscription()">This organization has no active subscription, so there are no application limits to set. Assign a subscription first, then the applications from its plan appear here.</p>
+  <p *ngIf="hasActiveSubscription()">The active plan for this organization grants no applications, so there is nothing to limit.</p>
+</div>
+<ng-template #explorer>
+<app-application-explorer [nodes]="explorerNodes()" [detail]="settings" [query]="query()" [loading]="loading()" (queryChange)="query.set($event)" (toggle)="toggleExpanded($event)" (expandAll)="expandAll()" (collapseAll)="collapseAll()"></app-application-explorer>
+</ng-template>
+<ng-template #settings let-row>
+<div class="application-settings">
+
+  <!-- The selected application: access first, because a disabled application has no allowances. -->
+  <section class="access-setting">
+    <div class="setting-heading">
+      <div><h3>Application access</h3><p>Choose how this application is available.</p></div>
+    </div>
+    <div class="access-options" role="group" aria-label="Application access">
+      <button type="button" [class.chosen]="row.state.accessStatus === 'ENABLED'" [attr.aria-pressed]="row.state.accessStatus === 'ENABLED'" (click)="setAccess(row, 'ENABLED')"><strong>Enabled</strong><span>Available to use</span></button>
+      <button type="button" [class.chosen]="row.state.accessStatus === 'DISABLED'" [attr.aria-pressed]="row.state.accessStatus === 'DISABLED'" (click)="setAccess(row, 'DISABLED')"><strong>Disabled</strong><span>Usage switched off</span></button>
+      <button type="button" [class.chosen]="row.state.accessStatus === 'HIDDEN'" [attr.aria-pressed]="row.state.accessStatus === 'HIDDEN'" (click)="setAccess(row, 'HIDDEN')"><strong>Hidden</strong><span>Hidden from users</span></button>
+    </div>
+  </section>
+
+  <ng-container *ngIf="row.state.accessStatus === 'ENABLED'; else inactive">
+    <div class="settings-grid">
+      <section class="allowance design">
+        <span class="setting-label">Design-time</span><p>Resources created in this application.</p>
+        <div class="allowance-value" *ngIf="isUnlimited(row, 'design')"><span class="infinity">&#8734;</span> Unlimited</div>
+        <label *ngIf="!(isUnlimited(row, 'design'))" class="custom-limit">Custom allowance<input class="input" type="number" min="0" step="1" [ngModel]="limitValue(row, 'design')" (ngModelChange)="setLimit(row, 'design', $event)" aria-label="Design-time allowance" /></label>
+        <button class="setting-link" type="button" *ngIf="isUnlimited(row, 'design')" (click)="startLimiting(row, 'design')">Set a custom limit <span aria-hidden="true">&#8599;</span></button>
+        <button class="setting-link" type="button" *ngIf="!(isUnlimited(row, 'design'))" (click)="clearLimit(row, 'design')">Use unlimited</button>
+        <div class="usage-line">{{ usedValue(row, 'design') | number }} used</div>
+      </section>
+      <section class="allowance runtime">
+        <span class="setting-label">Runtime</span><p>Executions performed by this application.</p>
+        <div class="allowance-value" *ngIf="isUnlimited(row, 'runtime')"><span class="infinity">&#8734;</span> Unlimited</div>
+        <label *ngIf="!(isUnlimited(row, 'runtime'))" class="custom-limit">Custom allowance<input class="input" type="number" min="0" step="1" [ngModel]="limitValue(row, 'runtime')" (ngModelChange)="setLimit(row, 'runtime', $event)" aria-label="Runtime allowance" /></label>
+        <button class="setting-link" type="button" *ngIf="isUnlimited(row, 'runtime')" (click)="startLimiting(row, 'runtime')">Set a custom limit <span aria-hidden="true">&#8599;</span></button>
+        <button class="setting-link" type="button" *ngIf="!(isUnlimited(row, 'runtime'))" (click)="clearLimit(row, 'runtime')">Use unlimited</button>
+        <div class="usage-line">{{ usedValue(row, 'runtime') | number }} used</div>
+      </section>
+    </div>
+    <p class="settings-help">Unlimited has no usage cap. A custom allowance of 0 prevents usage.</p>
+  </ng-container>
+  <ng-template #inactive>
+    <div class="inactive-message">
+      <strong>Usage allowances are inactive</strong>
+      <p>Enable this application to configure its design-time and runtime allowances. Saved limits are retained.</p>
+    </div>
+  </ng-template>
+
+  <!-- The parent chain. Enabling this application enables everything above it, so those
+       applications are shown here and stay editable rather than being described in a footnote. -->
+  <section class="family" *ngIf="familyAncestors(row).length">
+    <header class="family-head">
+      <h4>Contained in</h4>
+      <span class="family-note">Enabling this application enables its parent chain.</span>
+    </header>
+    <div class="family-list">
+      <ng-container *ngFor="let member of familyAncestors(row); let i = index; trackBy: trackFamilyMember">
+        <ng-container *ngTemplateOutlet="familyRow; context: { $implicit: member, indent: i }"></ng-container>
+      </ng-container>
+    </div>
+  </section>
+
+  <!-- Everything nested beneath. A change to the parent's access cascades here, so these are the
+       applications a super admin most needs to see while making it. -->
+  <section class="family" *ngIf="familyChildren(row).length">
+    <header class="family-head">
+      <h4>Nested applications</h4>
+      <span class="family-count">{{ familyChildren(row).length }}</span>
+      <span class="family-note">Changing access above cascades to all of these.</span>
+    </header>
+    <div class="family-list">
+      <ng-container *ngFor="let member of familyChildren(row); trackBy: trackFamilyMember">
+        <ng-container *ngTemplateOutlet="familyRow; context: { $implicit: member, indent: relativeDepth(row, member) }"></ng-container>
+      </ng-container>
+    </div>
+  </section>
+</div>
+</ng-template>
+
+<!-- One compact editable line per related application: name, access, and both allowances. -->
+<ng-template #familyRow let-member let-indent="indent">
+  <div class="family-row" [class.is-off]="member.state.accessStatus !== 'ENABLED'" [class.is-dirty]="member.dirty">
+    <span class="fr-name" [style.paddingLeft.px]="indent * 16">
+      <span class="fr-dot" [class.enabled]="member.state.accessStatus === 'ENABLED'" [class.hidden]="member.state.accessStatus === 'HIDDEN'" aria-hidden="true"></span>
+      {{ member.item.appName | appName }}
+    </span>
+
+    <span class="fr-access" role="group" [attr.aria-label]="'Access for ' + (member.item.appName | appName)">
+      <button type="button" [class.on]="member.state.accessStatus === 'ENABLED'" (click)="setAccess(member, 'ENABLED')">Enabled</button>
+      <button type="button" [class.on]="member.state.accessStatus === 'DISABLED'" (click)="setAccess(member, 'DISABLED')">Disabled</button>
+      <button type="button" [class.on]="member.state.accessStatus === 'HIDDEN'" (click)="setAccess(member, 'HIDDEN')">Hidden</button>
+    </span>
+
+    <span class="fr-limit kind-design">
+      <button type="button" class="fr-unset" *ngIf="isUnlimited(member, 'design')" (click)="startLimiting(member, 'design')" [attr.aria-label]="'Set a design-time limit for ' + (member.item.appName | appName)">&#8734;</button>
+      <ng-container *ngIf="!isUnlimited(member, 'design')">
+        <input class="input fr-input" type="number" min="0" step="1" [ngModel]="limitValue(member, 'design')" (ngModelChange)="setLimit(member, 'design', $event)" [attr.aria-label]="'Design-time allowance for ' + (member.item.appName | appName)" />
+        <button type="button" class="fr-clear" (click)="clearLimit(member, 'design')" aria-label="Remove the design-time limit">&#215;</button>
+      </ng-container>
+    </span>
+
+    <span class="fr-limit kind-runtime">
+      <button type="button" class="fr-unset" *ngIf="isUnlimited(member, 'runtime')" (click)="startLimiting(member, 'runtime')" [attr.aria-label]="'Set a runtime limit for ' + (member.item.appName | appName)">&#8734;</button>
+      <ng-container *ngIf="!isUnlimited(member, 'runtime')">
+        <input class="input fr-input" type="number" min="0" step="1" [ngModel]="limitValue(member, 'runtime')" (ngModelChange)="setLimit(member, 'runtime', $event)" [attr.aria-label]="'Runtime allowance for ' + (member.item.appName | appName)" />
+        <button type="button" class="fr-clear" (click)="clearLimit(member, 'runtime')" aria-label="Remove the runtime limit">&#215;</button>
+      </ng-container>
+    </span>
+  </div>
+</ng-template>
+  <div class="save-bar" *ngIf="dirtyCount()">
+    <span class="save-count">{{ dirtyCount() }} unsaved change{{ dirtyCount() === 1 ? '' : 's' }}</span>
+    <span class="save-error" *ngIf="saveError()">{{ saveError() }}</span>
+    <div class="spacer"></div>
+    <button type="button" class="btn ghost sm" [disabled]="saving()" (click)="discardChanges()">Discard</button>
+    <button type="button" class="btn primary sm" [disabled]="saving()" (click)="saveChanges()">
+      {{ saving() ? 'Saving…' : 'Save changes' }}
+    </button>
+  </div>
+</section>

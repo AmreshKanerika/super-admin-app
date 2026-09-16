@@ -1,0 +1,92 @@
+<div class="dashboard">
+  <header class="dashboard-header">
+    <div>
+      <span class="dashboard-eyebrow">FLIP PLATFORM CONSOLE <span class="eyebrow-separator">/</span> OVERVIEW</span>
+      <h1>Platform overview</h1>
+      <p>Organizations, subscriptions and the work that needs your attention.</p>
+    </div>
+    <div class="header-actions">
+      <a class="pulse-summary" routerLink="/organizations" [queryParams]="{ needsAttention: 'true', from: 'overview' }">
+        <span class="pulse-icon"><i class="ti ti-activity" aria-hidden="true"></i></span>
+        <span><strong>{{ organizationsRequiringAction() }}</strong><small>{{ organizationsRequiringAction() === 1 ? 'organization needs attention' : 'organizations need attention' }} · View list →</small></span>
+      </a>
+    </div>
+  </header>
+
+  <section class="dashboard-section" aria-labelledby="footprint-title">
+    <div class="section-heading"><h2 id="footprint-title">Platform totals</h2><p>Live counts from organizations and subscriptions</p></div>
+    <div class="footprint-grid">
+      <a class="footprint-card" *ngFor="let k of footprintKpis()" routerLink="/organizations" [queryParams]="drilldownParams(k)" [attr.aria-label]="k.label + ': ' + k.value + '. View organizations'">
+        <span class="card-top"><span>{{ k.label }}</span><i class="ti" [class]="k.icon" aria-hidden="true"></i></span>
+        <strong>{{ k.value }}</strong>
+        <span class="card-bottom">{{ k.detail }} <i class="ti ti-arrow-up-right" aria-hidden="true"></i></span>
+      </a>
+    </div>
+  </section>
+
+  <section class="dashboard-section" id="attention" aria-labelledby="signals-title">
+    <div class="section-heading"><h2 id="signals-title">Needs attention</h2><p>Open a metric to see the exact organizations</p></div>
+    <div class="signal-grid">
+      <a class="signal-card" *ngFor="let k of attentionKpis()" [class.has-alert]="k.value > 0" routerLink="/organizations" [queryParams]="drilldownParams(k)" [attr.aria-label]="k.label + ': ' + k.value + '. View organizations'">
+        <span class="signal-icon"><i class="ti" [class]="k.icon" aria-hidden="true"></i></span>
+        <span class="signal-value">{{ k.value }}</span>
+        <span class="signal-label">{{ k.label }}</span>
+        <small>{{ k.detail }}</small>
+      </a>
+    </div>
+  </section>
+
+  <div class="insight-grid">
+    <section class="insight-panel growth-panel" aria-labelledby="growth-title">
+      <div class="panel-heading"><h2 id="growth-title">Onboarding &amp; expiry by month</h2><span class="period-label">LAST 6 MONTHS</span></div>
+      <p class="panel-subtitle">New organizations and scheduled subscription end dates by month.</p>
+      <div class="growth-chart" role="img" aria-label="Monthly onboarding and subscription end dates for the last six months">
+        <div class="chart-group" *ngFor="let m of monthly().months">
+          <div class="bar-area">
+            <div class="chart-bar onboarded" *ngIf="m.onboarded > 0" [style.height.%]="(m.onboarded / monthly().max) * 100" [attr.title]="m.label + ': ' + m.onboarded + ' onboarded'"></div>
+            <div class="chart-bar expiring" *ngIf="m.expiring > 0" [style.height.%]="(m.expiring / monthly().max) * 100" [attr.title]="m.label + ': ' + m.expiring + ' end dates'"></div>
+          </div>
+          <span class="chart-month">{{ m.label }}</span>
+        </div>
+      </div>
+      <div class="chart-legend"><span><i class="legend-dot onboarded"></i> Onboarded</span><span><i class="legend-dot expiring"></i> End dates</span></div>
+    </section>
+
+    <section class="insight-panel adoption-panel" aria-labelledby="adoption-title">
+      <div class="panel-heading"><h2 id="adoption-title">Plan assignments</h2><a routerLink="/plans" *ngIf="isSuperAdmin()">View plans <i class="ti ti-arrow-up-right" aria-hidden="true"></i></a></div>
+      <p class="panel-subtitle">Organizations currently assigned to each plan.</p>
+      <div class="adoption-list" *ngIf="planAdoption().entries.length; else noAdoption">
+        <a class="adoption-row" *ngFor="let e of planAdoption().entries" routerLink="/organizations" [queryParams]="{ planId: e.planId, from: 'overview' }" [attr.title]="e.name + ': ' + e.count + ' assignments'">
+          <span class="adoption-name">{{ e.name }}</span><strong>{{ e.count }}</strong>
+          <span class="adoption-track"><span [style.width.%]="(e.count / planAdoption().max) * 100"></span></span>
+        </a>
+      </div>
+      <ng-template #noAdoption><div class="empty-insight"><i class="ti ti-chart-bar-off" aria-hidden="true"></i><strong>No plan assignments yet</strong><span>Onboard an organization to start tracking adoption.</span></div></ng-template>
+    </section>
+  </div>
+
+  <div class="lower-grid">
+    <section class="insight-panel attention-panel" aria-labelledby="priority-title">
+      <div class="panel-heading"><h2 id="priority-title">Organizations to review</h2><a routerLink="/organizations" [queryParams]="{ needsAttention: 'true', from: 'overview' }">View all {{ organizationsRequiringAction() }} <i class="ti ti-arrow-up-right" aria-hidden="true"></i></a></div>
+      <p class="panel-subtitle">Each organization is counted once. Open the list for every issue and next step.</p>
+      <div class="priority-list" *ngIf="attentionRows().length; else allClear">
+        <a class="priority-row" *ngFor="let r of attentionRows()" [routerLink]="['/organizations', r.org.orgId]" [queryParams]="{ from: 'overview' }">
+          <span class="org-avatar">{{ r.org.organizationName.charAt(0).toUpperCase() }}</span>
+          <span class="priority-org"><strong>{{ r.org.organizationName }}</strong><small>{{ r.org.domainName }}</small></span>
+          <span class="priority-plan">{{ planName(r.subscription?.planId) }}</span>
+          <span class="issue-badge" [class.urgent]="priority(r) < 2">{{ issueLabel(r) }}</span>
+          <span class="priority-expiry"><app-countdown *ngIf="r.subscription?.planStatus === 'ACTIVE' && r.daysToExpiry !== null && r.daysToExpiry <= 30" [date]="r.subscription!.planEndDate"></app-countdown><i class="ti ti-chevron-right" aria-hidden="true"></i></span>
+        </a>
+      </div>
+      <ng-template #allClear><div class="empty-insight"><i class="ti ti-circle-check" aria-hidden="true"></i><strong>No immediate actions</strong><span>There are no flagged organizations right now.</span></div></ng-template>
+    </section>
+
+    <section class="insight-panel actions-panel" aria-labelledby="actions-title">
+      <div class="panel-heading"><h2 id="actions-title">Common tasks</h2></div>
+      <nav class="action-list" aria-label="Common tasks">
+        <a *ngFor="let s of shortcuts()" [routerLink]="s.path"><span class="action-icon"><i class="ti" [class]="s.icon" aria-hidden="true"></i></span><span><strong>{{ s.label }}</strong><small>{{ s.description }}</small></span><i class="ti ti-arrow-up-right action-arrow" aria-hidden="true"></i></a>
+      </nav>
+    </section>
+  </div>
+
+</div>

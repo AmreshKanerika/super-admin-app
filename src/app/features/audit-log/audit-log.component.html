@@ -1,0 +1,83 @@
+<app-page-header
+  eyebrow="Compliance"
+  title="Audit log"
+  subtitle="Every action taken by every platform admin, across every organization — persisted and immutable."
+  [showBack]="showBack"
+  [backUrl]="backUrl"
+></app-page-header>
+
+<div class="filter-bar panel">
+  <input
+    class="input search"
+    placeholder="Search by actor, action, or target…"
+    [(ngModel)]="search"
+    (ngModelChange)="onSearchChange()"
+  />
+
+  <select class="input filter-select" [(ngModel)]="resultFilter" (ngModelChange)="onFilterChange()">
+    <option value="">All results</option>
+    <option value="SUCCESS">Success only</option>
+    <option value="FAILURE">Failure only</option>
+  </select>
+
+  <div class="date-range">
+    <input type="date" class="input" [(ngModel)]="fromDate" (ngModelChange)="onFilterChange()" aria-label="From date" />
+    <span class="range-sep">–</span>
+    <input type="date" class="input" [(ngModel)]="toDate" (ngModelChange)="onFilterChange()" aria-label="To date" />
+  </div>
+
+  <div class="spacer"></div>
+
+  <button type="button" class="btn ghost sm" (click)="exportCsv()">
+    <i class="ti ti-download"></i> Export CSV
+  </button>
+</div>
+
+<p class="error-banner" *ngIf="error()">{{ error() }}</p>
+
+<table class="dtable" *ngIf="items().length; else empty">
+  <thead>
+    <tr>
+      <th>When</th>
+      <th>Actor</th>
+      <th>Action</th>
+      <th>Target</th>
+      <th>Result</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr *ngFor="let a of items()">
+      <td class="mono nowrap">{{ formatDateTime(a.createdDate) }}</td>
+      <td>
+        <div class="actor-cell">
+          <span class="actor-avatar">{{ (a.actorName || a.actorEmail)[0] | uppercase }}</span>
+          <div class="actor-text">
+            <span class="actor-name" *ngIf="a.actorName">{{ a.actorName }}</span>
+            <span class="actor-email mono">{{ a.actorEmail }}</span>
+          </div>
+        </div>
+      </td>
+      <td><span class="action-chip">{{ actionLabel(a.action) }}</span></td>
+      <td>
+        <span class="target-type">{{ a.targetType }}</span>
+        <span class="target-label">{{ a.targetLabel }}</span>
+      </td>
+      <td><app-status-pill [label]="a.result" [tone]="a.result === 'SUCCESS' ? 'success' : 'critical'"></app-status-pill></td>
+    </tr>
+  </tbody>
+</table>
+<ng-template #empty>
+  <app-empty-state
+    *ngIf="!loading()"
+    title="No matching activity"
+    message="Try a different search term, result filter, or date range."
+  ></app-empty-state>
+</ng-template>
+
+<div class="pagination" *ngIf="totalElements()">
+  <span class="text-faint mono">{{ totalElements() }} total · page {{ page() + 1 }} of {{ totalPages() }}</span>
+  <div class="pager-btns">
+    <button type="button" class="btn ghost sm" [disabled]="page() <= 0" (click)="previousPage()">Previous</button>
+    <button type="button" class="btn ghost sm" [disabled]="page() + 1 >= totalPages()" (click)="nextPage()">Next</button>
+  </div>
+</div>

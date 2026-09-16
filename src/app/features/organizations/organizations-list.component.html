@@ -1,0 +1,114 @@
+<app-page-header [eyebrow]="needsAttention ? 'Action queue' : 'All tenants'" [title]="needsAttention ? 'Organizations needing attention' : 'Organizations'" [subtitle]="filtered().length + ' of ' + overview.metrics().total + ' organizations'" [showBack]="showBack" [backUrl]="backUrl">
+  <button type="button" class="btn ghost" (click)="exportCsv()">Export CSV</button>
+  <a class="btn primary" *ngIf="isSuperAdmin()" routerLink="/onboarding/new">Onboard organization</a>
+</app-page-header>
+<p class="attention-summary" *ngIf="needsAttention">Each organization appears once. Review the reasons and next steps below; open its name to manage the subscription or domain.</p>
+
+<div class="filterbar">
+  <input class="input search" placeholder="Search by name or domain…" [(ngModel)]="search" />
+
+  <select class="input select" [(ngModel)]="planStatus" (change)="onFilterChange()">
+    <option value="">Any status</option>
+    <option *ngFor="let s of statusOptions" [value]="s">{{ s }}</option>
+  </select>
+
+  <select class="input select" [(ngModel)]="planId" (change)="onFilterChange()">
+    <option value="">Any plan</option>
+    <option *ngFor="let p of plans.list()()" [value]="p.planId">{{ p.planName }}</option>
+  </select>
+
+  <div class="quick-chips">
+    <button
+      type="button"
+      class="chip"
+      [class.active]="expiringInDays === 7"
+      (click)="expiringInDays = expiringInDays === 7 ? null : 7; onFilterChange()"
+    >
+      Expiring ≤7d
+    </button>
+    <button
+      type="button"
+      class="chip"
+      [class.active]="expiringInDays === 30"
+      (click)="expiringInDays = expiringInDays === 30 ? null : 30; onFilterChange()"
+    >
+      Expiring ≤30d
+    </button>
+    <button type="button" class="chip" [class.active]="paidOnly === true" (click)="paidOnly = paidOnly === true ? null : true; onFilterChange()">Paid only</button>
+    <button
+      type="button"
+      class="chip"
+      [class.active]="needsActivation"
+      (click)="needsActivation = !needsActivation; onFilterChange()"
+      title="Organizations whose URL is reserved but not yet activated">
+      Needs URL activation
+      <span class="chip-count" *ngIf="pendingActivationCount()">{{ pendingActivationCount() }}</span>
+    </button>
+  </div>
+</div>
+
+<div class="active-filters" *ngIf="planStatus || planId || expiringInDays || paidOnly || hasSubscription === false || createdWithinDays || needsActivation || needsAttention">
+  <button type="button" class="chip removable" *ngIf="needsAttention" (click)="clearFilter('needsAttention')">Needs attention ×</button>
+  <span class="chip removable" *ngIf="planStatus" (click)="clearFilter('planStatus')">Status: {{ planStatus }}</span>
+  <span class="chip removable" *ngIf="planId" (click)="clearFilter('planId')">Plan: {{ planName(planId) }}</span>
+  <span class="chip removable" *ngIf="expiringInDays" (click)="clearFilter('expiringInDays')">Expiring in {{ expiringInDays }}d</span>
+  <span class="chip removable" *ngIf="paidOnly" (click)="clearFilter('paidOnly')">Paid organizations</span>
+  <span class="chip removable" *ngIf="hasSubscription === false" (click)="clearFilter('hasSubscription')">No subscription</span>
+  <span class="chip removable" *ngIf="createdWithinDays" (click)="clearFilter('createdWithinDays')">Onboarded in {{ createdWithinDays }}d</span>
+  <span class="chip removable" *ngIf="needsActivation" (click)="clearFilter('needsActivation')">URL needs activation</span>
+</div>
+
+<div class="scroll-x">
+  <table class="dtable" *ngIf="paged().length; else empty">
+    <thead>
+      <tr>
+        <th class="sortable" (click)="sortBy('name')">Organization</th>
+        <th>Domain</th>
+        <th>Plan</th>
+        <th>Status</th>
+        <th class="sortable" (click)="sortBy('expiry')">Expires</th>
+        <th *ngIf="needsAttention">Why attention is needed / Next step</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let r of paged(); trackBy: rowKey">
+        <td class="strong"><a class="row-link" [routerLink]="['/organizations', r.org.orgId]" [queryParams]="showBack ? { from: 'overview' } : null">{{ r.org.organizationName }}</a></td>
+        <td class="mono">
+          <span class="domain-value">{{ r.org.domainName }}</span>
+          <span
+            class="domain-chip"
+            *ngIf="r.org.domainStatus && r.org.domainStatus !== 'ACTIVE'"
+            [class.is-released]="r.org.domainStatus === 'RELEASED'"
+            [title]="domainChipTitle(r.org)">
+            {{ r.org.domainStatus === 'RELEASED' ? 'Released' : 'Not activated' }}
+          </span>
+        </td>
+        <td>{{ planName(r.subscription?.planId) }}</td>
+        <td>
+          <app-status-pill *ngIf="r.subscription" [label]="r.subscription.planStatus" [tone]="tone(r.subscription.planStatus)"></app-status-pill>
+          <span *ngIf="!r.subscription" class="text-faint">no subscription</span>
+        </td>
+        <td><app-countdown *ngIf="r.subscription" [date]="r.subscription.planEndDate"></app-countdown></td>
+        <td *ngIf="needsAttention">
+          <ul class="attention-reasons">
+            <li *ngFor="let issue of overview.attentionReasons(r)"><strong>{{ issue.label }}</strong><span>{{ issue.action }}</span></li>
+          </ul>
+          <a [routerLink]="['/organizations', r.org.orgId]" [queryParams]="{ from: 'overview' }">Review organization →</a>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+  <ng-template #empty>
+    <app-empty-state title="No organizations match these filters" [message]="isSuperAdmin() ? 'Try clearing a filter, or onboard a new organization.' : 'Try clearing a filter.'">
+      <a class="btn primary" *ngIf="isSuperAdmin()" routerLink="/onboarding/new">Onboard organization</a>
+    </app-empty-state>
+  </ng-template>
+</div>
+
+<div class="pagination" *ngIf="filtered().length">
+  <span class="text-faint mono">Page {{ page() }} of {{ totalPages() }}</span>
+  <div class="pager-btns">
+    <button type="button" class="btn ghost sm" [disabled]="page() <= 1" (click)="page.set(page() - 1)">Previous</button>
+    <button type="button" class="btn ghost sm" [disabled]="page() >= totalPages()" (click)="page.set(page() + 1)">Next</button>
+  </div>
+</div>

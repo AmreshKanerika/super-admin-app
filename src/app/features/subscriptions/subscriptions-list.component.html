@@ -1,0 +1,123 @@
+<app-page-header eyebrow="Cross-organization" title="Subscriptions" subtitle="Every subscription across every organization, with lifecycle actions." [showBack]="showBack" [backUrl]="backUrl"></app-page-header>
+
+<div class="filterbar">
+  <select class="input select" [(ngModel)]="statusFilter">
+    <option value="">Any status</option>
+    <option value="ACTIVE">ACTIVE</option>
+    <option value="SUSPENDED">SUSPENDED</option>
+    <option value="EXPIRED">EXPIRED</option>
+    <option value="CANCELLED">CANCELLED</option>
+  </select>
+  <div class="quick-chips">
+    <button type="button" class="chip" [class.active]="expiringInDays === 7" (click)="expiringInDays = expiringInDays === 7 ? null : 7">Expiring ≤7d</button>
+    <button type="button" class="chip" [class.active]="expiringInDays === 15" (click)="expiringInDays = expiringInDays === 15 ? null : 15">Expiring ≤15d</button>
+    <button type="button" class="chip" [class.active]="expiringInDays === 30" (click)="expiringInDays = expiringInDays === 30 ? null : 30">Expiring ≤30d</button>
+  </div>
+</div>
+
+<div class="scroll-x">
+  <table class="dtable lead-icon sub-table" *ngIf="rows().length; else empty">
+    <thead>
+      <tr>
+        <th></th>
+        <th>Plan</th>
+        <th>Status</th>
+        <th>Start</th>
+        <th>End</th>
+        <th>Expires</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <ng-container *ngFor="let g of orgGroups()">
+      <tr class="org-group-row">
+        <td colspan="7">
+          <div class="org-group">
+            <a class="org-group-name" [routerLink]="['/organizations', g.orgId]" [queryParams]="showBack ? { from: 'overview' } : null">{{ g.orgName }}</a>
+            <span class="org-group-count">{{ g.subscriptions.length }} {{ g.subscriptions.length === 1 ? 'subscription' : 'subscriptions' }}</span>
+            <span class="org-group-summary">{{ statusSummary(g) }}</span>
+          </div>
+        </td>
+      </tr>
+      <ng-container *ngFor="let s of g.subscriptions">
+        <tr class="sub-row">
+          <td>
+            <button type="button" class="expand-btn" (click)="toggleExpand(s.subscriptionId)">{{ expandedId() === s.subscriptionId ? '▾' : '▸' }}</button>
+          </td>
+          <td class="strong">{{ planName(s.planId) }}</td>
+          <td><app-status-pill [label]="s.planStatus" [tone]="tone(s.planStatus)"></app-status-pill></td>
+          <td>{{ formatDate(s.planStartDate) }}</td>
+          <td>{{ formatDate(s.planEndDate) }}</td>
+          <td><app-countdown [date]="s.planEndDate"></app-countdown></td>
+          <td class="row-actions">
+            <div class="action-group">
+              <button type="button" class="action-btn" (click)="extend(s)" title="Extend by 90 days">
+                <i class="ti ti-calendar-plus"></i><span>Extend</span>
+              </button>
+              <button type="button" class="action-btn" (click)="shorten(s)" title="Shorten by 30 days">
+                <i class="ti ti-calendar-minus"></i><span>Shorten</span>
+              </button>
+              <button type="button" class="action-btn" *ngIf="isSuperAdmin()" (click)="openChangePlan(s)" title="Change plan">
+                <i class="ti ti-replace"></i><span>Change plan</span>
+              </button>
+              <button type="button" class="action-btn" *ngIf="isSuperAdmin() && s.planStatus === 'ACTIVE'" (click)="suspend(s)" title="Suspend">
+                <i class="ti ti-player-pause"></i><span>Suspend</span>
+              </button>
+              <button type="button" class="action-btn" *ngIf="isSuperAdmin() && s.planStatus === 'SUSPENDED'" (click)="reactivate(s)" title="Reactivate">
+                <i class="ti ti-player-play"></i><span>Reactivate</span>
+              </button>
+            </div>
+            <button type="button" class="action-btn danger" *ngIf="isSuperAdmin() && s.planStatus !== 'CANCELLED'" (click)="cancel(s)" title="Cancel subscription">
+              <i class="ti ti-ban"></i><span>Cancel</span>
+            </button>
+          </td>
+        </tr>
+        <tr *ngIf="expandedId() === s.subscriptionId" class="history-row">
+          <td colspan="7">
+            <div class="history-panel" *ngIf="s.statusReason">
+              <p class="hist-reason"><strong>Status reason:</strong> {{ s.statusReason }}</p>
+            </div>
+            <div class="history-panel" *ngIf="history(s).length; else noHist">
+              <div class="hist-item" *ngFor="let h of history(s)">
+                <span class="mono">{{ formatDateTime(h.createdDate) }}</span>
+                <span>{{ h.action }} — {{ h.targetLabel }}</span>
+              </div>
+            </div>
+            <ng-template #noHist><p class="text-faint" style="padding:10px 0">No history recorded yet.</p></ng-template>
+          </td>
+        </tr>
+      </ng-container>
+      </ng-container>
+    </tbody>
+  </table>
+  <ng-template #empty>
+    <app-empty-state title="No subscriptions match these filters" message="Clear a filter to see more subscriptions."></app-empty-state>
+  </ng-template>
+</div>
+
+<div class="backdrop" *ngIf="changePlanTarget() as target" (click)="closeChangePlan()">
+  <div class="panel change-panel" (click)="$event.stopPropagation()">
+    <div class="cp-head">
+      <h3>Change plan — {{ orgName(target.orgId) }}</h3>
+      <button type="button" class="x" (click)="closeChangePlan()">✕</button>
+    </div>
+    <p class="hint">Currently on <strong>{{ planName(target.planId) }}</strong>.</p>
+    <div class="field">
+      <label>New plan</label>
+      <select class="input" [(ngModel)]="changePlanNewId">
+        <option value="">Select a plan…</option>
+        <optgroup label="Default plans">
+          <option *ngFor="let p of defaultPlans()" [value]="p.planId" [disabled]="p.planId === target.planId">{{ p.planName }}</option>
+        </optgroup>
+        <optgroup label="Custom plans" *ngIf="customPlans().length">
+          <option *ngFor="let p of customPlans()" [value]="p.planId" [disabled]="p.planId === target.planId">{{ p.planName }}</option>
+        </optgroup>
+      </select>
+    </div>
+    <div class="wizard-actions">
+      <button type="button" class="btn ghost" (click)="closeChangePlan()">Cancel</button>
+      <div class="spacer"></div>
+      <button type="button" class="btn primary" [disabled]="!changePlanNewId" (click)="confirmChangePlan()">Review change</button>
+    </div>
+  </div>
+</div>
