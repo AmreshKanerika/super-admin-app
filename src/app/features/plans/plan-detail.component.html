@@ -1,0 +1,92 @@
+<ng-container *ngIf="plan() as p">
+  <app-page-header eyebrow="Plan" [title]="p.planName" [subtitle]="p.description" [showBack]="true" [backUrl]="'/plans'">
+    <app-status-pill [label]="p.planState" [tone]="tone(p.planState)"></app-status-pill>
+    <button type="button" class="btn ghost" (click)="openAssign()">Assign to organization</button>
+    <a
+      class="btn ghost"
+      [routerLink]="['/plans', p.planId, 'edit']"
+      *ngIf="p.planType === 'CUSTOM'"
+    >
+      Edit
+    </a>
+    <button type="button" class="btn ghost" [disabled]="cloning()" (click)="clone()">{{ cloning() ? 'Cloning…' : 'Clone' }}</button>
+    <button
+      type="button"
+      class="btn danger"
+      *ngIf="p.planType === 'CUSTOM'"
+      [disabled]="!canEditOrDelete() || deleting()"
+      [title]="!canEditOrDelete() ? 'Assigned to ' + usingOrgs().length + ' organization(s) — unassign first' : ''"
+      (click)="delete()"
+    >
+      Delete
+    </button>
+    <button type="button" class="btn danger" *ngIf="p.planState !== 'ARCHIVED'" (click)="setArchived(true)">Archive</button>
+    <button type="button" class="btn primary" *ngIf="p.planState === 'ARCHIVED'" (click)="setArchived(false)">Reactivate</button>
+  </app-page-header>
+
+  <div class="grid-2">
+    <div class="panel">
+      <h3 class="panel-title">Plan details</h3>
+      <div class="kv-grid">
+        <div class="kv-item"><p class="k">Type</p><p class="v">{{ p.planType }}</p></div>
+        <div class="kv-item"><p class="k">Billing mode</p><p class="v">{{ p.billingMode }}</p></div>
+        <div class="kv-item"><p class="k">Created</p><p class="v">{{ formatDate(p.createdDate) }}</p></div>
+        <div class="kv-item"><p class="k">Organizations using this plan</p><p class="v mono">{{ usingOrgs().length }}</p></div>
+      </div>
+
+<div class="application-workspace"><div class="workspace-intro"><div><span class="workspace-eyebrow">PLAN CONFIGURATION</span><h2>Applications &amp; allowances</h2><p>Explore what this plan includes. Select an application to inspect its access and limits.</p></div><a class="btn ghost sm" *ngIf="p.planType === 'CUSTOM'" [routerLink]="['/plans', p.planId, 'edit']">Edit configuration</a></div>
+<app-application-explorer [nodes]="explorerNodes()" [detail]="planSettings" [query]="appQuery()" (queryChange)="appQuery.set($event)" (toggle)="toggleAppCollapsed($event)" (expandAll)="expandAllApps()" (collapseAll)="collapseAllApps()"></app-application-explorer>
+<ng-template #planSettings let-row><div class="application-settings"><section class="access-setting"><div class="setting-heading"><div><h3>Application access</h3><p>Availability included in this plan.</p></div><span class="access-read" [class.on]="row.accessStatus === 'ENABLED'">{{ row.accessStatus | titlecase }}</span></div></section><div class="settings-grid">
+<section class="allowance design"><span class="setting-label">Design-time</span><p>Resources created in this application.</p><div class="allowance-value">{{ row.accessStatus !== 'ENABLED' ? 'Inactive' : row.designTimeLimit === -1 ? 'Unlimited' : (row.designTimeLimit | number) }}</div></section>
+<section class="allowance runtime"><span class="setting-label">Runtime</span><p>Executions performed by this application.</p><div class="allowance-value">{{ row.accessStatus !== 'ENABLED' ? 'Inactive' : row.runtimeLimit === -1 ? 'Unlimited' : (row.runtimeLimit | number) }}</div></section></div><p class="settings-help">These are the plan allowances. Organization-specific overrides are managed under Apps &amp; limits.</p><div class="inactive-message" *ngIf="row.hasChildren"><strong>{{ row.descendantCount }} nested application{{ row.descendantCount === 1 ? '' : 's' }}</strong><p>Expand this application in the directory to inspect each child's configuration.</p></div></div></ng-template></div>
+    </div>
+
+    <div class="panel">
+      <h3 class="panel-title">Organizations on this plan</h3>
+      <table class="dtable" *ngIf="usingOrgs().length; else noOrgs">
+        <thead>
+          <tr>
+            <th>Organization</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let r of usingOrgs()">
+            <td class="strong"><a class="row-link" [routerLink]="['/organizations', r.org.orgId]">{{ r.org.organizationName }}</a></td>
+            <td><app-status-pill *ngIf="r.subscription" [label]="r.subscription.planStatus" [tone]="subscriptionTone(r.subscription.planStatus)"></app-status-pill></td>
+          </tr>
+        </tbody>
+      </table>
+      <ng-template #noOrgs><p class="text-muted" style="padding:20px 0;text-align:center">No organizations are on this plan.</p></ng-template>
+    </div>
+  </div>
+
+  <div class="backdrop" *ngIf="assignOpen()" (click)="closeAssign()">
+    <div class="panel detail-panel" (click)="$event.stopPropagation()">
+      <div class="dp-head">
+        <h3>Assign "{{ p.planName }}" to an organization</h3>
+        <button type="button" class="x" (click)="closeAssign()">âœ•</button>
+      </div>
+
+      <div class="field" *ngIf="unassignedOrgs().length; else noneToAssign">
+        <label>Organization</label>
+        <select class="input" [(ngModel)]="assignOrgId">
+          <option value="">Select an organization…</option>
+          <option *ngFor="let org of unassignedOrgs()" [value]="org.orgId">{{ org.organizationName }}</option>
+        </select>
+        <p class="hint">Only organizations without an active subscription are shown. To move an organization onto a different plan, use the Change plan action on its subscription instead.</p>
+      </div>
+      <ng-template #noneToAssign>
+        <p class="text-muted" style="padding:8px 0">Every organization already has an active subscription.</p>
+      </ng-template>
+
+      <div class="wizard-actions" *ngIf="unassignedOrgs().length">
+        <button type="button" class="btn ghost" (click)="closeAssign()">Cancel</button>
+        <div class="spacer"></div>
+        <button type="button" class="btn primary" [disabled]="!assignOrgId || assignSubmitting()" (click)="confirmAssign()">
+          {{ assignSubmitting() ? 'Assigning…' : 'Assign plan' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</ng-container>

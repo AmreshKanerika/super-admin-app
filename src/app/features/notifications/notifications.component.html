@@ -1,0 +1,101 @@
+<app-page-header eyebrow="Expiry reminders" title="Notifications" subtitle="Automatic and manual expiry reminders, delivery history, and reminder settings." [showBack]="showBack" [backUrl]="backUrl"></app-page-header>
+
+<div class="tabbar">
+  <button [class.active]="activeTab() === 'expiring'" (click)="activeTab.set('expiring')">Expiring soon</button>
+  <button [class.active]="activeTab() === 'history'" (click)="activeTab.set('history')">History</button>
+  <button [class.active]="activeTab() === 'settings'" (click)="activeTab.set('settings')">Settings</button>
+</div>
+
+<div class="tab-content">
+  <!-- EXPIRING -->
+  <div *ngIf="activeTab() === 'expiring'">
+    <div class="row" style="justify-content:space-between;margin-bottom:12px">
+      <label class="checkbox-row"><input type="checkbox" [checked]="allSelected()" (change)="toggleSelectAll()" /> Select all</label>
+      <button type="button" class="btn primary sm" [disabled]="!selected().size" (click)="sendToSelected()">Send reminder ({{ selected().size }})</button>
+    </div>
+    <table class="dtable lead-icon" *ngIf="expiring().length; else noExp">
+      <thead>
+        <tr>
+          <th></th>
+          <th>Organization</th>
+          <th>Admin email</th>
+          <th>Expires</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let r of expiring()">
+          <td><input type="checkbox" [checked]="selected().has(r.sub.subscriptionId)" (change)="toggleSelect(r.sub.subscriptionId)" /></td>
+          <td class="strong"><a class="row-link" [routerLink]="['/organizations', r.sub.orgId]" [queryParams]="showBack ? { from: 'overview' } : null">{{ orgName(r.sub.orgId) }}</a></td>
+          <td class="mono">{{ adminEmail(r.sub.orgId) }}</td>
+          <td><app-countdown [date]="r.sub.planEndDate"></app-countdown></td>
+        </tr>
+      </tbody>
+    </table>
+    <ng-template #noExp><p class="text-muted" style="padding:24px 0;text-align:center">Nothing expiring in the next 30 days.</p></ng-template>
+  </div>
+
+  <!-- HISTORY -->
+  <div *ngIf="activeTab() === 'history'">
+    <table class="dtable" *ngIf="notifications.log()().length; else noHist">
+      <thead>
+        <tr>
+          <th>Sent</th>
+          <th>Organization</th>
+          <th>Subject</th>
+          <th>Recipient</th>
+          <th>Timing</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let n of notifications.log()()">
+          <td>{{ formatDateTime(n.sentDate) }}</td>
+          <td class="strong"><a class="row-link" [routerLink]="['/organizations', n.orgId]">{{ orgName(n.orgId) }}</a></td>
+          <td>{{ n.subject }}</td>
+          <td class="mono">{{ n.recipient }}</td>
+          <td>{{ offsetLabel(n.offsetDays) }}</td>
+          <td><app-status-pill [label]="n.status" [tone]="n.status === 'SENT' ? 'success' : n.status === 'FAILED' ? 'critical' : 'accent'"></app-status-pill></td>
+          <td><button type="button" class="btn ghost sm" *ngIf="n.status === 'FAILED'" (click)="resend(n.id)">Resend</button></td>
+        </tr>
+      </tbody>
+    </table>
+    <ng-template #noHist><p class="text-muted" style="padding:24px 0;text-align:center">No notifications sent yet.</p></ng-template>
+  </div>
+
+  <!-- SETTINGS -->
+  <div *ngIf="activeTab() === 'settings'" class="settings-cards">
+    <div class="panel settings-card">
+      <div class="settings-card-head">
+        <div>
+          <h3>Automatic reminders</h3>
+          <p class="hint">Email an organization's admin automatically as their subscription approaches expiry.</p>
+        </div>
+        <app-toggle-switch [checked]="notifications.settings()().enabled" (checkedChange)="toggleEnabled()" ariaLabel="Enable automatic reminders"></app-toggle-switch>
+      </div>
+    </div>
+
+    <div class="panel settings-card">
+      <h3>When to send</h3>
+      <p class="hint">Choose how many days before expiry a reminder goes out — pick as many as you'd like.</p>
+      <div class="offset-chips">
+        <button
+          type="button"
+          class="chip"
+          *ngFor="let o of offsetChoices"
+          [class.active]="hasOffset(o)"
+          (click)="toggleOffset(o)"
+        >
+          {{ offsetLabel(o) }}
+        </button>
+      </div>
+    </div>
+
+    <div class="panel settings-card">
+      <h3>Also notify</h3>
+      <p class="hint">These addresses are copied on every reminder, alongside the organization's own admin.</p>
+      <input class="input mono" [(ngModel)]="ccText" (ngModelChange)="ccTextTouched = true" placeholder="platform-ops@flipnow.cloud" />
+      <button type="button" class="btn primary" style="margin-top:14px" (click)="saveCc()">Save settings</button>
+    </div>
+  </div>
+</div>

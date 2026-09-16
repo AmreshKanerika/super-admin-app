@@ -1,0 +1,498 @@
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.step {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  color: var(--ink-faint);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 2px;
+}
+
+.step:disabled {
+  cursor: default;
+}
+
+.step .n {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1px solid var(--line-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-family: var(--font-mono);
+}
+
+.step.done {
+  color: var(--ink-soft);
+}
+
+.step.done .n {
+  background: var(--success);
+  border-color: var(--success);
+  color: #fff;
+}
+
+.step.current {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.step.current .n {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.step-sep {
+  width: 24px;
+  height: 1px;
+  background: var(--line-strong);
+}
+
+.step-body {
+  min-height: 220px;
+}
+
+// Two fields side by side on wide screens, wrapping to full-width stacked fields on narrow ones —
+// min-width forces a wrap instead of squeezing both inputs down to unreadable widths. Top-aligned
+// (overriding the global .row's align-items:center) so one field growing taller — e.g. the domain
+// prefix's availability hint appearing below it — doesn't re-center and visually drop the other field.
+.field-row {
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.field-row > .field {
+  flex: 1 1 200px;
+  min-width: 200px;
+}
+
+.review-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px 24px;
+  margin-bottom: 18px;
+}
+
+@media (max-width: 560px) {
+  .review-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.kv-item .k {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin-bottom: 4px;
+}
+
+.kv-item .v {
+  font-size: 13.5px;
+}
+
+.callout {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.wizard-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 26px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
+.prog-list {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 20px;
+}
+
+.prog-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+  color: var(--ink-faint);
+}
+
+.prog-item .ic {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px solid var(--line-strong);
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+}
+
+.prog-item.done {
+  color: var(--ink-soft);
+}
+
+.prog-item.done .ic {
+  background: var(--success);
+  border-color: var(--success);
+  color: #fff;
+}
+
+.prog-item.current {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.prog-item.current .ic {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.prog-item.failed {
+  color: var(--critical);
+  font-weight: 600;
+}
+
+.prog-item.failed .ic {
+  background: var(--critical);
+  border-color: var(--critical);
+  color: #fff;
+}
+
+.run-banner {
+  border-radius: var(--radius);
+  padding: 16px 18px;
+}
+
+.run-banner p {
+  font-size: 13.5px;
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+
+.run-banner.failed {
+  background: var(--critical-soft);
+  color: var(--critical);
+}
+
+.run-banner.rolled-back {
+  background: var(--paper-sunken);
+  color: var(--ink-soft);
+}
+
+.run-banner.success {
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.cred-box {
+  background: var(--paper-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  margin-bottom: 14px;
+}
+
+.cred-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 5px 0;
+  font-size: 12.5px;
+}
+
+.cred-row .k {
+  color: var(--ink-faint);
+}
+
+.cred-row .v {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.warning-note {
+  font-size: 12.5px;
+  color: var(--warning);
+  background: var(--warning-soft);
+  border-radius: var(--radius-sm);
+  padding: 9px 12px;
+  margin-bottom: 14px;
+}
+
+.subscription-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  margin-bottom: 14px;
+}
+
+.subscription-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  font-size: 13px;
+}
+
+.blocked-plans {
+  margin-top: 18px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.plan-picker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.plan-picker .input {
+  flex: 1;
+  min-width: 0;
+}
+
+.new-plan-btn {
+  flex: none;
+  white-space: nowrap;
+}
+
+.reservation-note {
+  margin-top: 8px;
+  padding: 10px 12px;
+  background: var(--paper-sunken);
+  border-left: 3px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  line-height: 1.5;
+}
+
+.link-btn {
+  margin-left: 8px;
+  padding: 0;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent-ink);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+/* ===========================================================================
+   Modernised wizard chrome
+   The stepper reads as a connected progress track rather than loose buttons,
+   and the form panel gets the breathing room a provisioning form deserves.
+   =========================================================================== */
+
+.steps {
+  gap: 0;
+  padding: 4px 2px 20px;
+  flex-wrap: wrap;
+}
+
+.step {
+  gap: 9px;
+  padding: 7px 14px 7px 8px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  transition: background-color 0.14s ease, color 0.14s ease;
+}
+
+.step:not(:disabled):hover {
+  background: var(--ui-violet-wash);
+  color: var(--ink);
+}
+
+.step .n {
+  width: 24px;
+  height: 24px;
+  font-size: 11.5px;
+  font-weight: 700;
+  font-family: inherit;
+  background: var(--paper-raised);
+  transition: background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease;
+}
+
+/* The current step is the one place on the page that should pull the eye. */
+.step.current {
+  background: var(--ui-violet-wash);
+  color: var(--ui-violet);
+}
+
+.step.current .n {
+  background: var(--ui-header-grad);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(116, 52, 181, 0.35);
+}
+
+.step.done .n {
+  background: var(--success);
+  border-color: var(--success);
+}
+
+/* A filled connector behind completed steps turns the row into a progress track. */
+.step-sep {
+  width: 30px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--line);
+  align-self: center;
+  margin: 0 2px;
+}
+
+.step.done + .step-sep {
+  background: var(--success);
+  opacity: 0.45;
+}
+
+/* --- the form panel --- */
+
+.panel {
+  border-radius: 16px;
+  border-color: var(--line);
+  padding: 26px 28px 24px;
+  box-shadow: 0 1px 2px rgba(35, 16, 54, 0.04);
+}
+
+.step-body {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-height: 220px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.field > label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--ink);
+}
+
+.field .input {
+  border-radius: 9px;
+  padding: 11px 13px;
+  font-size: 13.5px;
+  background: var(--paper-raised);
+  border: 1px solid var(--line-strong);
+  transition: border-color 0.14s ease, box-shadow 0.14s ease, background-color 0.14s ease;
+}
+
+.field .input:hover:not(:disabled):not(.invalid) {
+  border-color: #b9a4cd;
+}
+
+.field .input:focus {
+  outline: none;
+  border-color: var(--ui-violet);
+  background: var(--paper-raised);
+  box-shadow: 0 0 0 3px rgba(124, 70, 163, 0.14);
+}
+
+.field .input.invalid {
+  border-color: var(--critical);
+  background: #fffafa;
+}
+
+.field .input.invalid:focus {
+  box-shadow: 0 0 0 3px rgba(213, 78, 78, 0.16);
+}
+
+.field .hint {
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--ink-faint);
+}
+
+.field .error-text {
+  font-size: 11.5px;
+  color: var(--critical);
+}
+
+.field-row {
+  gap: 18px;
+}
+
+/* Checkbox options read as rows you can click, not bare inputs. */
+.step-body label:has(> input[type='checkbox']) {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: border-color 0.14s ease, background-color 0.14s ease;
+}
+
+.step-body label:has(> input[type='checkbox']:checked) {
+  border-color: var(--ui-violet-soft);
+  background: var(--ui-violet-wash);
+  color: var(--ink);
+}
+
+.step-body label:has(> input[type='checkbox']):hover {
+  border-color: var(--ui-violet-soft);
+}
+
+/* The reservation explainer is guidance, not an error - give it its own calm treatment. */
+.step-body .note,
+.step-body .callout {
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--ui-violet-soft);
+  background: var(--ui-violet-wash);
+  color: var(--ink-soft);
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+.wizard-actions {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
+@media (max-width: 720px) {
+  .panel {
+    padding: 20px 18px 18px;
+  }
+  .step {
+    padding: 6px 10px 6px 6px;
+  }
+  .step-sep {
+    width: 14px;
+  }
+}

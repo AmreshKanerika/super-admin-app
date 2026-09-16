@@ -1,0 +1,365 @@
+// Shared wizard, filter and save controls.
+@charset "UTF-8";
+app-limits-panel {
+  --row-h: 46px;
+  --indent: 22px;
+  --col-app: minmax(280px, 2.4fr);
+  --col-num: minmax(190px, 1fr);
+  --col-access: minmax(230px, 0.9fr);
+  display: block;
+}
+app-limits-panel .filter-chips {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+app-limits-panel .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  background: var(--paper-sunken);
+  border: 1px solid transparent;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+app-limits-panel .chip:hover:not(:disabled) {
+  background: var(--paper-raised);
+  border-color: var(--line-strong);
+}
+app-limits-panel .chip:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+app-limits-panel .chip.active {
+  color: var(--ink);
+  background: var(--paper-raised);
+  border-color: var(--ink-soft);
+}
+app-limits-panel .chip-count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ink-faint);
+}
+app-limits-panel .chip.active .chip-count {
+  color: var(--ink);
+}
+app-limits-panel .chip.enabled.active {
+  border-color: var(--success);
+  color: var(--success);
+}
+app-limits-panel .chip.enabled.active .chip-count {
+  color: var(--success);
+}
+app-limits-panel .chip.disabled.active {
+  border-color: var(--line-strong);
+}
+app-limits-panel .chip.hidden.active {
+  border-color: var(--muted);
+  color: var(--ink-faint);
+}
+app-limits-panel .chip.modified.active {
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+app-limits-panel .chip.modified.active .chip-count {
+  color: var(--accent-ink);
+}
+app-limits-panel .save-error {
+  font-size: 12.5px;
+  color: var(--critical);
+}
+/* The bar stuck to bottom:12px inside a section with no matching bottom padding, so it sat on top
+   of the explorer's own legend instead of below the content it belongs to. It now pins to the
+   bottom of the workspace, and the workspace reserves exactly its height underneath. */
+app-limits-panel .application-workspace {
+  padding-bottom: 8px;
+}
+
+app-limits-panel .application-workspace:has(.save-bar) {
+  padding-bottom: 68px;
+}
+
+app-limits-panel .save-bar {
+  position: sticky;
+  bottom: 14px;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 11px 12px 11px 16px;
+  background: var(--paper-raised);
+  border: 1px solid var(--ui-violet-soft);
+  border-left: 3px solid var(--accent);
+  border-radius: 12px;
+  box-shadow: 0 14px 34px rgba(35, 16, 54, 0.18), 0 2px 6px rgba(35, 16, 54, 0.08);
+}
+
+app-limits-panel .save-bar .btn {
+  white-space: nowrap;
+}
+app-limits-panel .save-count {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+}
+app-limits-panel .spacer {
+  flex: 1;
+}
+app-limits-panel .filter-chips .chip.active {
+  border-color: var(--ui-violet);
+  background: var(--ui-violet-soft);
+  color: var(--ui-violet);
+  font-weight: 700;
+}
+app-limits-panel .filter-chips .chip .chip-count {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(35, 16, 54, 0.07);
+  font-size: 10px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+app-limits-panel .filter-chips .chip.active .chip-count {
+  background: rgba(124, 70, 163, 0.16);
+}
+app-plan-builder .stepper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+app-plan-builder .step {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  color: var(--ink-faint);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 2px;
+}
+app-plan-builder .step .n {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1px solid var(--line-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-family: var(--font-mono);
+}
+app-plan-builder .step.done {
+  color: var(--ink-soft);
+}
+app-plan-builder .step.done .n {
+  background: var(--success);
+  border-color: var(--success);
+  color: #fff;
+}
+app-plan-builder .step.current {
+  color: var(--ink);
+  font-weight: 700;
+}
+app-plan-builder .step.current .n {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+app-plan-builder .step-sep {
+  width: 24px;
+  height: 1px;
+  background: var(--line-strong);
+}
+app-plan-builder .step-body {
+  min-height: 260px;
+}
+app-plan-builder .loading-placeholder {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.9);
+  z-index: 1400;
+  flex-direction: column;
+  gap: 12px;
+}
+app-plan-builder .loading-placeholder .muted {
+  color: var(--ink-faint);
+  font-size: 15px;
+}
+app-plan-builder .loading-spinner {
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, #ff7a18, #af002d, #6a11cb, #2575fc, #7be495, #ff7a18);
+  animation: spin 1.2s linear infinite;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+app-plan-builder .review-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px 24px;
+}
+@media (max-width: 560px) {
+  app-plan-builder .review-grid {
+    grid-template-columns: 1fr;
+  }
+}
+app-plan-builder .kv-item .k {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin-bottom: 4px;
+}
+app-plan-builder .kv-item .v {
+  font-size: 13.5px;
+}
+app-plan-builder .wizard-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 26px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+app-plan-builder .primary-app-picker {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  max-width: 520px;
+}
+app-plan-builder .review-card {
+  padding: 20px 22px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--paper-raised);
+  box-shadow: 0 1px 2px rgba(35, 16, 54, 0.04);
+}
+app-plan-builder .review-card + .review-card {
+  margin-top: 16px;
+}
+app-plan-builder .review-title {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0 0 16px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+app-plan-builder .review-count {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--ui-violet-soft);
+  color: var(--ui-violet);
+  font-size: 10.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+app-plan-builder .kv-item .v.is-empty {
+  color: var(--ink-faint);
+  font-style: italic;
+}
+app-plan-builder .review-app-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 120px 120px;
+  gap: 16px;
+  align-items: center;
+  padding: 9px 12px;
+  border-radius: 8px;
+}
+app-plan-builder .review-app-row.is-head {
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+app-plan-builder .review-app-row.is-parent .ra-name {
+  font-weight: 700;
+  color: var(--ink);
+}
+app-plan-builder .review-app-row:not(.is-head):hover {
+  background: var(--ui-violet-wash);
+}
+app-plan-builder .ra-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-soft);
+  overflow-wrap: anywhere;
+}
+app-plan-builder .ra-limit {
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-faint);
+}
+app-plan-builder .ra-limit.is-capped.kind-design {
+  color: var(--limit-design);
+}
+app-plan-builder .ra-limit.is-capped.kind-runtime {
+  color: var(--limit-runtime);
+}
+app-plan-builder .review-legend {
+  margin: 14px 0 0;
+}
+/* Shown on the org Limits tab when the organization has no configurable applications - e.g. its
+   only subscription is cancelled or expired. Replaces a full catalogue of apps that could not be
+   saved (every one hit PlanException server-side). */
+app-limits-panel .limits-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+  padding: 54px 24px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 14px;
+  background: var(--paper-sunken);
+}
+
+app-limits-panel .limits-empty-icon i {
+  font-size: 30px;
+  color: var(--ink-faint);
+}
+
+app-limits-panel .limits-empty h3 {
+  margin: 6px 0 0;
+  font-size: 15px;
+  color: var(--ink);
+}
+
+app-limits-panel .limits-empty p {
+  margin: 0;
+  max-width: 420px;
+  color: var(--ink-faint);
+  font-size: 12.5px;
+  line-height: 1.6;
+}

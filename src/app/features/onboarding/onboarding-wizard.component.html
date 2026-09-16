@@ -1,0 +1,163 @@
+<app-page-header eyebrow="Onboarding" title="Onboard organization" subtitle="Creates the organization, admin user, subscription plan, applications, roles, and tenant infrastructure in one flow." [showBack]="true" [backUrl]="'/organizations'">
+</app-page-header>
+
+<div class="stepper">
+  <ng-container *ngFor="let label of stepLabels; let i = index">
+    <button type="button" class="step" [class.done]="i < step()" [class.current]="i === step()" [disabled]="step() === 4" (click)="goToStep(i)">
+      <span class="n">{{ i < step() ? '✓' : i + 1 }}</span>{{ label }}
+    </button>
+    <div class="step-sep" *ngIf="i < stepLabels.length - 1"></div>
+  </ng-container>
+</div>
+
+<div class="panel">
+  <!-- STEP 0 -->
+  <div *ngIf="step() === 0" class="step-body">
+    <div class="field">
+      <label>Organization name</label>
+      <input class="input" [class.invalid]="organizationName && !nameAvailable()" [(ngModel)]="organizationName" placeholder="e.g. Harborview Logistics" />
+      <p class="error-text" *ngIf="organizationName && !nameAvailable()">An organization with this name already exists.</p>
+    </div>
+    <div class="row gap-16 field-row">
+      <div class="field">
+        <label>Web address</label>
+        <input
+          class="input mono"
+          [class.invalid]="domainPrefix && !domainAvailable()"
+          [(ngModel)]="domainPrefix"
+          (ngModelChange)="onDomainPrefixChange()"
+          placeholder="harborview"
+        />
+        <p class="hint" *ngIf="fullWebAddress() as url">{{ url }}</p>
+        <p class="hint" *ngIf="domainPrefix && domainChecking()">Checking availability…</p>
+        <p class="hint" *ngIf="domainPrefix && !domainChecking() && domainAvailable() && domainRemoteAvailable() === true">✓ Available</p>
+        <p class="hint" *ngIf="domainPrefix && !domainChecking() && domainAvailable() && domainRemoteAvailable() === null">
+          Availability will be confirmed when provisioning starts.
+        </p>
+        <p class="error-text" *ngIf="domainPrefix && !domainChecking() && !domainAvailable()">This web address is already taken.</p>
+      </div>
+      <div class="field">
+        <label>Tier</label>
+        <select class="input" [(ngModel)]="isPaidOrg">
+          <option [ngValue]="true">Paid</option>
+          <option [ngValue]="false">Trial</option>
+        </select>
+      </div>
+    </div>
+    <p class="hint">A login and credentials will be generated automatically for this organization.</p>
+  </div>
+
+  <!-- STEP 1 -->
+  <div *ngIf="step() === 1" class="step-body">
+    <div class="row gap-16 field-row">
+      <div class="field">
+        <label>First name</label>
+        <input class="input" [(ngModel)]="adminFirstName" placeholder="Callum" />
+      </div>
+      <div class="field">
+        <label>Last name</label>
+        <input class="input" [(ngModel)]="adminLastName" placeholder="Reyes" />
+      </div>
+    </div>
+    <div class="field">
+      <label>Email (used as username)</label>
+      <input class="input mono" type="email" [(ngModel)]="adminEmail" placeholder="callum.reyes@example.com" />
+    </div>
+    <p class="hint">A strong temporary password is generated automatically and shown once, at the end of provisioning — it is never emailed or logged in plain text. The admin will be required to set their own password the first time they sign in.</p>
+  </div>
+
+  <!-- STEP 2 -->
+  <div *ngIf="step() === 2" class="step-body">
+    <div class="field">
+      <label>Subscription plan</label>
+      <select class="input" [(ngModel)]="planId" (change)="onPlanSelectChange()">
+        <option value="">Select a plan…</option>
+        <option value="__create_custom__">+ Create custom plan…</option>
+        <optgroup label="Default plans">
+          <option *ngFor="let p of defaultPlans()" [value]="p.planId">{{ p.planName }}</option>
+        </optgroup>
+        <optgroup label="Custom plans" *ngIf="customPlans().length">
+          <option *ngFor="let p of customPlans()" [value]="p.planId">{{ p.planName }}</option>
+        </optgroup>
+      </select>
+      <p class="hint" *ngIf="planId">Selected: <strong>{{ planName(planId) }}</strong></p>
+    </div>
+    <div class="row gap-16 field-row">
+      <div class="field">
+        <label>Plan start date</label>
+        <input class="input" type="date" [(ngModel)]="planStartDate" />
+        <p class="hint">Defaults to today — set an earlier date if this deal already started.</p>
+      </div>
+      <div class="field">
+        <label>Plan end date</label>
+        <input class="input" type="date" [(ngModel)]="planEndDate" />
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 3: REVIEW -->
+  <div *ngIf="step() === 3" class="step-body">
+    <div class="review-grid">
+      <div class="kv-item"><p class="k">Organization</p><p class="v">{{ organizationName }}</p></div>
+      <div class="kv-item"><p class="k">Web address</p><p class="v mono">{{ fullWebAddress() || domainPrefix }}</p></div>
+      <div class="kv-item"><p class="k">Tier</p><p class="v">{{ isPaidOrg ? 'Paid' : 'Trial' }}</p></div>
+      <div class="kv-item"><p class="k">Admin user</p><p class="v">{{ adminFirstName }} {{ adminLastName }} · {{ adminEmail }}</p></div>
+      <div class="kv-item"><p class="k">Plan</p><p class="v">{{ planName(planId) }}</p></div>
+      <div class="kv-item"><p class="k">Plan start date</p><p class="v">{{ planStartDate }}</p></div>
+      <div class="kv-item"><p class="k">Plan end date</p><p class="v">{{ planEndDate }}</p></div>
+    </div>
+    <p class="error-text" *ngFor="let e of errors">{{ e }}</p>
+  </div>
+
+  <!-- STEP 4: PROVISIONING -->
+  <div *ngIf="step() === 4" class="step-body">
+    <ng-container *ngIf="run() as r">
+      <div class="prog-list">
+        <div class="prog-item" *ngFor="let s of r.steps" [class.done]="s.status === 'DONE'" [class.current]="s.status === 'CURRENT'" [class.failed]="s.status === 'FAILED'">
+          <span class="ic">{{ s.status === 'DONE' ? '✓' : s.status === 'FAILED' ? '✕' : '' }}</span>
+          <span class="lbl">{{ s.label }}</span>
+        </div>
+      </div>
+
+      <div class="run-banner failed" *ngIf="r.status === 'FAILED'">
+        <p><strong>Provisioning failed.</strong> {{ r.note }}</p>
+        <div class="row gap-8">
+          <button type="button" class="btn primary sm" [disabled]="submitting()" (click)="retry()">{{ submitting() ? 'Retrying…' : 'Retry' }}</button>
+          <button type="button" class="btn danger sm" [disabled]="submitting()" (click)="rollback()">Give up</button>
+        </div>
+      </div>
+
+      <div class="run-banner rolled-back" *ngIf="r.status === 'ROLLED_BACK'">
+        <p><strong>Discarded.</strong> {{ r.note }}</p>
+        <button type="button" class="btn ghost sm" (click)="startOver()">Start over</button>
+      </div>
+
+      <div class="run-banner success" *ngIf="r.status === 'SUCCEEDED'">
+        <p><strong>{{ r.organizationName }} is ready.</strong> Save these credentials now — the password will not be shown again. It is a <strong>temporary</strong> password; the admin must set their own on first sign-in.</p>
+        <div class="cred-box">
+          <div class="cred-row"><span class="k">Login URL</span><span class="v mono">{{ r.domainUrl }}</span></div>
+          <div class="cred-row"><span class="k">Username</span><span class="v mono">{{ r.adminUsername }}</span></div>
+          <div class="cred-row"><span class="k">Temporary password</span><span class="v mono">{{ r.adminPassword }}</span></div>
+        </div>
+        <p class="warning-note" *ngIf="r.note">⚠ {{ r.note }}</p>
+        <div class="row gap-8">
+          <button type="button" class="btn ghost sm" (click)="copyCredentials()">Copy to clipboard</button>
+          <button type="button" class="btn ghost sm" (click)="downloadCredentials()">Download as .txt</button>
+          <div class="spacer"></div>
+          <button type="button" class="btn primary sm" (click)="goToNewOrg()">View organization</button>
+        </div>
+      </div>
+    </ng-container>
+  </div>
+
+  <div class="wizard-actions" *ngIf="step() < 4">
+    <a class="btn ghost" routerLink="/organizations">Cancel</a>
+    <div class="spacer"></div>
+    <button type="button" class="btn ghost" *ngIf="step() > 0" (click)="back()">Back</button>
+    <button type="button" class="btn primary" [disabled]="!canGoNext() || submitting()" (click)="next()">{{ step() === 3 ? (submitting() ? 'Provisioning…' : 'Start provisioning') : 'Next' }}</button>
+  </div>
+</div>
+
+<app-modal-shell *ngIf="showCustomPlanModal()" title="Create custom plan" [width]="760" (close)="showCustomPlanModal.set(false)">
+  <app-plan-builder [embedded]="true" (created)="onCustomPlanCreated($event)" (cancelled)="showCustomPlanModal.set(false)"></app-plan-builder>
+</app-modal-shell>

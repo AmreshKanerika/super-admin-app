@@ -1,0 +1,123 @@
+<app-page-header eyebrow="Decommissioning" title="Offboarding" subtitle="Expire an organization's access, or permanently delete its data." [showBack]="showBack" [backUrl]="backUrl"></app-page-header>
+
+<!-- Toolbar: search on the left, status filter on the right, mirroring Subscriptions & Limits. -->
+<div class="offb-toolbar">
+  <label class="offb-search">
+    <i class="ti ti-search" aria-hidden="true"></i>
+    <input class="input" [ngModel]="search()" (ngModelChange)="search.set($event)" placeholder="Search by name or domain…" aria-label="Search organizations" />
+  </label>
+
+  <div class="filter-chips" role="group" aria-label="Filter by status">
+    <button type="button" class="chip" [class.active]="statusFilter() === 'ALL'" (click)="setFilter('ALL')">
+      All <span class="chip-count">{{ counts().all }}</span>
+    </button>
+    <button type="button" class="chip active-tone" [class.active]="statusFilter() === 'ACTIVE'" (click)="setFilter('ACTIVE')">
+      Active <span class="chip-count">{{ counts().active }}</span>
+    </button>
+    <button type="button" class="chip expired-tone" [class.active]="statusFilter() === 'EXPIRED'" (click)="setFilter('EXPIRED')">
+      Expired <span class="chip-count">{{ counts().expired }}</span>
+    </button>
+  </div>
+</div>
+
+<div class="scroll-x" *ngIf="filtered().length; else empty">
+  <table class="dtable offb-table">
+    <thead>
+      <tr>
+        <th>Organization</th>
+        <th>Domain</th>
+        <th>Status</th>
+        <th class="col-actions"></th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let org of filtered()" [class.is-expired]="org.isDecommissioned">
+        <td>
+          <a class="org-name" [routerLink]="['/organizations', org.orgId]" [queryParams]="showBack ? { from: 'overview' } : null">{{ org.organizationName }}</a>
+          <span class="org-admin" *ngIf="org.adminEmail">{{ org.adminEmail }}</span>
+        </td>
+        <td class="mono org-domain">{{ org.domainName }}</td>
+        <td class="col-status">
+          <app-status-pill *ngIf="!org.isDecommissioned" label="Active" tone="success"></app-status-pill>
+          <ng-container *ngIf="org.isDecommissioned">
+            <app-status-pill label="Expired · access blocked" tone="critical"></app-status-pill>
+            <span class="status-meta" *ngIf="org.pendingDeletionAt">Expired {{ formatDate(org.pendingDeletionAt) }}</span>
+            <span class="status-reason" *ngIf="org.deletionReason" [title]="org.deletionReason">“{{ org.deletionReason }}”</span>
+          </ng-container>
+        </td>
+        <td class="col-actions">
+          <div class="offb-actions">
+            <button type="button" class="btn danger sm" *ngIf="!org.isDecommissioned" (click)="startOffboard(org.orgId)">
+              <i class="ti ti-logout" aria-hidden="true"></i> Offboard
+            </button>
+            <ng-container *ngIf="org.isDecommissioned">
+              <button type="button" class="btn ghost sm" (click)="reactivate(org.orgId)">
+                <i class="ti ti-restore" aria-hidden="true"></i> Reactivate
+              </button>
+              <button type="button" class="btn danger solid sm" (click)="purgeNow(org.orgId)">
+                <i class="ti ti-trash" aria-hidden="true"></i> Delete permanently
+              </button>
+            </ng-container>
+          </div>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+<ng-template #empty>
+  <app-empty-state
+    [title]="statusFilter() === 'EXPIRED' ? 'No expired organizations' : (statusFilter() === 'ACTIVE' ? 'No active organizations' : 'No organizations match')"
+    [message]="search() ? 'Try clearing the search.' : 'Nothing to show for this filter.'"></app-empty-state>
+</ng-template>
+
+<!-- PRE-CHECK / CONFIRM MODAL -->
+<div class="backdrop" *ngIf="targetOrgId()" (click)="closeModal()">
+  <div class="panel modal-panel" (click)="$event.stopPropagation()">
+    <div class="mp-head">
+      <div class="mp-title">
+        <span class="mp-eyebrow">Offboard organization</span>
+        <h3>{{ targetOrgName() }}</h3>
+      </div>
+      <button type="button" class="x" (click)="closeModal()" aria-label="Close">✕</button>
+    </div>
+
+    <p class="hint" *ngIf="precheckLoading()">Loading pre-check…</p>
+
+    <div class="precheck" *ngIf="preCheck() as pc">
+      <div class="pc-stats">
+        <div class="pc-stat">
+          <span class="pc-num mono">{{ pc.activeUsers }}</span>
+          <span class="pc-label">Active users</span>
+          <a class="pc-view-link" [routerLink]="['/organizations', targetOrgId()]" [queryParams]="{ tab: 'users' }" target="_blank">View</a>
+        </div>
+        <div class="pc-stat">
+          <span class="pc-num mono">{{ pc.openSubscriptions }}</span>
+          <span class="pc-label">Open subscriptions</span>
+          <a class="pc-view-link" [routerLink]="['/organizations', targetOrgId()]" [queryParams]="{ tab: 'subscriptions' }" target="_blank">View</a>
+        </div>
+      </div>
+      <div class="pc-verdict ok">
+        <i class="ti ti-info-circle" aria-hidden="true"></i>
+        <span>Active subscriptions are expired immediately, blocking login for every user. <strong>No data is deleted</strong> — you can reactivate at any time.</span>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Reason</label>
+      <textarea class="input" rows="2" [(ngModel)]="reason" placeholder="Why is this organization being offboarded?"></textarea>
+    </div>
+
+    <div class="field">
+      <label>Type <span class="mono confirm-token">{{ targetOrgName() }}</span> to confirm</label>
+      <input class="input mono" [(ngModel)]="confirmText" [placeholder]="targetOrgName()" />
+    </div>
+
+    <div class="wizard-actions">
+      <button type="button" class="btn ghost" (click)="closeModal()">Cancel</button>
+      <div class="spacer"></div>
+      <button type="button" class="btn danger solid" [disabled]="!canExecute() || submitting()" (click)="execute()">
+        {{ submitting() ? 'Working…' : 'Expire access' }}
+      </button>
+    </div>
+  </div>
+</div>

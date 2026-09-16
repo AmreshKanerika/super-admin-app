@@ -1,0 +1,68 @@
+<div class="shell" [class.collapsed]="collapsed()">
+  <div class="sidebar-backdrop" (click)="toggleCollapsed()"></div>
+  <aside class="sidebar">
+    <div class="brand-strip">
+      <button type="button" class="toggle-btn" (click)="toggleCollapsed()" [title]="collapsed() ? 'Expand sidebar' : 'Collapse sidebar'">
+        <i class="ti ti-menu-2"></i>
+      </button>
+      <a routerLink="/overview" *ngIf="!collapsed()"><img src="assets/logos/flip-product-logo.svg" alt="FLIP" class="brand-lockup" /></a>
+    </div>
+    <a routerLink="/overview" *ngIf="collapsed()" class="collapsed-brand"><img src="assets/logos/flip-product-logo.svg" alt="FLIP" class="brand-mark-only" /></a>
+    <div class="product-tag" *ngIf="!collapsed()">
+      <span>Platform console</span>
+    </div>
+
+    <nav aria-label="Main navigation">
+      <ng-container *ngFor="let item of navItems()">
+      <span class="nav-section" *ngIf="item.section && !collapsed()">{{ item.section }}</span>
+      <a
+        [routerLink]="item.path"
+        routerLinkActive="active"
+        ariaCurrentWhenActive="page"
+        [routerLinkActiveOptions]="{ exact: false }"
+        [title]="collapsed() ? item.label : ''"
+        (click)="closeOnMobileNav()"
+      >
+        <i class="ti" [class]="item.icon"></i>
+        <span class="nav-label" *ngIf="!collapsed()">{{ item.label }}</span>
+      </a>
+      </ng-container>
+    </nav>
+
+    <div class="profile-block">
+      <div class="profile-menu" *ngIf="profileOpen()">
+        <div class="pm-head">
+          <span class="avatar lg">{{ auth.currentUser()?.initials }}</span>
+          <div class="pm-id">
+            <p class="pm-name">{{ auth.currentUser()?.name }}</p>
+            <p class="pm-email">{{ auth.currentUser()?.email }}</p>
+          </div>
+        </div>
+        <span class="pm-role-pill">{{ roleLabel() }}</span>
+        <button type="button" class="pm-item" (click)="signOut()"><i class="ti ti-logout" aria-hidden="true"></i> Sign out</button>
+      </div>
+      <button type="button" class="profile-trigger" (click)="toggleProfile()" title="Account" [attr.aria-expanded]="profileOpen()">
+        <span class="avatar">{{ auth.currentUser()?.initials }}</span>
+        <span class="who" *ngIf="!collapsed()">
+          <span class="who-name">{{ auth.currentUser()?.name }}</span>
+          <span class="who-role">{{ roleLabel() }}</span>
+        </span>
+        <i class="ti ti-chevron-up profile-chev" *ngIf="!collapsed()" [class.open]="profileOpen()"></i>
+      </button>
+    </div>
+  </aside>
+
+  <div class="mobile-topbar">
+    <button type="button" class="toggle-btn" (click)="toggleCollapsed()" title="Open menu">
+      <i class="ti ti-menu-2"></i>
+    </button>
+    <img src="assets/logos/flip-product-logo.svg" alt="FLIP" class="mobile-mark" />
+  </div>
+
+  <main class="content">
+    <router-outlet></router-outlet>
+  </main>
+</div>
+
+<app-toast-host></app-toast-host>
+<app-confirm-host></app-confirm-host>

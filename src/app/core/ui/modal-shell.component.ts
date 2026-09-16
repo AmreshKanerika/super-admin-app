@@ -1,0 +1,74 @@
+import { Component, EventEmitter, Input, Output } from '@angular/core';
+
+@Component({
+  selector: 'app-modal-shell',
+  standalone: true,
+  template: `
+    <div class="backdrop" (click)="close.emit()">
+      <div class="panel" [style.maxWidth.px]="width" (click)="$event.stopPropagation()">
+        <div class="head">
+          <h3>{{ title }}</h3>
+          <button type="button" class="x" (click)="close.emit()" aria-label="Close">✕</button>
+        </div>
+        <div class="body">
+          <ng-content></ng-content>
+        </div>
+      </div>
+    </div>
+  `,
+  styles: [
+    `
+      .backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(19, 26, 31, 0.42);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        z-index: 100;
+      }
+      .panel {
+        background: var(--paper-raised);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-lg);
+        width: 100%;
+        max-height: 88vh;
+        overflow-y: auto;
+      }
+      .head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 18px 22px;
+        border-bottom: 1px solid var(--line);
+        position: sticky;
+        top: 0;
+        background: var(--paper-raised);
+      }
+      .head h3 {
+        font-size: 16px;
+      }
+      .x {
+        border: none;
+        background: none;
+        font-size: 14px;
+        color: var(--ink-faint);
+        cursor: pointer;
+        padding: 4px;
+        line-height: 1;
+      }
+      .x:hover {
+        color: var(--ink);
+      }
+      .body {
+        padding: 22px;
+      }
+    `
+  ]
+})
+export class ModalShellComponent {
+  @Input() title = '';
+  @Input() width = 640;
+  @Output() close = new EventEmitter<void>();
+}

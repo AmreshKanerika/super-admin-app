@@ -1,0 +1,370 @@
+<ng-container *ngIf="org() as o">
+  <app-page-header eyebrow="Organization" [title]="o.organizationName" [showBack]="showBack" [backUrl]="backUrl">
+    <app-status-pill *ngIf="activeSub()" [label]="activeSub()!.planStatus" [tone]="tone(activeSub()!.planStatus)"></app-status-pill>
+    <button type="button" class="btn ghost" *ngIf="isSuperAdmin()" (click)="openEdit()">Edit</button>
+    <button type="button" class="btn ghost" *ngIf="isSuperAdmin() && activeSub()" (click)="openChangePlan()">Change plan</button>
+    <button type="button" class="btn primary" *ngIf="activeSub()?.planStatus === 'ACTIVE'" (click)="extendSubscription()">Extend subscription</button>
+    <button type="button" class="btn primary" *ngIf="isSuperAdmin() && activeSub()?.planStatus === 'SUSPENDED'" (click)="reactivate()">Reactivate</button>
+
+    <div class="more-menu" *ngIf="isSuperAdmin()" (click)="$event.stopPropagation()">
+      <button type="button" class="btn ghost icon-only" (click)="toggleMoreMenu($event)" aria-label="More actions" title="More actions">
+        <i class="ti ti-dots" aria-hidden="true"></i>
+      </button>
+      <div class="more-pop" *ngIf="moreMenuOpen()">
+        <button type="button" *ngIf="activeSub()?.planStatus === 'ACTIVE'" (click)="moreMenuOpen.set(false); suspend()">
+          <i class="ti ti-player-pause" aria-hidden="true"></i> Suspend access
+        </button>
+        <a [routerLink]="['/offboarding']" [queryParams]="{ orgId: o.orgId }" class="danger">
+          <i class="ti ti-archive" aria-hidden="true"></i> Offboard organization
+        </a>
+      </div>
+    </div>
+  </app-page-header>
+
+  <div class="run-banner failed" *ngIf="o.isDecommissioned" style="margin-bottom:16px">
+    <p *ngIf="isSuperAdmin(); else expiredForSales"><strong>Expired.</strong> This organization's subscription was expired via offboarding — login is blocked, but no data was deleted. <a [routerLink]="['/offboarding']" [queryParams]="{ orgId: o.orgId }">Manage offboarding</a> to reactivate.</p>
+    <ng-template #expiredForSales><p><strong>Expired.</strong> This organization's subscription was expired via offboarding — login is blocked, but no data was deleted. Ask a super admin to reactivate it.</p></ng-template>
+  </div>
+
+  <div class="tabbar">
+    <button *ngFor="let t of tabs()" [class.active]="activeTab() === t.key" (click)="activeTab.set(t.key)">{{ t.label }}</button>
+  </div>
+
+  <div class="tab-content">
+    <!-- OVERVIEW -->
+    <div *ngIf="activeTab() === 'overview'" class="overview">
+      <section class="card access-card" *ngIf="isSuperAdmin()">
+        <div class="access-head">
+          <div class="access-id">
+            <p class="card-eyebrow">Workspace address</p>
+            <div class="url-line">
+              <a
+                *ngIf="domain()?.domainStatus === 'ACTIVE'; else plainUrl"
+                class="url"
+                [href]="domainUrl()"
+                target="_blank"
+                rel="noopener">
+                {{ o.domainName }}<i class="ti ti-external-link" aria-hidden="true"></i>
+              </a>
+              <ng-template #plainUrl><span class="url is-dim">{{ o.domainName }}</span></ng-template>
+              <button type="button" class="icon-btn" (click)="copyToClipboard(domainUrl() || o.domainName, 'Address')" title="Copy address" aria-label="Copy address">
+                <i class="ti ti-copy" aria-hidden="true"></i>
+              </button>
+            </div>
+            <p class="access-note" *ngIf="domain()">{{ domainHeadline() }}</p>
+          </div>
+
+          <div class="access-status" *ngIf="domain() as d">
+            <span class="domain-pill" [class]="'is-' + d.domainStatus.toLowerCase()">
+              <i class="ti" [class.ti-circle-check]="d.domainStatus === 'ACTIVE'" [class.ti-clock]="d.domainStatus === 'INACTIVE'" [class.ti-circle-minus]="d.domainStatus === 'RELEASED'" aria-hidden="true"></i>
+              {{ d.domainStatus === 'ACTIVE' ? 'Live' : d.domainStatus === 'INACTIVE' ? 'Not activated' : 'Released' }}
+            </span>
+            <button
+              type="button"
+              class="btn primary sm"
+              *ngIf="d.domainStatus !== 'ACTIVE'"
+              [disabled]="domainBusy()"
+              (click)="activateDomain()">
+              {{ domainBusy() ? 'Activating…' : 'Activate URL' }}
+            </button>
+            <button
+              type="button"
+              class="btn ghost sm"
+              *ngIf="d.domainStatus === 'ACTIVE'"
+              [disabled]="domainBusy()"
+              (click)="deactivateDomain()">
+              {{ domainBusy() ? 'Deactivating…' : 'Deactivate URL' }}
+            </button>
+          </div>
+        </div>
+
+        <label class="dns-adopt" *ngIf="domain() && domain()!.domainStatus !== 'ACTIVE'">
+          <input type="checkbox" [(ngModel)]="dnsAlreadyProvisioned" />
+          <span>DNS record already created by DevOps &mdash; adopt it instead of creating a new one</span>
+        </label>
+
+        <p class="error-text" *ngIf="domainError()">{{ domainError() }}</p>
+
+        <ul class="facts" *ngIf="provisioningFacts().length">
+          <li *ngFor="let f of provisioningFacts()" [class]="'is-' + f.state">
+            <i class="ti" [class.ti-circle-check-filled]="f.state === 'done'" [class.ti-clock]="f.state === 'pending'" [class.ti-alert-triangle-filled]="f.state === 'failed'" aria-hidden="true"></i>
+            <span class="f-label">{{ f.label }}</span>
+            <span class="f-value">{{ f.value }}</span>
+            <span class="f-note" *ngIf="f.note">{{ f.note }}</span>
+
+            <span class="f-actions" *ngIf="f.label === 'Data integration app' && f.state !== 'done'">
+              <button type="button" class="btn ghost sm" [disabled]="diAppBusy()" (click)="provisionDiApp(false)">
+                {{ diAppBusy() ? 'Working…' : 'Retry' }}
+              </button>
+              <button type="button" class="btn ghost sm" [disabled]="diAppBusy()" (click)="provisionDiApp(true)">
+                Already set up — link it
+              </button>
+            </span>
+          </li>
+        </ul>
+      </section>
+
+      <section class="cred-callout" *ngIf="domain()?.temporaryPassword && !credentialsAcknowledged()">
+        <div class="cred-head">
+          <i class="ti ti-key" aria-hidden="true"></i>
+          <div class="cred-copy">
+            <p class="cred-title">Administrator sign-in created</p>
+            <p class="cred-sub">Share these with {{ o.adminName }} now &mdash; the password is shown only this once.</p>
+          </div>
+          <button type="button" class="btn ghost sm" (click)="credentialsAcknowledged.set(true)">Saved, hide</button>
+        </div>
+        <div class="cred-grid">
+          <div class="cred-row">
+            <span class="k">Username</span>
+            <span class="v mono">{{ domain()!.adminUsername }}</span>
+            <button type="button" class="icon-btn" (click)="copyToClipboard(domain()!.adminUsername, 'Username')" title="Copy username" aria-label="Copy username">
+              <i class="ti ti-copy" aria-hidden="true"></i>
+            </button>
+          </div>
+          <div class="cred-row">
+            <span class="k">Temporary password</span>
+            <span class="v mono">{{ passwordRevealed() ? domain()!.temporaryPassword : maskedPassword() }}</span>
+            <button type="button" class="icon-btn" (click)="passwordRevealed.set(!passwordRevealed())" [title]="passwordRevealed() ? 'Hide password' : 'Show password'" [attr.aria-label]="passwordRevealed() ? 'Hide password' : 'Show password'">
+              <i class="ti" [class.ti-eye]="!passwordRevealed()" [class.ti-eye-off]="passwordRevealed()" aria-hidden="true"></i>
+            </button>
+            <button type="button" class="icon-btn" (click)="copyToClipboard(domain()!.temporaryPassword, 'Password')" title="Copy password" aria-label="Copy password">
+              <i class="ti ti-copy" aria-hidden="true"></i>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h3 class="card-title">Organization details</h3>
+        <div class="kv-grid">
+          <div class="kv-item">
+            <p class="k">Administrator</p>
+            <p class="v">{{ o.adminName }}</p>
+            <p class="v-sub mono">{{ o.adminEmail }}</p>
+          </div>
+          <div class="kv-item" *ngIf="activeSub()">
+            <p class="k">Plan</p>
+            <p class="v">
+              <a *ngIf="isSuperAdmin(); else planNameOnly" [routerLink]="['/plans', activeSub()!.planId]">{{ planName(activeSub()!.planId) }}</a>
+              <ng-template #planNameOnly>{{ planName(activeSub()!.planId) }}</ng-template>
+            </p>
+          </div>
+          <div class="kv-item">
+            <p class="k">Tier</p>
+            <p class="v">{{ o.isPaidOrg ? 'Paid' : 'Trial' }}</p>
+          </div>
+          <div class="kv-item" *ngIf="activeSub()">
+            <p class="k">Subscription expires</p>
+            <p class="v">{{ formatDate(activeSub()!.planEndDate) }}</p>
+            <p class="v-sub"><app-countdown [date]="activeSub()!.planEndDate"></app-countdown></p>
+          </div>
+          <div class="kv-item">
+            <p class="k">Created</p>
+            <p class="v">{{ formatDate(o.createdDate) }}</p>
+          </div>
+          <div class="kv-item" *ngIf="activeSub()?.statusReason">
+            <p class="k">Status reason</p>
+            <p class="v">{{ activeSub()!.statusReason }}</p>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- SUBSCRIPTIONS -->
+    <div *ngIf="activeTab() === 'subscriptions'">
+      <div class="row gap-8" style="margin-bottom:14px">
+        <div class="spacer"></div>
+        <a class="btn primary sm" *ngIf="isSuperAdmin()" [routerLink]="['/organizations', o.orgId, 'subscriptions', 'new']">Add subscription</a>
+      </div>
+      <table class="dtable">
+        <thead>
+          <tr>
+            <th>Subscription</th>
+            <th>Plan</th>
+            <th>Status</th>
+            <th>Start</th>
+            <th>End</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let s of allSubs()">
+            <td class="mono">{{ s.subscriptionId }}</td>
+            <td>{{ planName(s.planId) }}</td>
+            <td><app-status-pill [label]="s.planStatus" [tone]="tone(s.planStatus)"></app-status-pill></td>
+            <td>{{ formatDate(s.planStartDate) }}</td>
+            <td>{{ formatDate(s.planEndDate) }}</td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="hint" style="margin-top:14px" *ngIf="isSuperAdmin(); else salesSubsHint">Extend, suspend, and cancel actions for the active subscription live on the <a routerLink="/subscriptions">Subscriptions</a> screen, or use the buttons above.</p>
+      <ng-template #salesSubsHint><p class="hint" style="margin-top:14px">Renewals for the active subscription live on the <a routerLink="/subscriptions">Subscriptions</a> screen. Suspending or cancelling is handled by a super admin.</p></ng-template>
+    </div>
+
+    <!-- LIMITS -->
+    <div *ngIf="activeTab() === 'limits'">
+      <app-limits-panel [orgId]="orgId"></app-limits-panel>
+    </div>
+
+    <!-- USERS -->
+    <div *ngIf="activeTab() === 'users'">
+      <table class="dtable">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Role</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let u of users()">
+            <td class="strong">{{ u.name }}</td>
+            <td class="mono">{{ u.email }}</td>
+            <td><app-status-pill [label]="u.role === 'DEVELOPER' ? 'Member' : u.role" tone="accent"></app-status-pill></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- NOTIFICATIONS -->
+    <div *ngIf="activeTab() === 'notifications'">
+      <div class="row" style="justify-content:flex-end;margin-bottom:12px">
+        <button type="button" class="btn primary sm" (click)="sendReminderNow()">Send reminder now</button>
+      </div>
+      <table class="dtable" *ngIf="notificationLog().length; else noNotif">
+        <thead>
+          <tr>
+            <th>Sent</th>
+            <th>Subject</th>
+            <th>Recipient</th>
+            <th>Offset</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let n of notificationLog()">
+            <td>{{ formatDateTime(n.sentDate) }}</td>
+            <td>{{ n.subject }}</td>
+            <td class="mono">{{ n.recipient }}</td>
+            <td class="mono">T‑{{ n.offsetDays }}</td>
+            <td>
+              <app-status-pill
+                [label]="n.status"
+                [tone]="n.status === 'SENT' ? 'success' : n.status === 'FAILED' ? 'critical' : 'accent'"
+              ></app-status-pill>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <ng-template #noNotif><p class="text-muted" style="padding:24px 0;text-align:center">No notifications sent to this organization yet.</p></ng-template>
+    </div>
+
+    <!-- ACTIVITY -->
+    <div *ngIf="activeTab() === 'activity'">
+      <table class="dtable" *ngIf="activity().length; else noActivity">
+        <thead>
+          <tr>
+            <th>When</th>
+            <th>Actor</th>
+            <th>Action</th>
+            <th>Result</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let a of activity()">
+            <td class="mono">{{ formatDateTime(a.createdDate) }}</td>
+            <td>{{ a.actorEmail }}</td>
+            <td>{{ a.action }} — {{ a.targetLabel }}</td>
+            <td><app-status-pill [label]="a.result" [tone]="a.result === 'SUCCESS' ? 'success' : 'critical'"></app-status-pill></td>
+          </tr>
+        </tbody>
+      </table>
+      <ng-template #noActivity><p class="text-muted" style="padding:24px 0;text-align:center">No recorded activity for this organization.</p></ng-template>
+    </div>
+  </div>
+
+  <div class="backdrop" *ngIf="changePlanOpen()" (click)="closeChangePlan()">
+    <div class="panel detail-panel" (click)="$event.stopPropagation()">
+      <div class="dp-head">
+        <h3>Change plan</h3>
+        <button type="button" class="x" (click)="closeChangePlan()">✕</button>
+      </div>
+
+      <div class="usage-box" *ngIf="changePlanUsageLoading()">Loading current usage…</div>
+      <div class="usage-box" *ngIf="!changePlanUsageLoading() && changePlanUsage() as u">
+        <div class="usage-row">
+          <span class="k">Org usage on current plan</span>
+          <span class="v">{{ u.orgRemainingLimit === -1 ? 'Unlimited' : u.orgRemainingLimit + ' left of ' + u.orgPlanLimit }}</span>
+        </div>
+        <div class="usage-row">
+          <span class="k">Current plan expires</span>
+          <span class="v">{{ formatDate(u.planEndDate) }} ({{ u.daysRemaining }}d left)</span>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>New plan</label>
+        <select class="input" [(ngModel)]="changePlanNewPlanId">
+          <option value="">Select a plan…</option>
+          <option *ngFor="let p of otherPlans()" [value]="p.planId">{{ p.planName }}</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>When should this take effect?</label>
+        <label class="radio-opt">
+          <input type="radio" name="opEffective" value="NOW" [(ngModel)]="changePlanEffective" />
+          Switch now — remaining usage is forfeited and treated as expired immediately
+        </label>
+        <label class="radio-opt">
+          <input type="radio" name="opEffective" value="AT_EXPIRY" [(ngModel)]="changePlanEffective" />
+          Keep the current plan running until it expires, then switch automatically
+        </label>
+      </div>
+
+      <div class="field">
+        <label>Reason</label>
+        <textarea class="input" rows="3" [(ngModel)]="changePlanNote" placeholder="Why is this change happening?"></textarea>
+      </div>
+
+      <div class="wizard-actions">
+        <button type="button" class="btn ghost" (click)="closeChangePlan()">Cancel</button>
+        <div class="spacer"></div>
+        <button type="button" class="btn primary" [disabled]="!changePlanNewPlanId || changePlanSubmitting()" (click)="submitChangePlan()">
+          {{ changePlanSubmitting() ? 'Submitting…' : 'Apply' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="backdrop" *ngIf="editOpen()" (click)="closeEdit()">
+    <div class="panel detail-panel" (click)="$event.stopPropagation()">
+      <div class="dp-head">
+        <h3>Edit organization</h3>
+        <button type="button" class="x" (click)="closeEdit()">✕</button>
+      </div>
+
+      <div class="field">
+        <label>Organization name</label>
+        <input class="input" [(ngModel)]="editName" />
+      </div>
+
+      <div class="field">
+        <label>Tier</label>
+        <select class="input" [(ngModel)]="editIsPaidOrg">
+          <option [ngValue]="true">Paid</option>
+          <option [ngValue]="false">Trial</option>
+        </select>
+      </div>
+
+      <p class="hint">The organization's web address and core infrastructure can't be changed here — they're already set up from onboarding.</p>
+
+      <div class="wizard-actions">
+        <button type="button" class="btn ghost" (click)="closeEdit()">Cancel</button>
+        <div class="spacer"></div>
+        <button type="button" class="btn primary" [disabled]="!editName.trim() || editSubmitting()" (click)="submitEdit()">
+          {{ editSubmitting() ? 'Saving…' : 'Save changes' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</ng-container>

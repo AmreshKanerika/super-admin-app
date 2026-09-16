@@ -1,0 +1,219 @@
+.filterbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 20px;
+  align-items: center;
+}
+
+.search {
+  max-width: 300px;
+  min-width: 220px;
+}
+
+.select {
+  max-width: 180px;
+}
+
+.plan-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 1100px) {
+  .plan-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 700px) {
+  .plan-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.plan-card {
+  display: block;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper-raised);
+  padding: 18px 20px;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.plan-card:hover {
+  border-color: var(--line-strong);
+  box-shadow: var(--shadow-sm);
+  text-decoration: none;
+}
+
+.pc-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  gap: 8px;
+}
+
+.pc-head h3 {
+  font-size: 15px;
+}
+
+.pc-desc {
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  line-height: 1.5;
+  margin-bottom: 14px;
+  min-height: 36px;
+}
+
+.pc-meta {
+  display: flex;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--ink-faint);
+  margin-bottom: 14px;
+}
+
+.pc-foot {
+  display: flex;
+  gap: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+/* ===========================================================================
+   Plan cards
+   Every card was the same white rectangle with an empty middle (description is
+   blank on most plans but still held its space), and the one genuinely useful
+   fact - the accelerator the plan bills against - was buried in a meta run.
+   =========================================================================== */
+
+.plan-grid { gap: 18px; }
+
+.plan-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0 0 16px;
+  overflow: hidden;
+  border-radius: 14px;
+  border-color: #ece7f2;
+  box-shadow: 0 1px 2px rgba(35, 16, 54, 0.04);
+  transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+}
+
+/* A coloured cap separates the shipped defaults from plans built for one customer. */
+.plan-card::before {
+  content: '';
+  display: block;
+  height: 4px;
+  background: linear-gradient(90deg, var(--ui-rose), #e9a2c2);
+}
+
+.plan-card.is-default::before {
+  background: var(--ui-header-grad);
+}
+
+.plan-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--ui-violet-soft);
+  box-shadow: 0 12px 26px rgba(35, 16, 54, 0.1);
+}
+
+.pc-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px 18px 0;
+}
+
+.pc-type {
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: var(--ui-rose);
+}
+
+.plan-card.is-default .pc-type { color: var(--ui-violet); }
+
+.pc-name {
+  margin: 9px 0 0;
+  padding: 0 18px;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.pc-app {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  margin: 11px 18px 0;
+  padding: 5px 10px;
+  border-radius: 7px;
+  background: var(--ui-violet-wash);
+  color: var(--ui-violet);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.pc-app i { font-size: 14px; }
+
+.pc-desc {
+  margin: 10px 0 0;
+  padding: 0 18px;
+  color: var(--ink-faint);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+/* Counts are the comparable numbers across cards, so they get the weight. */
+.pc-foot {
+  display: flex;
+  align-items: flex-end;
+  gap: 22px;
+  margin-top: 16px;
+  padding: 14px 18px 0;
+  border-top: 1px solid #f1eef6;
+}
+
+.pc-stat {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+
+.pc-stat strong {
+  font-size: 19px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+.pc-stat small {
+  margin-top: 3px;
+  color: var(--ink-faint);
+  font-size: 10.5px;
+}
+
+.pc-billing {
+  margin-left: auto;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--paper-sunken);
+  color: var(--ink-faint);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
