@@ -4,9 +4,11 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
-    "build": "ng build",
+    "build": "ng build --configuration production",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test"
+    "test": "ng test",
+    "build:sit": "ng build --configuration sit",
+    "build:dev": "ng build --configuration development"
   },
   "private": true,
   "dependencies": {
