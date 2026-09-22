@@ -15,9 +15,31 @@ export type Scope = 'ADD' | 'EDIT' | 'EXECUTE' | 'DELETE' | 'VIEW' | 'ALL';
 
 export interface Application {
   appId: string;
+  /** Machine key the platform resolves apps by, e.g. INFORMATICA_TO_DATABRICKS. */
   appName: string;
+  /** Human-facing label the console renders. Server falls back to appName when unset. */
+  displayName: string | null;
   parentAppId: string | null;
   scopes: Scope[];
+
+  // Server-computed lock picture. Advisory — every write is re-checked server-side — but it is
+  // what lets the catalog disable a button instead of letting someone click into a refusal.
+  /** Distinct organizations holding this application through a plan they subscribe to. */
+  assignedOrgCount: number;
+  planCount: number;
+  childCount: number;
+  editable: boolean;
+  deletable: boolean;
+  /** Why editing is blocked. Null when editable. */
+  editLockReason: string | null;
+  /** Why deleting is blocked. Null when deletable. */
+  deleteLockReason: string | null;
+}
+
+export interface ApplicationScopeRow {
+  appScopeId: string;
+  appId: string;
+  scopeName: Scope;
 }
 
 export interface AppLimitConfig {
@@ -30,6 +52,8 @@ export interface AppLimitConfig {
 export interface SubscriptionPlan {
   planId: string;
   planName: string;
+  /** Human-facing label the console renders. Null until an admin names the plan. */
+  displayName: string | null;
   description: string;
   planType: PlanType;
   planState: PlanState;
@@ -69,6 +93,7 @@ export interface OrgSubscribedPlan {
   planEndDate: string;
   planStatus: PlanStatus;
   statusReason?: string;
+  azureMarketplaceManaged?: boolean;
 }
 
 export type PlanChangeEffective = 'NOW' | 'AT_EXPIRY';
@@ -89,10 +114,16 @@ export interface PlanUsageSummary {
 export interface AppUsage {
   orgId: string;
   appId: string;
+  appName: string | null;
   designTimeLimit: number;
   designTimeUsed: number;
+  // Stored server-side rather than derived: for an unlimited app (-1) "remaining"
+  // is the sentinel, not limit-minus-used, so recomputing it here would turn
+  // unlimited into a negative number.
+  designTimeRemaining: number;
   runtimeLimit: number;
   runtimeUsed: number;
+  runtimeRemaining: number;
   accessStatus: AccessStatus;
 }
 
@@ -279,4 +310,64 @@ export interface PlatformEnvironmentConfig {
   environment: string;
   derivedFromDatasource: boolean;
   domainReservationDays: number;
+}
+
+/** The organization-level allowance — the counter a one-click reset puts back to zero. */
+export interface OrgPlanUsage {
+  orgId: string;
+  planName: string | null;
+  orgPlanLimit: number;
+  orgUsedLimit: number;
+  orgRemainingLimit: number;
+}
+
+/**
+ * Which consumption counters a reset clears. Design-time and runtime are enforced
+ * independently, so a customer blocked on one is not necessarily blocked on the other.
+ * No scope ever changes a limit — only used/remaining.
+ */
+export type UsageResetScope = 'DESIGN_TIME' | 'RUNTIME' | 'BOTH';
+
+export interface UsageResetTarget {
+  planId: string;
+  appId: string;
+}
+
+export interface OrgUsageSnapshot {
+  orgId: string;
+  plans: {
+    planId: string;
+    planName: string | null;
+    limit: number | null;
+    used: number | null;
+    remaining: number | null;
+    apps: {
+      appId: string;
+      appName: string | null;
+      accessStatus: AccessStatus | null;
+      designTimeLimit: number | null;
+      designTimeUsed: number | null;
+      designTimeRemaining: number | null;
+      runtimeLimit: number | null;
+      runtimeUsed: number | null;
+      runtimeRemaining: number | null;
+    }[];
+  }[];
+}
+
+export interface ResetOrgUsageResult {
+  orgId: string;
+  scope: UsageResetScope;
+  rowsReset: number;
+  designTimeRowsReset: number;
+  runtimeRowsReset: number;
+  plans: {
+    planId: string | null;
+    planName: string | null;
+    orgPlanLimit: number | null;
+    orgUsedLimit: number | null;
+    orgRemainingLimit: number | null;
+    previousUsedLimit: number | null;
+  }[];
+  message: string;
 }

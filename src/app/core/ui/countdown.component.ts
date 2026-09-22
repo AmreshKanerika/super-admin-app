@@ -12,13 +12,13 @@ import { countdownLabel, countdownTone, daysUntil } from '../status.util';
         font-size: 12.5px;
       }
       .success {
-        color: var(--success);
+        color: #176b4d;
       }
       .warning {
-        color: var(--warning);
+        color: #825c0a;
       }
       .critical {
-        color: var(--critical);
+        color: #a63340;
       }
     `
   ]

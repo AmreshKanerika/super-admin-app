@@ -6,6 +6,9 @@ import { PageHeaderComponent } from '../../core/ui/page-header.component';
 import { StatusPillComponent } from '../../core/ui/status-pill.component';
 import { CountdownComponent } from '../../core/ui/countdown.component';
 import { EmptyStateComponent } from '../../core/ui/empty-state.component';
+import { ViewToggleComponent } from '../../core/ui/view-toggle.component';
+import { ScrollSentinelComponent } from '../../core/ui/scroll-sentinel.component';
+import { ViewModeService, ViewMode } from '../../core/view-mode.service';
 import { OverviewService, OrgOverviewRow } from '../../services/overview.service';
 import { PlansService } from '../../services/plans.service';
 import { ToastService } from '../../core/toast.service';
@@ -18,7 +21,7 @@ type SortKey = 'name' | 'expiry';
 @Component({
   selector: 'app-organizations-list',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, PageHeaderComponent, StatusPillComponent, CountdownComponent, EmptyStateComponent],
+  imports: [CommonModule, FormsModule, RouterLink, PageHeaderComponent, StatusPillComponent, CountdownComponent, EmptyStateComponent, ViewToggleComponent, ScrollSentinelComponent],
   templateUrl: './organizations-list.component.html',
   styleUrl: './organizations-list.component.scss'
 })
@@ -30,6 +33,15 @@ export class OrganizationsListComponent {
   overview = inject(OverviewService);
 
   isSuperAdmin = computed(() => this.auth.role() === 'SUPER_ADMIN');
+
+  // Defaults to the list: this screen is most often opened to scan for one organization or to
+  // work an attention queue, and a table compares rows far better than a grid does.
+  private viewModes = inject(ViewModeService);
+  readonly view = this.viewModes.mode('organizations', 'list');
+
+  setView(mode: ViewMode): void {
+    this.viewModes.set('organizations', mode);
+  }
   plans = inject(PlansService);
 
   tone = subscriptionStatusTone;
@@ -47,8 +59,10 @@ export class OrganizationsListComponent {
 
   sortKey = signal<SortKey>('expiry');
   sortAsc = signal(true);
-  page = signal(1);
-  pageSize = 7;
+  private static readonly ROWS_PER_SCROLL_STEP = 25;
+
+  visibleLimit = OrganizationsListComponent.ROWS_PER_SCROLL_STEP;
+  private lastFilterSignature = '';
 
   statusOptions: PlanStatus[] = ['ACTIVE', 'INACTIVE', 'EXPIRED', 'SUSPENDED', 'UNSUBSCRIBED', 'UPCOMING', 'CANCELLED'];
 
@@ -107,13 +121,38 @@ export class OrganizationsListComponent {
     return sorted;
   }
 
-  paged(): OrgOverviewRow[] {
-    const start = (this.page() - 1) * this.pageSize;
-    return this.filtered().slice(start, start + this.pageSize);
+  visibleRows(): OrgOverviewRow[] {
+    const rows = this.filtered();
+    const signature = this.currentFilterSignature();
+    if (signature !== this.lastFilterSignature) {
+      this.lastFilterSignature = signature;
+      this.visibleLimit = OrganizationsListComponent.ROWS_PER_SCROLL_STEP;
+    }
+    return rows.slice(0, this.visibleLimit);
   }
 
-  totalPages(): number {
-    return Math.max(1, Math.ceil(this.filtered().length / this.pageSize));
+  hasMoreRowsBelow(): boolean {
+    return this.filtered().length > this.visibleLimit;
+  }
+
+  showNextRows(): void {
+    this.visibleLimit += OrganizationsListComponent.ROWS_PER_SCROLL_STEP;
+  }
+
+  private currentFilterSignature(): string {
+    return [
+      this.search,
+      this.planStatus,
+      this.planId,
+      this.expiringInDays,
+      this.paidOnly,
+      this.hasSubscription,
+      this.createdWithinDays,
+      this.needsActivation,
+      this.needsAttention,
+      this.sortKey(),
+      this.sortAsc()
+    ].join('|');
   }
 
   sortBy(key: SortKey): void {
@@ -125,7 +164,7 @@ export class OrganizationsListComponent {
   }
 
   onFilterChange(): void {
-    this.page.set(1);
+    this.visibleLimit = OrganizationsListComponent.ROWS_PER_SCROLL_STEP;
     this.router.navigate([], {
       relativeTo: this.route,
       queryParams: {
@@ -150,9 +189,36 @@ export class OrganizationsListComponent {
     this.onFilterChange();
   }
 
+  hasAnyFilter(): boolean {
+    return !!(
+      this.search.trim() ||
+      this.planStatus ||
+      this.planId ||
+      this.expiringInDays ||
+      this.paidOnly !== null ||
+      this.hasSubscription !== null ||
+      this.createdWithinDays ||
+      this.needsActivation ||
+      this.needsAttention
+    );
+  }
+
+  resetFilters(): void {
+    this.search = '';
+    this.planStatus = '';
+    this.planId = '';
+    this.expiringInDays = null;
+    this.paidOnly = null;
+    this.hasSubscription = null;
+    this.createdWithinDays = null;
+    this.needsActivation = false;
+    this.needsAttention = false;
+    this.onFilterChange();
+  }
+
   planName(planId?: string): string {
     if (!planId) return '—';
-    return this.plans.byId(planId)?.planName ?? planId;
+    return this.plans.displayNameForPlanId(planId);
   }
 
   exportCsv(): void {

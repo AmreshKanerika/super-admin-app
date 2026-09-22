@@ -299,7 +299,7 @@
   </div>
 </div>
 
-<app-modal-shell *ngIf="planModalOpen()" title="Create a plan" [width]="860" (close)="closePlanBuilder()">
+<app-modal-shell *ngIf="planModalOpen()" heading="Create a plan" [width]="860" (close)="closePlanBuilder()">
   <p class="error-text" *ngIf="planModalError()">{{ planModalError() }}</p>
   <app-plan-builder [embedded]="true" (created)="onPlanCreated($event)" (cancelled)="closePlanBuilder()"></app-plan-builder>
 </app-modal-shell>

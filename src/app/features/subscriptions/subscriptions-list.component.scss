@@ -246,3 +246,170 @@ tbody tr.org-group-row:first-child .org-group {
 .sub-table tbody tr.sub-row:hover > td {
   background: var(--ui-violet-wash);
 }
+
+/* ── View toggle, grouping and card view ───────────────────────────────── */
+
+.view-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.twisty {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  flex: none;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink-faint);
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.twisty:hover {
+  background: var(--paper-sunken);
+  color: var(--ink);
+}
+
+.twisty:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+
+/* Wraps rather than scrolling: a card is not wide enough for six lifecycle
+   actions on one line, and a hidden action is an action nobody takes. */
+
+
+/* ── Tree view ─────────────────────────────────────────────────────────── */
+
+/* The organization is the root node and its subscriptions are its children, so
+   the leading column carries the branch rather than a fixed-width icon slot. */
+/* Stretch rather than a fixed height: the action buttons wrap on a narrow screen, making these
+   rows far taller than one line, and a fixed-height rail leaves the branch hanging mid-row. */
+.tree-table td.tree-cell {
+  align-items: stretch;
+}
+
+.tree-table td.tree-cell > :not(app-tree-branch) {
+  align-self: center;
+}
+
+.tree-table td.tree-cell {
+  /* Overrides the global `dtable:not(.lead-icon) td:first-child` floor of 160px, which
+     exists so a first column holding real content does not wrap mid-word. This column
+     holds a branch and a chevron, so it wants to be as narrow as its contents. */
+  width: 1%;
+  min-width: 0;
+  padding-right: 0;
+  white-space: nowrap;
+}
+
+.tree-cell {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.tree-root {
+  padding-left: 2px;
+}
+
+.tree-table .expand-btn {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--ink-faint);
+  font-size: 15px;
+}
+
+.tree-table .expand-btn:hover {
+  border-color: var(--line);
+  background: var(--paper-sunken);
+  color: var(--ink);
+}
+
+.tree-table .expand-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* The history panel belongs to its subscription, so it sits under the branch
+   rather than starting back at the table edge. */
+.tree-table .history-row td {
+  padding-left: 46px;
+}
+
+/* ── Responsive ────────────────────────────────────────────────────────── */
+
+@media (max-width: 860px) {
+  .filterbar .select {
+    max-width: none;
+    flex: 1 1 180px;
+  }
+}
+
+@media (max-width: 640px) {
+  .filterbar {
+    gap: 8px;
+  }
+
+  .filterbar .select {
+    flex: 1 1 100%;
+  }
+
+  .quick-chips {
+    width: 100%;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+  }
+
+  .quick-chips::-webkit-scrollbar {
+    display: none;
+  }
+
+  .quick-chips .chip {
+    flex: 0 0 auto;
+  }
+
+  /* Six lifecycle actions cannot sit on one phone-width line. They wrap and each
+     keeps its label — an icon-only row of destructive actions is worse. */
+  .row-actions,
+  .action-group {
+    flex-wrap: wrap;
+  }
+
+
+  .view-bar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+.managed-elsewhere {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 11px;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--k-blue-mist);
+  color: var(--k-blue-deep);
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.managed-elsewhere i {
+  font-size: 14px;
+  color: var(--k-blue-bright);
+}

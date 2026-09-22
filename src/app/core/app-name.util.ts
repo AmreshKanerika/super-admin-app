@@ -1,8 +1,4 @@
-// flip_applications stores machine-friendly names (ADF_TO_FDF, COGNOS_TO_POWERBI_PREMIGRATION).
-// Product/tool names don't title-case cleanly with a generic algorithm (POWERBI -> "PowerBI", not
-// "Powerbi"; SSIS should stay all-caps), so known catalog entries are mapped explicitly here, with
-// a generic fallback for anything added to the catalog later that isn't in this list yet.
-const DISPLAY_NAME_OVERRIDES: Record<string, string> = {
+const CURATED_FALLBACK_LABELS: Record<string, string> = {
   ADF_TO_FDF: 'ADF to FDF',
   ADF_TO_FDF_PREMIGRATION: 'ADF to FDF (Premigration)',
   ADMIN_CONSOLE: 'Admin Console',
@@ -60,21 +56,31 @@ const DISPLAY_NAME_OVERRIDES: Record<string, string> = {
   VALIDATION: 'Validation'
 };
 
-const CONNECTOR_WORDS = new Set(['to', 'of', 'and', 'for', 'with']);
+const LOWERCASED_CONNECTOR_WORDS = new Set(['to', 'of', 'and', 'for', 'with']);
 
-/** Falls back to a generic underscore -> Title Case conversion for anything not in the map above. */
-function genericTitleCase(rawName: string): string {
-  return rawName
+function titleCasedMachineName(machineName: string): string {
+  return machineName
     .split('_')
     .map((word) => {
       const lower = word.toLowerCase();
-      if (CONNECTOR_WORDS.has(lower)) return lower;
+      if (LOWERCASED_CONNECTOR_WORDS.has(lower)) return lower;
       return lower.charAt(0).toUpperCase() + lower.slice(1);
     })
     .join(' ');
 }
 
-export function formatAppName(rawName: string | null | undefined): string {
-  if (!rawName) return '';
-  return DISPLAY_NAME_OVERRIDES[rawName] ?? genericTitleCase(rawName);
+export function fallbackLabelFromMachineName(machineName: string | null | undefined): string {
+  if (!machineName) return '';
+  return CURATED_FALLBACK_LABELS[machineName] ?? titleCasedMachineName(machineName);
+}
+
+export interface AppWithNames {
+  appName?: string | null;
+  displayName?: string | null;
+}
+
+export function displayNameOrFallback(app: AppWithNames | null | undefined, fallback = ''): string {
+  const displayName = app?.displayName?.trim();
+  if (displayName) return displayName;
+  return fallbackLabelFromMachineName(app?.appName) || fallback;
 }

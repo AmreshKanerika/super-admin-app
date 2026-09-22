@@ -1,5 +1,5 @@
 <ng-container *ngIf="plan() as p">
-  <app-page-header eyebrow="Plan" [title]="p.planName" [subtitle]="p.description" [showBack]="true" [backUrl]="'/plans'">
+  <app-page-header eyebrow="Plan" [title]="p | planDisplayName" [subtitle]="p.description || p.planName" [showBack]="true" [backUrl]="'/plans'">
     <app-status-pill [label]="p.planState" [tone]="tone(p.planState)"></app-status-pill>
     <button type="button" class="btn ghost" (click)="openAssign()">Assign to organization</button>
     <a
@@ -34,11 +34,88 @@
         <div class="kv-item"><p class="k">Organizations using this plan</p><p class="v mono">{{ usingOrgs().length }}</p></div>
       </div>
 
-<div class="application-workspace"><div class="workspace-intro"><div><span class="workspace-eyebrow">PLAN CONFIGURATION</span><h2>Applications &amp; allowances</h2><p>Explore what this plan includes. Select an application to inspect its access and limits.</p></div><a class="btn ghost sm" *ngIf="p.planType === 'CUSTOM'" [routerLink]="['/plans', p.planId, 'edit']">Edit configuration</a></div>
-<app-application-explorer [nodes]="explorerNodes()" [detail]="planSettings" [query]="appQuery()" (queryChange)="appQuery.set($event)" (toggle)="toggleAppCollapsed($event)" (expandAll)="expandAllApps()" (collapseAll)="collapseAllApps()"></app-application-explorer>
-<ng-template #planSettings let-row><div class="application-settings"><section class="access-setting"><div class="setting-heading"><div><h3>Application access</h3><p>Availability included in this plan.</p></div><span class="access-read" [class.on]="row.accessStatus === 'ENABLED'">{{ row.accessStatus | titlecase }}</span></div></section><div class="settings-grid">
-<section class="allowance design"><span class="setting-label">Design-time</span><p>Resources created in this application.</p><div class="allowance-value">{{ row.accessStatus !== 'ENABLED' ? 'Inactive' : row.designTimeLimit === -1 ? 'Unlimited' : (row.designTimeLimit | number) }}</div></section>
-<section class="allowance runtime"><span class="setting-label">Runtime</span><p>Executions performed by this application.</p><div class="allowance-value">{{ row.accessStatus !== 'ENABLED' ? 'Inactive' : row.runtimeLimit === -1 ? 'Unlimited' : (row.runtimeLimit | number) }}</div></section></div><p class="settings-help">These are the plan allowances. Organization-specific overrides are managed under Apps &amp; limits.</p><div class="inactive-message" *ngIf="row.hasChildren"><strong>{{ row.descendantCount }} nested application{{ row.descendantCount === 1 ? '' : 's' }}</strong><p>Expand this application in the directory to inspect each child's configuration.</p></div></div></ng-template></div>
+<div class="application-workspace">
+  <div class="workspace-intro">
+    <div>
+      <span class="workspace-eyebrow">PLAN CONFIGURATION</span>
+      <h2>Applications &amp; allowances</h2>
+      <p>Everything this plan grants, with the allowance set for each application. Organization-specific overrides live under Apps &amp; limits.</p>
+    </div>
+    <a class="btn ghost sm" *ngIf="p.planType === 'CUSTOM'" [routerLink]="['/plans', p.planId, 'edit']">Edit configuration</a>
+  </div>
+
+  <div class="grid-bar">
+    <label class="grid-search">
+      <i class="ti ti-search" aria-hidden="true"></i>
+      <input
+        type="search"
+        class="input"
+        placeholder="Find an application…"
+        aria-label="Find an application"
+        [ngModel]="appQuery()"
+        (ngModelChange)="appQuery.set($event)"
+      />
+    </label>
+
+    <span class="grid-count">{{ appTreeRows().length }} shown</span>
+
+    <button type="button" class="btn sm ghost" (click)="expandAllApps()"><i class="ti ti-fold-down" aria-hidden="true"></i> Expand all</button>
+    <button type="button" class="btn sm ghost" (click)="collapseAllApps()"><i class="ti ti-fold-up" aria-hidden="true"></i> Collapse all</button>
+  </div>
+
+  <div class="scroll-x">
+    <table class="dtable limits-table">
+      <thead>
+        <tr>
+          <th>Application</th>
+          <th class="col-access">Access</th>
+          <th class="col-limit">Design-time</th>
+          <th class="col-limit">Runtime</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr
+          *ngFor="let row of appTreeRows(); trackBy: trackByPlanAppId"
+          class="limit-row"
+          [class.is-off]="row.accessStatus !== 'ENABLED'"
+        >
+          <td class="app-cell">
+            <span class="tree-cell">
+              <app-tree-branch [rails]="row.rails" [depth]="row.depth" [last]="row.isLastChild"></app-tree-branch>
+              <button
+                type="button"
+                class="twisty"
+                *ngIf="row.hasChildren; else noTwisty"
+                [attr.aria-expanded]="row.expanded"
+                [attr.aria-label]="(row.expanded ? 'Collapse ' : 'Expand ') + appDisplayName(row.appId)"
+                (click)="toggleAppCollapsed(row.appId)"
+              >
+                <i class="ti" [class.ti-chevron-down]="row.expanded" [class.ti-chevron-right]="!row.expanded" aria-hidden="true"></i>
+              </button>
+              <ng-template #noTwisty><span class="twisty-spacer" aria-hidden="true"></span></ng-template>
+              <span class="app-name">{{ appDisplayName(row.appId) }}</span>
+              <span class="child-count" *ngIf="row.hasChildren && !row.expanded">{{ row.descendantCount }}</span>
+            </span>
+          </td>
+
+          <td class="col-access">
+            <span class="access-readonly" [class.on]="row.accessStatus === 'ENABLED'">{{ row.accessStatus }}</span>
+          </td>
+
+          <td class="col-limit">
+            <span class="plan-allowance" [title]="'Design-time: ' + allowanceLabel(row, 'design')">{{ allowanceLabel(row, 'design') }}</span>
+          </td>
+
+          <td class="col-limit">
+            <span class="plan-allowance" [title]="'Runtime: ' + allowanceLabel(row, 'runtime')">{{ allowanceLabel(row, 'runtime') }}</span>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p class="grid-help">∞ means the plan sets no cap. An allowance of 0 prevents usage.</p>
+</div>
     </div>
 
     <div class="panel">
@@ -64,7 +141,7 @@
   <div class="backdrop" *ngIf="assignOpen()" (click)="closeAssign()">
     <div class="panel detail-panel" (click)="$event.stopPropagation()">
       <div class="dp-head">
-        <h3>Assign "{{ p.planName }}" to an organization</h3>
+        <h3>Assign "{{ p | planDisplayName }}" to an organization</h3>
         <button type="button" class="x" (click)="closeAssign()">âœ•</button>
       </div>
 

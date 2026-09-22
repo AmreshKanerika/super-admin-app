@@ -1,26 +1,46 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Application } from '../models';
+import { firstValueFrom } from 'rxjs';
+import { Application, ApplicationScopeRow, Scope } from '../models';
 import { ToastService } from '../core/toast.service';
+import { AuditService } from './audit.service';
+import { AuthService } from '../core/auth/auth.service';
 import { API_BASE_URL } from '../core/api-config';
+import { displayNameOrFallback } from '../core/app-name.util';
+
+export interface ApplicationDraft {
+  /** Only read on create — the machine key is fixed for the life of the application. */
+  appName: string;
+  displayName: string;
+  parentAppId: string | null;
+  scopes: Scope[];
+}
 
 @Injectable({ providedIn: 'root' })
 export class ApplicationsService {
   private http = inject(HttpClient);
   private toast = inject(ToastService);
+  private audit = inject(AuditService);
+  private auth = inject(AuthService);
+
   private readonly apps = signal<Application[]>([]);
+  readonly loading = signal(false);
 
   constructor() {
-    this.http.get<Application[]>(`${API_BASE_URL}/platform/applications`).subscribe({
-      next: (apps) => {
-        console.info('Loaded applications from API, count=', apps?.length ?? 0);
-        this.apps.set(apps);
-      },
-      error: (err) => {
-        console.error('Failed to load applications', err);
-        this.toast.show("Couldn't load the application catalog — check your connection and refresh.", 'critical');
-      }
-    });
+    void this.refresh();
+  }
+
+  async refresh(): Promise<void> {
+    this.loading.set(true);
+    try {
+      const apps = await firstValueFrom(this.http.get<Application[]>(`${API_BASE_URL}/platform/applications`));
+      this.apps.set(apps ?? []);
+    } catch (err) {
+      console.error('Failed to load applications', err);
+      this.toast.show("Couldn't load the application catalog — check your connection and refresh.", 'critical');
+    } finally {
+      this.loading.set(false);
+    }
   }
 
   list() {
@@ -44,6 +64,11 @@ export class ApplicationsService {
     return [appId, ...children];
   }
 
+  displayNameForAppId(appId: string | null | undefined): string {
+    if (!appId) return '';
+    return displayNameOrFallback(this.byId(appId), appId);
+  }
+
   // Walks the full catalog tree to whatever depth it actually goes — a plan's applications aren't
   // just root + one level of children (e.g. Migration has its own children like "SSAS to Fabric"),
   // and anywhere that only checked roots()/childrenOf(root) one level deep silently dropped every
@@ -56,5 +81,57 @@ export class ApplicationsService {
     };
     for (const root of this.roots()) visit(root, 0);
     return result;
+  }
+
+  // --- writes --------------------------------------------------------------
+  //
+  // Each of these refreshes the whole catalog rather than patching the local signal.
+  // The server normalises what it is sent (upper-casing the machine key, collapsing
+  // whitespace in the label, sorting scopes), so a locally-patched row would differ
+  // from the stored one in ways nobody would think to look for.
+
+  async create(draft: ApplicationDraft): Promise<Application> {
+    const created = await firstValueFrom(
+      this.http.post<Application>(`${API_BASE_URL}/platform/applications`, { ...draft, userId: this.auth.getUserId() })
+    );
+    await this.refresh();
+    this.audit.log('APPLICATION_CREATED', 'Application', displayNameOrFallback(created, created.appId), 'SUCCESS', created.appId);
+    return created;
+  }
+
+  async update(appId: string, draft: Omit<ApplicationDraft, 'appName'>): Promise<Application> {
+    const updated = await firstValueFrom(
+      this.http.put<Application>(`${API_BASE_URL}/platform/applications/${appId}`, {
+        ...draft,
+        userId: this.auth.getUserId()
+      })
+    );
+    await this.refresh();
+    this.audit.log('APPLICATION_UPDATED', 'Application', displayNameOrFallback(updated, appId), 'SUCCESS', appId);
+    return updated;
+  }
+
+  async remove(appId: string): Promise<void> {
+    const label = this.displayNameForAppId(appId);
+    await firstValueFrom(this.http.delete(`${API_BASE_URL}/platform/applications/${appId}`));
+    await this.refresh();
+    this.audit.log('APPLICATION_DELETED', 'Application', label, 'SUCCESS', appId);
+  }
+
+  async listScopes(appId: string): Promise<ApplicationScopeRow[]> {
+    return firstValueFrom(this.http.get<ApplicationScopeRow[]>(`${API_BASE_URL}/platform/applications/${appId}/scopes`));
+  }
+
+  async addScope(appId: string, scopeName: Scope): Promise<void> {
+    const params = new URLSearchParams({ scopeName });
+    const userId = this.auth.getUserId();
+    if (userId) params.set('userId', userId);
+    await firstValueFrom(this.http.post(`${API_BASE_URL}/platform/applications/${appId}/scopes?${params.toString()}`, {}));
+    await this.refresh();
+  }
+
+  async removeScope(appId: string, appScopeId: string): Promise<void> {
+    await firstValueFrom(this.http.delete(`${API_BASE_URL}/platform/applications/${appId}/scopes/${appScopeId}`));
+    await this.refresh();
   }
 }

@@ -99,6 +99,7 @@ export class SubscriptionsService {
       this.subs.update((list) => list.map((s) => (s.subscriptionId === id ? { ...s, planStatus: updated.planStatus, statusReason: updated.statusReason } : s)));
       const actionMap: Record<string, string> = {
         SUSPENDED: 'SUBSCRIPTION_SUSPENDED',
+        INACTIVE: 'SUBSCRIPTION_DEACTIVATED',
         ACTIVE: 'SUBSCRIPTION_REACTIVATED',
         CANCELLED: 'SUBSCRIPTION_CANCELLED'
       };

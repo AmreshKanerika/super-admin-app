@@ -1,0 +1,182 @@
+// ---------------------------------------------------------------------------
+// Responsive layer
+//
+// Only touches primitives DEFINED in this global stylesheet (.btn, .input,
+// .chip, .dtable, .field, .tabbar, .panel). Angular scopes component styles
+// with an attribute selector, which outranks a bare global class — so a global
+// rule here can never override a class a component declares for itself. Those
+// live in the component's own stylesheet, next to what they are correcting.
+//
+// Breakpoints are named for what changes, not for devices:
+//    860px  two-column layouts stop fitting
+//    640px  single column; controls go full width, sidebar becomes a drawer
+//
+// Touch sizing keys off (pointer: coarse) rather than width. A 13" touchscreen
+// and a phone need the same hit targets; a narrow desktop window does not.
+// ---------------------------------------------------------------------------
+
+// A single gutter every screen shares, so content lines up with the shell's
+// own padding instead of each page inventing its own inset.
+:root {
+  --gutter: clamp(16px, 2.6vw, 32px);
+}
+
+// Nothing may push the page sideways. A single overflowing table or a long
+// unbroken domain name otherwise makes the whole document pan, which on a phone
+// reads as the app being broken rather than as one wide element.
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+// ---------------------------------------------------------------------------
+// Tables
+// ---------------------------------------------------------------------------
+
+// The scroll container is already established globally; this makes it behave
+// like one on a touch device and hints that there is more to the right.
+*:has(> table.dtable) {
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+@media (max-width: 640px) {
+  table.dtable {
+    // Below this the columns crush into unreadable slivers. Horizontal scroll is
+    // the honest answer for a dense table on a phone — collapsing rows into
+    // stacked cards loses the row-to-row comparison the table exists for.
+    min-width: 520px;
+    font-size: 12.5px;
+    --tree-rail-bleed: 11px;
+  }
+
+  table.dtable th,
+  table.dtable td {
+    padding: 11px 10px;
+  }
+
+  table.dtable th {
+    padding-bottom: 10px;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Controls
+// ---------------------------------------------------------------------------
+
+@media (max-width: 640px) {
+  // A row of buttons that each shrink to their text becomes a ransom note. Below
+  // this they share the width evenly instead.
+  .btn {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  // …except the small variants, which are row actions and must stay compact.
+  .btn.sm {
+    flex: 0 0 auto;
+  }
+
+  .field .hint,
+  .field label {
+    font-size: 11.5px;
+  }
+
+  .tabbar {
+    gap: 16px;
+  }
+
+  .panel {
+    padding: 16px;
+  }
+}
+
+// Touch. 44px is the smallest target that can be hit reliably without looking.
+@media (pointer: coarse) {
+  .btn,
+  select.input,
+  input.input,
+  .chip {
+    min-height: 44px;
+  }
+
+  .btn.sm,
+  .chip {
+    min-height: 38px;
+  }
+
+  // Anything acting as an icon button, wherever it is declared.
+  button:has(> i.ti:only-child) {
+    min-width: 38px;
+    min-height: 38px;
+  }
+
+  // Hover styling that sticks after a tap reads as a stuck selection, so the
+  // decorative hover states are dropped where there is no real pointer.
+  table.dtable tbody tr:hover {
+    background: transparent;
+  }
+}
+
+// iOS zooms the page when a focused input is under 16px. Raising it only for
+// coarse pointers keeps the denser desktop sizing intact.
+@media (pointer: coarse) {
+  input.input,
+  select.input,
+  textarea.input {
+    font-size: 16px;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Dialogs
+//
+// The confirm/change-plan dialogs are centred boxes. On a phone a centred box
+// with margins wastes the only space there is and puts its actions mid-screen,
+// so below 640px they become bottom sheets.
+// ---------------------------------------------------------------------------
+
+@media (max-width: 640px) {
+  .backdrop {
+    align-items: flex-end !important;
+    padding: 0 !important;
+  }
+
+  .backdrop > .panel,
+  .backdrop > .change-panel,
+  .backdrop > .modal {
+    width: 100% !important;
+    max-width: none !important;
+    max-height: 88vh;
+    overflow-y: auto;
+    border-radius: 16px 16px 0 0;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Print
+//
+// Someone will take a subscription list into a meeting. Drop the app frame and
+// let the content use the page.
+// ---------------------------------------------------------------------------
+
+@media print {
+  .sidebar,
+  .mobile-topbar,
+  .sidebar-backdrop,
+  app-toast-host,
+  .btn,
+  .view-bar {
+    display: none !important;
+  }
+
+  .content {
+    overflow: visible !important;
+    padding: 0 !important;
+  }
+
+  table.dtable {
+    min-width: 0 !important;
+  }
+}

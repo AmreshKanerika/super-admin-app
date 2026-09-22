@@ -74,10 +74,12 @@
   ></app-empty-state>
 </ng-template>
 
-<div class="pagination" *ngIf="totalElements()">
-  <span class="text-faint mono">{{ totalElements() }} total · page {{ page() + 1 }} of {{ totalPages() }}</span>
-  <div class="pager-btns">
-    <button type="button" class="btn ghost sm" [disabled]="page() <= 0" (click)="previousPage()">Previous</button>
-    <button type="button" class="btn ghost sm" [disabled]="page() + 1 >= totalPages()" (click)="nextPage()">Next</button>
-  </div>
-</div>
+<app-scroll-sentinel *ngIf="hasMoreEntriesBelow()" (reached)="loadNextPage()"></app-scroll-sentinel>
+
+<p class="scroll-hint" *ngIf="totalElements()" aria-live="polite">
+  <ng-container *ngIf="hasMoreEntriesBelow() || loading(); else allLoaded">
+    <i class="ti ti-chevrons-down" aria-hidden="true"></i>
+    Showing {{ items().length }} of {{ totalElements() }} — loading more as you scroll
+  </ng-container>
+  <ng-template #allLoaded>All {{ totalElements() }} entries loaded</ng-template>
+</p>

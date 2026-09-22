@@ -309,10 +309,23 @@ app-plan-builder .review-app-row.is-parent .ra-name {
 app-plan-builder .review-app-row:not(.is-head):hover {
   background: var(--ui-violet-wash);
 }
+/* The branch draws the hierarchy, so the row itself carries no indent. It bleeds by the row's
+   own vertical padding so consecutive rails join into one continuous line. */
 app-plan-builder .ra-name {
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
   font-size: 13px;
   font-weight: 500;
   color: var(--ink-soft);
+  overflow-wrap: anywhere;
+  --tree-rail-bleed: 9px;
+}
+
+app-plan-builder .ra-label {
+  align-self: center;
+  min-width: 0;
+  padding-left: 4px;
   overflow-wrap: anywhere;
 }
 app-plan-builder .ra-limit {

@@ -11,7 +11,12 @@
   </select>
 </div>
 
-<div class="plan-grid">
+<div class="view-bar">
+  <span class="view-count">{{ filtered().length }} {{ filtered().length === 1 ? 'plan' : 'plans' }}</span>
+  <app-view-toggle [mode]="view()" label="Plan view" (modeChange)="setView($event)"></app-view-toggle>
+</div>
+
+<div class="plan-grid" *ngIf="view() === 'cards'">
   <a
     class="plan-card"
     *ngFor="let p of filtered()"
@@ -24,7 +29,8 @@
       <app-status-pill [label]="p.planState" [tone]="tone(p.planState)"></app-status-pill>
     </div>
 
-    <h3 class="pc-name">{{ p.planName }}</h3>
+    <h3 class="pc-name">{{ p | planDisplayName }}</h3>
+    <code class="pc-key">{{ p.planName }}</code>
 
     <!-- The primary application is what a subscription bills and de-duplicates against, so it
          belongs in the card rather than buried in a run of meta text. -->
@@ -47,3 +53,53 @@
     </div>
   </a>
 </div>
+
+<div class="scroll-x" *ngIf="view() === 'list' && filtered().length">
+  <table class="dtable">
+    <thead>
+      <tr>
+        <th>Plan</th>
+        <th>Type</th>
+        <th>State</th>
+        <th>Primary application</th>
+        <th class="num">Apps</th>
+        <th class="num">Organizations</th>
+        <th>Billing</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr
+        *ngFor="let row of listRows(); trackBy: trackByPlanId"
+        class="plan-row"
+        [attr.data-family]="row.familyColourIndex"
+      >
+        <td class="strong">
+          <span class="plan-cell">
+            <span class="plan-initial" aria-hidden="true">{{ row.initial }}</span>
+            <span class="plan-names">
+              <a class="row-link" [routerLink]="['/plans', row.plan.planId]" [queryParams]="showBack ? { from: 'overview' } : null">{{ row.plan | planDisplayName }}</a>
+              <code class="pc-key">{{ row.plan.planName }}</code>
+              <small class="row-desc" *ngIf="row.plan.description">{{ row.plan.description }}</small>
+            </span>
+          </span>
+        </td>
+        <td><span class="type-chip" [class.is-default]="row.plan.planType === 'DEFAULT'">{{ row.plan.planType }}</span></td>
+        <td><app-status-pill [label]="row.plan.planState" [tone]="tone(row.plan.planState)"></app-status-pill></td>
+        <td>
+          <span class="primary-app">
+            <i class="ti ti-app-window" aria-hidden="true"></i>{{ primaryAppName(row.plan.primaryAppId) }}
+          </span>
+        </td>
+        <td class="num mono">{{ appCount(row.plan.planId) }}</td>
+        <td class="num mono">{{ orgsInUse(row.plan.planId) }}</td>
+        <td><span class="billing-chip" [attr.data-billing]="row.plan.billingMode">{{ row.plan.billingMode }}</span></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<app-empty-state
+  *ngIf="!filtered().length"
+  title="No plans match these filters"
+  message="Try a different search, or clear the type filter."
+></app-empty-state>

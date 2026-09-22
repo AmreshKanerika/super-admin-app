@@ -1,0 +1,461 @@
+// The editable access + allowance grid, shared by the per-organization Limits panel and the plan
+// builder so both read as the same control. Scoped to .application-workspace, which both wrap it in.
+
+.application-workspace .grid-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 14px 0 12px;
+}
+
+.application-workspace .grid-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 260px;
+  min-width: 0;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--paper-raised);
+}
+
+.application-workspace .grid-search i {
+  color: var(--ink-faint);
+  font-size: 15px;
+}
+
+.application-workspace .grid-search .input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  padding: 8px 0;
+}
+
+.application-workspace .grid-search .input:focus {
+  outline: none;
+}
+
+.application-workspace .grid-count {
+  color: var(--ink-faint);
+  font-size: 11.5px;
+  white-space: nowrap;
+}
+
+.application-workspace .bulk-access {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--paper-sunken);
+}
+
+.application-workspace .bulk-label {
+  padding: 0 8px;
+  color: var(--ink-faint);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.application-workspace .bulk-access button {
+  padding: 5px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.application-workspace .bulk-access button:hover {
+  background: var(--paper-raised);
+  color: var(--ink);
+}
+
+// ── Grid ────────────────────────────────────────────────────────────────────
+
+.application-workspace .limits-table td {
+  vertical-align: middle;
+}
+
+.application-workspace .limits-table .col-access {
+  width: 1%;
+  white-space: nowrap;
+}
+
+.application-workspace .limits-table .col-limit {
+  width: 210px;
+}
+
+.application-workspace .limits-table .col-row-actions {
+  width: 1%;
+  white-space: nowrap;
+}
+
+.application-workspace .limit-row.is-dirty > td {
+  background: color-mix(in oklab, var(--accent) 6%, var(--paper-raised));
+}
+
+.application-workspace .limit-row.is-dirty > td:first-child {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.application-workspace .limit-row.is-off .app-name {
+  color: var(--ink-faint);
+}
+
+.application-workspace .app-cell {
+  min-width: 0;
+}
+
+.application-workspace .tree-cell {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.application-workspace .app-name {
+  margin-left: 4px;
+  overflow-wrap: anywhere;
+  font-weight: 600;
+}
+
+.application-workspace .twisty {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  flex: none;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--ink-faint);
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.application-workspace .twisty:hover {
+  background: var(--paper-sunken);
+  color: var(--ink);
+}
+
+.application-workspace .twisty-spacer {
+  display: inline-block;
+  width: 22px;
+  flex: none;
+}
+
+.application-workspace .child-count {
+  margin-left: 7px;
+  padding: 1px 7px;
+  border-radius: 20px;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font: 700 10px var(--font-sans);
+}
+
+.application-workspace .dirty-dot {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  margin-left: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+// ── Access ──────────────────────────────────────────────────────────────────
+
+.application-workspace .access-toggle {
+  display: inline-flex;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper-sunken);
+}
+
+.application-workspace .access-toggle button {
+  padding: 5px 11px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink-faint);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.application-workspace .access-toggle button:hover {
+  color: var(--ink);
+}
+
+.application-workspace .access-toggle button.on {
+  background: var(--paper-raised);
+  box-shadow: 0 1px 3px rgba(40, 20, 60, 0.13);
+}
+
+.application-workspace .access-toggle button.on-enabled.on {
+  color: var(--success);
+}
+
+.application-workspace .access-toggle button.on-disabled.on {
+  color: var(--critical);
+}
+
+.application-workspace .access-toggle button.on-hidden.on {
+  color: var(--ink-soft);
+}
+
+.application-workspace .access-toggle button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+// ── Allowances ──────────────────────────────────────────────────────────────
+
+.application-workspace .allowance-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+// Kept legible rather than hidden: a disabled application still has allowances, and they are
+// what it comes back with when it is switched on again.
+.application-workspace .allowance-cell.inactive {
+  opacity: 0.55;
+}
+
+.application-workspace .unlimited-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  align-self: flex-start;
+  padding: 5px 11px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.application-workspace .unlimited-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.application-workspace .unlimited-label span {
+  font-size: 15px;
+  line-height: 1;
+}
+
+.application-workspace .set-limit-hint {
+  padding: 2px 7px;
+  border-radius: 20px;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.application-workspace .unlimited-toggle:hover .set-limit-hint {
+  background: var(--accent);
+  color: #fff;
+}
+
+.application-workspace .unlimited-toggle:hover {
+  border-style: solid;
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+.application-workspace .limit-input {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.application-workspace .limit-input .input {
+  width: 108px;
+  padding: 6px 9px;
+  font-variant-numeric: tabular-nums;
+}
+
+.application-workspace .clear-limit {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  flex: none;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink-faint);
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.application-workspace .clear-limit:hover {
+  background: var(--critical-soft);
+  color: var(--critical);
+}
+
+.application-workspace .usage-meter {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.usage-meter small,
+.application-workspace .usage-plain {
+  color: var(--ink-faint);
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.application-workspace .meter-track {
+  display: block;
+  width: 132px;
+  height: 4px;
+  border-radius: 3px;
+  background: var(--paper-sunken);
+  overflow: hidden;
+}
+
+.application-workspace .meter-fill {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--limit-runtime);
+  transition: width 0.2s ease;
+}
+
+.application-workspace .meter-fill.warning {
+  background: var(--warning);
+}
+
+.application-workspace .meter-fill.critical {
+  background: var(--critical);
+}
+
+// ── Row actions ─────────────────────────────────────────────────────────────
+
+.application-workspace .row-actions {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.application-workspace .row-actions .icon-btn.primary {
+  color: #fff;
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.application-workspace .row-actions .icon-btn.primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.application-workspace .grid-help {
+  margin: 12px 0 0;
+  color: var(--ink-faint);
+  font-size: 11.5px;
+}
+
+@media (max-width: 860px) {
+  .application-workspace .bulk-access {
+    margin-left: 0;
+  }
+
+  .application-workspace .limits-table {
+    min-width: 780px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .application-workspace .meter-fill,
+  .application-workspace .access-toggle button {
+    transition: none;
+  }
+}
+
+.application-workspace .scopes-cell {
+  max-width: 260px;
+}
+
+.application-workspace .scope-chip {
+  display: inline-block;
+  margin: 0 4px 3px 0;
+  padding: 2px 7px;
+  border-radius: 20px;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.application-workspace .scope-chip[data-scope='VIEW'] {
+  background: var(--k-blue-pale);
+  color: var(--k-blue-deep);
+}
+
+.application-workspace .scope-chip[data-scope='EDIT'],
+.application-workspace .scope-chip[data-scope='ADD'] {
+  background: var(--limit-runtime-soft);
+  color: var(--limit-runtime);
+}
+
+.application-workspace .scope-chip[data-scope='EXECUTE'] {
+  background: var(--warning-soft);
+  color: #8a6510;
+}
+
+.application-workspace .scope-chip[data-scope='DELETE'] {
+  background: var(--critical-soft);
+  color: var(--critical);
+}
+
+.application-workspace .scope-chip[data-scope='ALL'] {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+
+.application-workspace .access-readonly {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 20px;
+  background: var(--paper-sunken);
+  color: var(--ink-faint);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.application-workspace .access-readonly.on {
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.application-workspace .plan-allowance {
+  display: inline-block;
+  padding: 4px 11px;
+  border-radius: 7px;
+  background: var(--paper-sunken);
+  color: var(--ink);
+  font-size: 12.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}

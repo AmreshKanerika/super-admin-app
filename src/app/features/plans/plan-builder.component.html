@@ -26,8 +26,14 @@
   <!-- STEP 0: DETAILS -->
   <div *ngIf="step() === 0" class="step-body">
     <div class="field">
-      <label>Plan name</label>
-      <input class="input" [class.invalid]="nameError" [(ngModel)]="planName" (ngModelChange)="checkName()" placeholder="e.g. Meridian Custom" />
+      <label>Display name</label>
+      <input class="input" [(ngModel)]="displayName" (ngModelChange)="suggestPlanName()" placeholder="Meridian Custom" autocomplete="off" />
+      <span class="hint">What everyone sees — in the console, on subscriptions and in usage screens. Write it the way you would say it.</span>
+    </div>
+    <div class="field">
+      <label>Plan key</label>
+      <input class="input mono" [class.invalid]="nameError" [(ngModel)]="planName" (ngModelChange)="onPlanKeyInput()" placeholder="MERIDIAN_CUSTOM" autocomplete="off" spellcheck="false" />
+      <span class="hint">The unique key the platform resolves this plan by. It cannot be changed later.</span>
       <p class="error-text" *ngIf="nameError">{{ nameError }}</p>
     </div>
     <div class="field">
@@ -45,23 +51,144 @@
     </div>
   </div>
 
-<div *ngIf="step() === 1 || step() === 2" class="application-workspace"><div class="workspace-intro"><div><span class="workspace-eyebrow">PLAN CONFIGURATION</span><h2>{{ step() === 1 ? 'Choose application access' : 'Set application allowances' }}</h2><p>Use the same directory to configure each application. New allowances start unlimited.</p></div></div>
-<app-application-explorer [nodes]="explorerNodes()" [detail]="builderSettings" [query]="appQuery()" (queryChange)="appQuery.set($event)" (toggle)="toggleAppCollapsed($event)" (expandAll)="expandAllApps()" (collapseAll)="collapseAllApps()"></app-application-explorer>
-<ng-template #builderSettings let-row><div class="application-settings"><section class="access-setting"><div class="setting-heading"><div><h3>Application access</h3><p>Choose how this application is available.</p></div></div><div class="access-options" role="group" aria-label="Application access">
- <button type="button" [class.chosen]="row.accessStatus === 'ENABLED'" [attr.aria-pressed]="row.accessStatus === 'ENABLED'" (click)="setAccessStatus(row, 'ENABLED')"><strong>Enabled</strong><span>Available to use</span></button><button type="button" [class.chosen]="row.accessStatus === 'DISABLED'" [attr.aria-pressed]="row.accessStatus === 'DISABLED'" (click)="setAccessStatus(row, 'DISABLED')"><strong>Disabled</strong><span>Usage switched off</span></button><button type="button" [class.chosen]="row.accessStatus === 'HIDDEN'" [attr.aria-pressed]="row.accessStatus === 'HIDDEN'" (click)="setAccessStatus(row, 'HIDDEN')"><strong>Hidden</strong><span>Hidden from users</span></button></div><p class="cascade-note" *ngIf="row.hasChildren">Changing access also updates all nested applications. Enabling an application enables its parent chain.</p></section><ng-container *ngIf="row.accessStatus === 'ENABLED'; else inactiveBuilder"><div class="settings-grid"><section class="allowance design"><span class="setting-label">Design-time</span><p>Resources created in this application.</p>
-    <div class="allowance-value" *ngIf="row.designUnlimited"><span class="infinity">∞</span> Unlimited</div>
-    <label *ngIf="!(row.designUnlimited)" class="custom-limit">Custom allowance<input class="input" type="number" min="0" step="1" [ngModel]="row.designTimeLimit" (ngModelChange)="setRowLimit(row, 'design', $event)" aria-label="Design-time allowance" /></label>
-    <button class="setting-link" type="button" *ngIf="row.designUnlimited" (click)="startLimiting(row, 'design')">Set a custom limit <span aria-hidden="true">↗</span></button>
-    <button class="setting-link" type="button" *ngIf="!(row.designUnlimited)" (click)="clearLimit(row, 'design')">Use unlimited</button></section><section class="allowance runtime"><span class="setting-label">Runtime</span><p>Executions performed by this application.</p>
-    <div class="allowance-value" *ngIf="row.runtimeUnlimited"><span class="infinity">∞</span> Unlimited</div>
-    <label *ngIf="!(row.runtimeUnlimited)" class="custom-limit">Custom allowance<input class="input" type="number" min="0" step="1" [ngModel]="row.runtimeLimit" (ngModelChange)="setRowLimit(row, 'runtime', $event)" aria-label="Runtime allowance" /></label>
-    <button class="setting-link" type="button" *ngIf="row.runtimeUnlimited" (click)="startLimiting(row, 'runtime')">Set a custom limit <span aria-hidden="true">↗</span></button>
-    <button class="setting-link" type="button" *ngIf="!(row.runtimeUnlimited)" (click)="clearLimit(row, 'runtime')">Use unlimited</button></section></div><p class="settings-help">Unlimited has no usage cap. A custom allowance of 0 prevents usage.</p></ng-container><ng-template #inactiveBuilder><div class="inactive-message"><strong>This application is not enabled</strong><p>Enable access to configure its usage allowances.</p></div></ng-template><p class="settings-help" *ngIf="row.app.scopes.length">Included scopes: {{ scopesLabel(row.app) }}</p></div></ng-template></div>  <div *ngIf="step() === 1" class="step-body primary-app-picker">
+<div *ngIf="step() === 1 || step() === 2" class="application-workspace">
+  <div class="workspace-intro">
+    <div>
+      <span class="workspace-eyebrow">PLAN CONFIGURATION</span>
+      <h2>{{ step() === 1 ? 'Choose application access' : 'Set application allowances' }}</h2>
+      <p *ngIf="step() === 1">Switch on every application this plan grants. Access cascades to nested applications, and enabling one turns on its parent chain.</p>
+      <p *ngIf="step() === 2">Every enabled application starts <strong>unlimited</strong> — click an allowance to cap it. Leave it as it is where the plan should not limit usage.</p>
+    </div>
+  </div>
+
+  <div class="grid-bar">
+    <label class="grid-search">
+      <i class="ti ti-search" aria-hidden="true"></i>
+      <input
+        type="search"
+        class="input"
+        placeholder="Find an application…"
+        aria-label="Find an application"
+        [ngModel]="appQuery()"
+        (ngModelChange)="appQuery.set($event)"
+      />
+    </label>
+
+    <span class="grid-count">{{ enabledVisibleCount() }} of {{ visibleRows().length }} enabled</span>
+
+    <button type="button" class="btn sm ghost" (click)="expandAllApps()"><i class="ti ti-fold-down" aria-hidden="true"></i> Expand all</button>
+    <button type="button" class="btn sm ghost" (click)="collapseAllApps()"><i class="ti ti-fold-up" aria-hidden="true"></i> Collapse all</button>
+
+    <span class="bulk-access" *ngIf="step() === 1" role="group" aria-label="Set access for every visible application">
+      <span class="bulk-label">Set all visible</span>
+      <button type="button" (click)="setAccessForAllVisible('ENABLED')">Enabled</button>
+      <button type="button" (click)="setAccessForAllVisible('DISABLED')">Disabled</button>
+      <button type="button" (click)="setAccessForAllVisible('HIDDEN')">Hidden</button>
+    </span>
+  </div>
+
+  <div class="scroll-x">
+    <table class="dtable limits-table">
+      <thead>
+        <tr>
+          <th>Application</th>
+          <th class="col-access">Access</th>
+          <th *ngIf="step() === 1">Scopes</th>
+          <th class="col-limit" *ngIf="step() === 2">Design-time</th>
+          <th class="col-limit" *ngIf="step() === 2">Runtime</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr
+          *ngFor="let row of visibleRows(); trackBy: trackByAppRow"
+          class="limit-row"
+          [class.is-off]="row.accessStatus !== 'ENABLED'"
+        >
+          <td class="app-cell">
+            <span class="tree-cell">
+              <app-tree-branch [rails]="row.rails" [depth]="row.depth" [last]="row.isLastChild"></app-tree-branch>
+              <button
+                type="button"
+                class="twisty"
+                *ngIf="row.hasChildren; else noTwisty"
+                [attr.aria-expanded]="row.expanded"
+                [attr.aria-label]="(row.expanded ? 'Collapse ' : 'Expand ') + (row.app | appDisplayName)"
+                (click)="toggleAppCollapsed(row.app.appId)"
+              >
+                <i class="ti" [class.ti-chevron-down]="row.expanded" [class.ti-chevron-right]="!row.expanded" aria-hidden="true"></i>
+              </button>
+              <ng-template #noTwisty><span class="twisty-spacer" aria-hidden="true"></span></ng-template>
+              <span class="app-name">{{ row.app | appDisplayName }}</span>
+              <span class="child-count" *ngIf="row.hasChildren && !row.expanded">{{ row.descendantCount }}</span>
+            </span>
+          </td>
+
+          <td class="col-access">
+            <span class="access-toggle" *ngIf="step() === 1" role="group" [attr.aria-label]="'Access for ' + (row.app | appDisplayName)">
+              <button type="button" class="on-enabled" [class.on]="row.accessStatus === 'ENABLED'" [attr.aria-pressed]="row.accessStatus === 'ENABLED'" (click)="setAccessStatus(row, 'ENABLED')">Enabled</button>
+              <button type="button" class="on-disabled" [class.on]="row.accessStatus === 'DISABLED'" [attr.aria-pressed]="row.accessStatus === 'DISABLED'" (click)="setAccessStatus(row, 'DISABLED')">Disabled</button>
+              <button type="button" class="on-hidden" [class.on]="row.accessStatus === 'HIDDEN'" [attr.aria-pressed]="row.accessStatus === 'HIDDEN'" (click)="setAccessStatus(row, 'HIDDEN')">Hidden</button>
+            </span>
+            <span class="access-readonly" *ngIf="step() === 2" [class.on]="row.accessStatus === 'ENABLED'">{{ row.accessStatus }}</span>
+          </td>
+
+          <td *ngIf="step() === 1" class="scopes-cell">
+            <span class="scope-chip" *ngFor="let scope of row.app.scopes" [attr.data-scope]="scope">{{ scope }}</span>
+            <span class="muted" *ngIf="!row.app.scopes?.length">No scopes</span>
+          </td>
+
+          <td class="col-limit" *ngIf="step() === 2">
+            <ng-container *ngTemplateOutlet="allowanceCell; context: { $implicit: row, kind: 'design' }"></ng-container>
+          </td>
+
+          <td class="col-limit" *ngIf="step() === 2">
+            <ng-container *ngTemplateOutlet="allowanceCell; context: { $implicit: row, kind: 'runtime' }"></ng-container>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p class="grid-help" *ngIf="step() === 2">Unlimited has no usage cap. An allowance of 0 prevents usage. Only enabled applications can be capped.</p>
+</div>
+
+<ng-template #allowanceCell let-row let-kind="kind">
+  <div class="allowance-cell" [class.inactive]="row.accessStatus !== 'ENABLED'" [title]="allowanceTooltip(row, kind)">
+    <ng-container *ngIf="row.accessStatus === 'ENABLED'; else notEnabled">
+      <button
+        type="button"
+        class="unlimited-toggle"
+        *ngIf="kind === 'design' ? row.designUnlimited : row.runtimeUnlimited"
+        (click)="startLimiting(row, kind)"
+        [attr.aria-label]="'Set a ' + kind + ' limit for ' + (row.app | appDisplayName)"
+      >
+        <span class="unlimited-label"><span aria-hidden="true">&#8734;</span> Unlimited</span>
+        <span class="set-limit-hint">Set a limit</span>
+      </button>
+
+      <span class="limit-input" *ngIf="!(kind === 'design' ? row.designUnlimited : row.runtimeUnlimited)">
+        <input
+          class="input"
+          type="number"
+          min="0"
+          step="1"
+          [ngModel]="kind === 'design' ? row.designTimeLimit : row.runtimeLimit"
+          (ngModelChange)="setRowLimit(row, kind, $event)"
+          [attr.aria-label]="kind + ' allowance for ' + (row.app | appDisplayName)"
+        />
+        <button type="button" class="clear-limit" (click)="clearLimit(row, kind)" [attr.aria-label]="'Remove the ' + kind + ' limit'">&#215;</button>
+      </span>
+    </ng-container>
+    <ng-template #notEnabled><span class="muted">—</span></ng-template>
+  </div>
+</ng-template>
+
+  <div *ngIf="step() === 1" class="step-body primary-app-picker">
     <div class="field">
       <label>Primary application</label>
       <select class="input" [(ngModel)]="primaryAppId">
         <option value="">Select the accelerator this plan bills against…</option>
-        <option *ngFor="let row of primaryAppOptions()" [value]="row.app.appId">{{ row.app.appName | appName }}</option>
+        <option *ngFor="let row of primaryAppOptions()" [value]="row.app.appId">{{ row.app | appDisplayName }}</option>
       </select>
       <p class="hint">
         A subscription is billed and de-duplicated against this application. A plan without one cannot be onboarded.
@@ -74,7 +201,8 @@
     <section class="review-card">
       <h3 class="review-title">Plan</h3>
       <div class="review-grid">
-        <div class="kv-item"><p class="k">Plan name</p><p class="v">{{ planName }}</p></div>
+        <div class="kv-item"><p class="k">Display name</p><p class="v">{{ displayName || planName }}</p></div>
+        <div class="kv-item"><p class="k">Plan key</p><p class="v mono">{{ planName }}</p></div>
         <div class="kv-item"><p class="k">Billing mode</p><p class="v">{{ billingMode }}</p></div>
         <div class="kv-item"><p class="k">Description</p><p class="v" [class.is-empty]="!description">{{ description || 'No description' }}</p></div>
         <div class="kv-item"><p class="k">Applications enabled</p><p class="v">{{ enabledRows().length }}</p></div>
@@ -96,14 +224,17 @@
 
         <div
           class="review-app-row"
-          *ngFor="let row of enabledRows()"
+          *ngFor="let row of reviewRows(); trackBy: trackByAppRow"
           [class.is-parent]="row.depth === 0">
-          <span class="ra-name" [style.paddingLeft.px]="row.depth * 20">{{ row.app.appName | appName }}</span>
-          <span class="ra-limit kind-design" [class.is-capped]="!row.designUnlimited">
+          <span class="ra-name">
+            <app-tree-branch [rails]="row.rails" [depth]="row.depth" [last]="row.isLastChild"></app-tree-branch>
+            <span class="ra-label">{{ row.app | appDisplayName }}</span>
+          </span>
+          <span class="ra-limit kind-design" [class.is-capped]="!row.designUnlimited" [title]="allowanceTooltip(row, 'design')">
             <ng-container *ngIf="row.designUnlimited">&#8734;</ng-container>
             <ng-container *ngIf="!row.designUnlimited">{{ row.designTimeLimit }}</ng-container>
           </span>
-          <span class="ra-limit kind-runtime" [class.is-capped]="!row.runtimeUnlimited">
+          <span class="ra-limit kind-runtime" [class.is-capped]="!row.runtimeUnlimited" [title]="allowanceTooltip(row, 'runtime')">
             <ng-container *ngIf="row.runtimeUnlimited">&#8734;</ng-container>
             <ng-container *ngIf="!row.runtimeUnlimited">{{ row.runtimeLimit }}</ng-container>
           </span>

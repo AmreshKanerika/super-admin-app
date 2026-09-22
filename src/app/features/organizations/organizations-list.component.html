@@ -45,6 +45,10 @@
       <span class="chip-count" *ngIf="pendingActivationCount()">{{ pendingActivationCount() }}</span>
     </button>
   </div>
+
+  <button type="button" class="btn sm ghost reset-filters" *ngIf="hasAnyFilter()" (click)="resetFilters()">
+    <i class="ti ti-filter-off" aria-hidden="true"></i> Reset
+  </button>
 </div>
 
 <div class="active-filters" *ngIf="planStatus || planId || expiringInDays || paidOnly || hasSubscription === false || createdWithinDays || needsActivation || needsAttention">
@@ -58,8 +62,70 @@
   <span class="chip removable" *ngIf="needsActivation" (click)="clearFilter('needsActivation')">URL needs activation</span>
 </div>
 
-<div class="scroll-x">
-  <table class="dtable" *ngIf="paged().length; else empty">
+<div class="view-bar">
+  <span class="view-count">
+    Showing {{ visibleRows().length }} of {{ filtered().length }} {{ filtered().length === 1 ? 'organization' : 'organizations' }}
+  </span>
+  <app-view-toggle [mode]="view()" label="Organization view" (modeChange)="setView($event)"></app-view-toggle>
+</div>
+
+<!-- ── Card view ─────────────────────────────────────────────────────────── -->
+<div class="view-grid" *ngIf="view() === 'cards' && visibleRows().length">
+  <a
+    class="entity-card org-card"
+    *ngFor="let r of visibleRows(); trackBy: rowKey"
+    [attr.data-status]="r.subscription?.planStatus || 'NONE'"
+    [routerLink]="['/organizations', r.org.orgId]"
+    [queryParams]="showBack ? { from: 'overview' } : null"
+  >
+    <div class="ec-top">
+      <div class="oc-id">
+        <span class="oc-avatar" aria-hidden="true">{{ r.org.organizationName.charAt(0).toUpperCase() }}</span>
+        <span class="oc-name">
+          <span class="ec-title">{{ r.org.organizationName }}</span>
+          <span class="ec-sub mono">{{ r.org.domainName }}</span>
+        </span>
+      </div>
+      <app-status-pill
+        *ngIf="r.subscription"
+        [label]="r.subscription.planStatus"
+        [tone]="tone(r.subscription.planStatus)"
+      ></app-status-pill>
+      <span class="no-sub" *ngIf="!r.subscription">No subscription</span>
+    </div>
+
+    <div class="ec-meta">
+      <span><i class="ti ti-clipboard-list" aria-hidden="true"></i>{{ planName(r.subscription?.planId) }}</span>
+      <span><i class="ti" [class.ti-credit-card]="r.org.isPaidOrg" [class.ti-flask]="!r.org.isPaidOrg" aria-hidden="true"></i>{{ r.org.isPaidOrg ? 'Paid' : 'Trial' }}</span>
+      <span
+        class="domain-flag"
+        *ngIf="r.org.domainStatus && r.org.domainStatus !== 'ACTIVE'"
+        [title]="domainChipTitle(r.org)"
+      >
+        <i class="ti ti-world-off" aria-hidden="true"></i>{{ r.org.domainStatus === 'RELEASED' ? 'URL released' : 'URL not activated' }}
+      </span>
+    </div>
+
+    <!-- In the attention queue the reasons are the point of the row, so they lead the card
+         rather than sitting in a column the reader has to go looking for. -->
+    <ul class="oc-reasons" *ngIf="needsAttention">
+      <li *ngFor="let issue of overview.attentionReasons(r)">
+        <strong>{{ issue.label }}</strong><span>{{ issue.action }}</span>
+      </li>
+    </ul>
+
+    <div class="ec-foot">
+      <span>Expires</span>
+      <app-countdown *ngIf="r.subscription" [date]="r.subscription.planEndDate"></app-countdown>
+      <span *ngIf="!r.subscription">—</span>
+      <i class="ti ti-arrow-up-right oc-open" aria-hidden="true"></i>
+    </div>
+  </a>
+</div>
+
+<!-- ── List view ─────────────────────────────────────────────────────────── -->
+<div class="scroll-x org-table-panel" *ngIf="view() === 'list'">
+  <table class="dtable org-table" *ngIf="visibleRows().length; else empty">
     <thead>
       <tr>
         <th class="sortable" (click)="sortBy('name')">Organization</th>
@@ -71,9 +137,9 @@
       </tr>
     </thead>
     <tbody>
-      <tr *ngFor="let r of paged(); trackBy: rowKey">
-        <td class="strong"><a class="row-link" [routerLink]="['/organizations', r.org.orgId]" [queryParams]="showBack ? { from: 'overview' } : null">{{ r.org.organizationName }}</a></td>
-        <td class="mono">
+      <tr *ngFor="let r of visibleRows(); trackBy: rowKey" [attr.data-status]="r.subscription?.planStatus || 'NONE'">
+        <td class="strong org-primary"><div class="org-cell"><span class="oc-list-avatar" aria-hidden="true">{{ r.org.organizationName.charAt(0).toUpperCase() }}</span><a class="row-link" [routerLink]="['/organizations', r.org.orgId]" [queryParams]="showBack ? { from: 'overview' } : null">{{ r.org.organizationName }}</a></div></td>
+        <td class="org-domain">
           <span class="domain-value">{{ r.org.domainName }}</span>
           <span
             class="domain-chip"
@@ -83,7 +149,7 @@
             {{ r.org.domainStatus === 'RELEASED' ? 'Released' : 'Not activated' }}
           </span>
         </td>
-        <td>{{ planName(r.subscription?.planId) }}</td>
+        <td><span class="plan-chip">{{ planName(r.subscription?.planId) }}</span></td>
         <td>
           <app-status-pill *ngIf="r.subscription" [label]="r.subscription.planStatus" [tone]="tone(r.subscription.planStatus)"></app-status-pill>
           <span *ngIf="!r.subscription" class="text-faint">no subscription</span>
@@ -99,16 +165,23 @@
     </tbody>
   </table>
   <ng-template #empty>
-    <app-empty-state title="No organizations match these filters" [message]="isSuperAdmin() ? 'Try clearing a filter, or onboard a new organization.' : 'Try clearing a filter.'">
-      <a class="btn primary" *ngIf="isSuperAdmin()" routerLink="/onboarding/new">Onboard organization</a>
-    </app-empty-state>
+    <ng-container *ngTemplateOutlet="noResults"></ng-container>
   </ng-template>
 </div>
 
-<div class="pagination" *ngIf="filtered().length">
-  <span class="text-faint mono">Page {{ page() }} of {{ totalPages() }}</span>
-  <div class="pager-btns">
-    <button type="button" class="btn ghost sm" [disabled]="page() <= 1" (click)="page.set(page() - 1)">Previous</button>
-    <button type="button" class="btn ghost sm" [disabled]="page() >= totalPages()" (click)="page.set(page() + 1)">Next</button>
-  </div>
-</div>
+<ng-container *ngIf="view() === 'cards' && !visibleRows().length">
+  <ng-container *ngTemplateOutlet="noResults"></ng-container>
+</ng-container>
+
+<ng-template #noResults>
+  <app-empty-state title="No organizations match these filters" [message]="isSuperAdmin() ? 'Try clearing a filter, or onboard a new organization.' : 'Try clearing a filter.'">
+    <a class="btn primary" *ngIf="isSuperAdmin()" routerLink="/onboarding/new">Onboard organization</a>
+  </app-empty-state>
+</ng-template>
+
+<app-scroll-sentinel *ngIf="hasMoreRowsBelow()" (reached)="showNextRows()"></app-scroll-sentinel>
+
+<p class="scroll-hint" *ngIf="hasMoreRowsBelow()" aria-live="polite">
+  <i class="ti ti-chevrons-down" aria-hidden="true"></i>
+  Loading more as you scroll
+</p>

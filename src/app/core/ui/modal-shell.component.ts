@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, EventEmitter, HostListener, Input, Output } from '@angular/core';
 
 @Component({
   selector: 'app-modal-shell',
@@ -7,7 +7,7 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
     <div class="backdrop" (click)="close.emit()">
       <div class="panel" [style.maxWidth.px]="width" (click)="$event.stopPropagation()">
         <div class="head">
-          <h3>{{ title }}</h3>
+          <h3>{{ heading }}</h3>
           <button type="button" class="x" (click)="close.emit()" aria-label="Close">✕</button>
         </div>
         <div class="body">
@@ -42,8 +42,6 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
         justify-content: space-between;
         padding: 18px 22px;
         border-bottom: 1px solid var(--line);
-        position: sticky;
-        top: 0;
         background: var(--paper-raised);
       }
       .head h3 {
@@ -68,7 +66,12 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
   ]
 })
 export class ModalShellComponent {
-  @Input() title = '';
+  @Input() heading = '';
   @Input() width = 640;
   @Output() close = new EventEmitter<void>();
+
+  @HostListener('document:keydown.escape')
+  closeOnEscape(): void {
+    this.close.emit();
+  }
 }

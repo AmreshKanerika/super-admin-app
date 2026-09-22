@@ -6,6 +6,7 @@ import { PageHeaderComponent } from '../../core/ui/page-header.component';
 import { StatusPillComponent } from '../../core/ui/status-pill.component';
 import { CountdownComponent } from '../../core/ui/countdown.component';
 import { LimitsPanelComponent } from '../limits/limits-panel.component';
+import { UsageLimitsComponent } from './usage-limits.component';
 import { OrganizationsService } from '../../services/organizations.service';
 import { SubscriptionsService } from '../../services/subscriptions.service';
 import { PlansService } from '../../services/plans.service';
@@ -15,15 +16,16 @@ import { ConfirmService } from '../../core/confirm.service';
 import { ToastService } from '../../core/toast.service';
 import { AuthService } from '../../core/auth/auth.service';
 import { formatDate, formatDateTime, subscriptionStatusTone } from '../../core/status.util';
-import { OrganizationDomain, PlanChangeEffective, PlanUsageSummary } from '../../models';
+import { OrgSubscribedPlan, OrganizationDomain, PlanChangeEffective, PlanUsageSummary } from '../../models';
 import { OrganizationOnboardingService } from '../../services/organization-onboarding.service';
+import { SubscriptionLifecycleService } from '../../services/subscription-lifecycle.service';
 
-type Tab = 'overview' | 'subscriptions' | 'limits' | 'users' | 'notifications' | 'activity';
+type Tab = 'overview' | 'subscriptions' | 'usage' | 'limits' | 'users' | 'notifications' | 'activity';
 
 @Component({
   selector: 'app-organization-detail',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, PageHeaderComponent, StatusPillComponent, CountdownComponent, LimitsPanelComponent],
+  imports: [CommonModule, FormsModule, RouterLink, PageHeaderComponent, StatusPillComponent, CountdownComponent, LimitsPanelComponent, UsageLimitsComponent],
   templateUrl: './organization-detail.component.html',
   styleUrl: './organization-detail.component.scss'
 })
@@ -239,9 +241,11 @@ export class OrganizationDetailComponent {
   showBack = false;
   backUrl: string | null = null;
 
-  private static readonly TABS: Tab[] = ['overview', 'subscriptions', 'limits', 'users', 'notifications', 'activity'];
+  private static readonly TABS: Tab[] = ['overview', 'subscriptions', 'usage', 'limits', 'users', 'notifications', 'activity'];
 
   isSuperAdmin = computed(() => this.auth.role() === 'SUPER_ADMIN');
+  // Assigning an additional plan is shared with SALES; see AuthService.canAssignPlan.
+  canAssignPlan = computed(() => this.auth.canAssignPlan());
 
   constructor() {
     this.loadDomain();
@@ -272,9 +276,15 @@ export class OrganizationDetailComponent {
   activeSub = computed(() => this.subscriptions.activeByOrg(this.orgId));
   allSubs = computed(() => this.subscriptions.byOrg(this.orgId));
 
+  isAzureManaged = computed(() => this.allSubs().some((sub) => sub.azureMarketplaceManaged === true));
+
+  readonly lifecycle = inject(SubscriptionLifecycleService);
+
+  trackBySubscriptionId = (_index: number, subscription: OrgSubscribedPlan): string => subscription.subscriptionId;
+
   planName(planId?: string): string {
     if (!planId) return '—';
-    return this.plans.byId(planId)?.planName ?? planId;
+    return this.plans.displayNameForPlanId(planId);
   }
 
   users = computed(() => {
@@ -307,6 +317,10 @@ export class OrganizationDetailComponent {
   private static readonly ALL_TABS: { key: Tab; label: string }[] = [
     { key: 'overview', label: 'Overview' },
     { key: 'subscriptions', label: 'Subscriptions' },
+    // Usage answers "can this customer still work, and on what" — the question asked before
+    // granting a reset — so unlike Apps & limits (which configures limits) it is not super-admin
+    // only. The reset controls inside it still are.
+    { key: 'usage', label: 'Usage & resets' },
     { key: 'limits', label: 'Apps & limits' },
     { key: 'users', label: 'Users & roles' },
     { key: 'notifications', label: 'Notifications' },

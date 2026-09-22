@@ -32,6 +32,7 @@ export class ShellComponent {
   private allNavItems: NavItem[] = [
     { label: 'Overview', path: '/overview', icon: 'ti-layout-dashboard', section: 'Workspace' },
     { label: 'Organizations', path: '/organizations', icon: 'ti-building' },
+    { label: 'Applications', path: '/applications', icon: 'ti-apps', technicalOnly: true },
     { label: 'Plans', path: '/plans', icon: 'ti-clipboard-list', technicalOnly: true },
     { label: 'Subscriptions', path: '/subscriptions', icon: 'ti-credit-card' },
     { label: 'Notifications', path: '/notifications', icon: 'ti-bell', section: 'Operations' },

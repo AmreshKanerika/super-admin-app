@@ -18,6 +18,7 @@ import {
   generateTemporaryPassword
 } from '../../services/organization-onboarding.service';
 import { OnboardedSubscription, OnboardingPlan, OrganizationOnboardingResult, SubscriptionOnboardingResult, SubscriptionPlan } from '../../models';
+import { planDisplayNameOrFallback } from '../../core/plan-name.util';
 
 type WizardMode = 'NEW_ORGANIZATION' | 'EXISTING_ORGANIZATION';
 type RunStatus = 'IDLE' | 'RUNNING' | 'SUCCEEDED' | 'FAILED';
@@ -153,7 +154,7 @@ export class SubscriptionOnboardingWizardComponent {
   }
 
   planName(planId: string): string {
-    return this.planById(planId)?.planName ?? planId;
+    return planDisplayNameOrFallback(this.planById(planId), planId);
   }
 
   planIsSelectedElsewhere(planId: string, index: number): boolean {

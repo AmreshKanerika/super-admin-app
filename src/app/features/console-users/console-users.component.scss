@@ -25,3 +25,42 @@
   color: var(--ink);
   font-weight: 600;
 }
+
+/* ── Responsive ────────────────────────────────────────────────────────── */
+
+
+/* ── Responsive ────────────────────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  /* The credential readout is a label/value pair on one line. On a phone the
+     value is a long generated password, so it gets its own line rather than
+     squeezing the label to nothing. */
+  .cred-row {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .cred-row .v {
+    overflow-wrap: anywhere;
+  }
+
+  .field-row {
+    flex-direction: column;
+  }
+
+  .field-row > * {
+    width: 100%;
+  }
+
+  .wizard-actions {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  /* The spacer exists to push actions apart on a wide row; once they wrap it
+     would add a blank line between them. */
+  .wizard-actions .spacer {
+    display: none;
+  }
+}

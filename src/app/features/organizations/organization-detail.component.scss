@@ -585,3 +585,59 @@ a.url:hover {
   padding-left: 12px;
   border-left: 2px solid var(--ui-violet-soft);
 }
+
+.managed-elsewhere {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 11px;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--k-blue-mist);
+  color: var(--k-blue-deep);
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.managed-elsewhere i {
+  font-size: 14px;
+  color: var(--k-blue-bright);
+}
+
+.sub-actions .action-group {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--paper-raised);
+}
+
+.sub-actions .action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 11px;
+  border: none;
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.sub-actions .action-btn + .action-btn {
+  border-left: 1px solid var(--line);
+}
+
+.sub-actions .action-btn:hover {
+  background: var(--paper-sunken);
+  color: var(--ink);
+}
+
+.sub-actions .action-btn i {
+  font-size: 14px;
+}

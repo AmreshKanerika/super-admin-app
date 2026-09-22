@@ -1,0 +1,277 @@
+<app-page-header
+  eyebrow="Platform catalog"
+  title="Applications"
+  [subtitle]="total() + ' applications available to build plans from'"
+>
+  <button type="button" class="btn ghost" (click)="applications.refresh()" [disabled]="applications.loading()">
+    <i class="ti ti-refresh" aria-hidden="true"></i> Refresh
+  </button>
+  <button type="button" class="btn primary" (click)="startCreate()">
+    <i class="ti ti-plus" aria-hidden="true"></i> New application
+  </button>
+</app-page-header>
+
+<p class="lede">
+  This is the catalog of applications the platform knows about — nothing more. Adding one here does
+  <strong>not</strong> put it on any plan: assign it to each plan that should include it under
+  <strong>Plans</strong>, which is where its design-time and runtime limits are set too. The scopes
+  you give it here are the permissions those plans' roles can then grant.
+  Once an organization is using an application it is locked: its scopes are what live users' permissions
+  are computed from, so editing and deleting are both disabled until it is removed from their plans.
+</p>
+
+<div class="layout">
+  <!-- ── Catalog ────────────────────────────────────────────────────────── -->
+  <section class="catalog">
+    <div class="catalog-bar">
+      <label class="search">
+        <i class="ti ti-search" aria-hidden="true"></i>
+        <input
+          type="search"
+          placeholder="Search by name…"
+          aria-label="Search applications"
+          [ngModel]="search()"
+          (ngModelChange)="search.set($event)"
+        />
+      </label>
+      <span class="count">{{ rows().length }} shown</span>
+      <button
+        type="button"
+        class="btn sm ghost tree-btn"
+        *ngIf="hasHierarchy()"
+        (click)="allExpanded() ? collapseAll() : expandAll()"
+      >
+        <i class="ti" [class.ti-fold-down]="!allExpanded()" [class.ti-fold-up]="allExpanded()" aria-hidden="true"></i>
+        {{ allExpanded() ? 'Collapse all' : 'Expand all' }}
+      </button>
+    </div>
+
+    <div class="table-wrap" *ngIf="rows().length">
+      <table class="dtable">
+        <thead>
+          <tr>
+            <th>Application</th>
+            <th>Machine name</th>
+            <th>Parent</th>
+            <th>Scopes</th>
+            <th>Assigned</th>
+            <th class="right">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+            *ngFor="let row of rows(); trackBy: trackByApplicationId"
+            class="catalog-row"
+            [class.selected]="editing() === row.app.appId"
+            [class.just-created]="justCreatedAppId() === row.app.appId"
+            [class.is-root]="row.depth === 0"
+            [class.is-parent]="row.hasChildren"
+            [attr.data-family]="row.familyColourIndex"
+            [attr.data-depth]="row.depth > 3 ? 3 : row.depth"
+          >
+            <td class="strong">
+              <span class="tree-cell">
+                <app-tree-branch [rails]="row.rails" [depth]="row.depth" [last]="row.isLastChild"></app-tree-branch>
+                <button
+                  type="button"
+                  class="twisty"
+                  *ngIf="row.hasChildren; else noTwisty"
+                  [attr.aria-expanded]="row.expanded"
+                  [attr.aria-label]="(row.expanded ? 'Collapse ' : 'Expand ') + row.label"
+                  (click)="toggleNode(row.app.appId)"
+                >
+                  <i class="ti" [class.ti-chevron-down]="row.expanded" [class.ti-chevron-right]="!row.expanded" aria-hidden="true"></i>
+                </button>
+                <ng-template #noTwisty><span class="twisty-spacer" aria-hidden="true"></span></ng-template>
+                <span class="app-initial" aria-hidden="true">{{ row.initial }}</span>
+                <span class="tree-label">{{ row.label }}</span>
+                <!-- The count is what stops a collapsed parent reading as an app with nothing
+                     under it, which is the usual way a tree loses people. -->
+                <button
+                  type="button"
+                  class="child-count"
+                  *ngIf="row.hasChildren && !row.expanded"
+                  (click)="toggleNode(row.app.appId)"
+                  [attr.aria-label]="'Show ' + row.childCount + ' nested applications'"
+                >{{ row.childCount }}</button>
+              </span>
+              <small class="fallback" *ngIf="usesFallbackLabel(row.app)">
+                <i class="ti ti-alert-circle" aria-hidden="true"></i> No display name set — showing a derived label
+              </small>
+            </td>
+            <td><code class="machine">{{ row.app.appName }}</code></td>
+            <td class="muted">{{ parentLabel(row.app) }}</td>
+            <td>
+              <span class="scope-chip" *ngFor="let s of row.app.scopes" [attr.data-scope]="s">{{ s }}</span>
+              <span class="muted" *ngIf="!row.app.scopes?.length">None</span>
+            </td>
+            <td>
+              <span class="usage" [class.in-use]="row.app.assignedOrgCount > 0">
+                <i class="ti" [class.ti-lock]="row.app.assignedOrgCount > 0" [class.ti-lock-open]="row.app.assignedOrgCount === 0" aria-hidden="true"></i>
+                {{ usageSummary(row.app) }}
+              </span>
+            </td>
+            <td class="right nowrap">
+              <button type="button" class="icon-btn" (click)="startCreate(row.app.appId)" title="Add a sub-application under this one">
+                <i class="ti ti-subtask" aria-hidden="true"></i>
+              </button>
+              <button
+                type="button"
+                class="icon-btn"
+                (click)="startEdit(row.app)"
+                [disabled]="!canEdit(row.app)"
+                [title]="canEdit(row.app) ? 'Edit' : editLock(row.app)"
+                [attr.aria-label]="canEdit(row.app) ? 'Edit ' + row.label : 'Cannot edit ' + row.label + '. ' + editLock(row.app)"
+              >
+                <i class="ti ti-pencil" aria-hidden="true"></i>
+              </button>
+              <button
+                type="button"
+                class="icon-btn danger"
+                (click)="remove(row.app)"
+                [disabled]="!canDelete(row.app)"
+                [title]="canDelete(row.app) ? 'Delete' : deleteLock(row.app)"
+                [attr.aria-label]="canDelete(row.app) ? 'Delete ' + row.label : 'Cannot delete ' + row.label + '. ' + deleteLock(row.app)"
+              >
+                <i class="ti ti-trash" aria-hidden="true"></i>
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <ng-container *ngIf="!rows().length">
+      <ng-container *ngTemplateOutlet="noApps"></ng-container>
+    </ng-container>
+
+    <ng-template #noApps>
+      <app-empty-state
+        [title]="search() ? 'No applications match' : 'No applications yet'"
+        [message]="
+          search()
+            ? 'Nothing in the catalog matches that search.'
+            : 'Add the first application to start building plans from it.'
+        "
+      >
+        <button type="button" class="btn primary" (click)="startCreate()" *ngIf="!search()">New application</button>
+      </app-empty-state>
+    </ng-template>
+  </section>
+
+  <!-- ── Editor ─────────────────────────────────────────────────────────── -->
+</div>
+
+<div class="backdrop" *ngIf="editing() !== null" (click)="closeIfBackdropClicked($event)">
+  <aside
+    class="editor"
+    role="dialog"
+    aria-modal="true"
+    [attr.aria-label]="isCreating() ? 'New application' : 'Edit application'"
+  >
+    <header class="ed-head">
+      <h2>{{ isCreating() ? 'New application' : 'Edit application' }}</h2>
+      <button type="button" class="icon-btn" (click)="cancel()" aria-label="Close"><i class="ti ti-x" aria-hidden="true"></i></button>
+    </header>
+
+    <div class="ed-body">
+
+    <div class="field">
+      <label for="displayName">Display name</label>
+      <input
+        id="displayName"
+        class="input"
+        placeholder="Informatica to Databricks"
+        [ngModel]="draftDisplayName()"
+        (ngModelChange)="draftDisplayName.set($event)"
+        (blur)="suggestAppName()"
+        autocomplete="off"
+      />
+      <span class="hint">What everyone sees — in the console, in plans and on limits screens. Write it the way you would say it.</span>
+    </div>
+
+    <div class="field">
+      <label for="appName">
+        Machine name
+        <span class="optional-tag" *ngIf="!isCreating()">· fixed after creation</span>
+      </label>
+      <input
+        id="appName"
+        class="input mono"
+        placeholder="INFORMATICA_TO_DATABRICKS"
+        [ngModel]="draftAppName()"
+        (ngModelChange)="onAppNameInput($event)"
+        [disabled]="!isCreating()"
+        [class.invalid]="isCreating() && draftAppName() && (!appNameValid() || nameTaken())"
+        autocomplete="off"
+        spellcheck="false"
+      />
+      <span class="hint" *ngIf="isCreating()">
+        Uppercase letters, digits and single underscores — for example
+        <code>ALTERYX_TO_FABRIC</code>, <code>AI_WORKBENCH</code>, <code>SSIS_TO_ADF_PREMIGRATION</code>.
+      </span>
+      <span class="hint" *ngIf="!isCreating()">
+        The key the platform resolves this application by. Usage-metering calls arrive carrying it, so it
+        cannot be changed once anything is using it — create a new application instead.
+      </span>
+      <span class="error-text" *ngIf="isCreating() && draftAppName() && !appNameValid()">
+        Must start with a letter and contain only A–Z, 0–9 and single underscores.
+      </span>
+      <span class="error-text" *ngIf="isCreating() && nameTaken()">An application with this machine name already exists.</span>
+      <span class="normalised" *ngIf="isCreating() && draftAppName() && appNameValid() && normalisedAppName() !== draftAppName()">
+        Will be saved as <code>{{ normalisedAppName() }}</code>
+      </span>
+    </div>
+
+    <div class="preview" *ngIf="draftDisplayName() || draftAppName()">
+      <span class="preview-label">How it will appear</span>
+      <div class="preview-row">
+        <i class="ti ti-app-window" aria-hidden="true"></i>
+        <strong>{{ draftDisplayName() || '—' }}</strong>
+        <code class="machine">{{ normalisedAppName() || '—' }}</code>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="parent">Parent application <span class="optional-tag">· optional</span></label>
+      <select id="parent" class="input" [ngModel]="draftParentAppId()" (ngModelChange)="draftParentAppId.set($event)">
+        <option value="">None — top level</option>
+        <option *ngFor="let option of parentOptions()" [value]="option.app.appId">
+          {{ '— '.repeat(option.depth) }}{{ option.label }}
+        </option>
+      </select>
+      <span class="hint">Nest this beneath another application when it is a variant or a stage of it. The list excludes itself and anything below it, so a loop cannot be made.</span>
+    </div>
+
+    <div class="field">
+      <label>Scopes</label>
+      <span class="hint">The permissions a plan's roles can grant for this application.</span>
+      <div class="scopes">
+        <button
+          type="button"
+          class="scope-toggle"
+          *ngFor="let scope of allScopes"
+          [class.on]="hasScope(scope)"
+          [attr.aria-pressed]="hasScope(scope)"
+          (click)="toggleScope(scope)"
+        >
+          <i class="ti" [class.ti-check]="hasScope(scope)" [class.ti-plus]="!hasScope(scope)" aria-hidden="true"></i>
+          <span class="sc-name">{{ scope }}</span>
+          <small>{{ scopeHints[scope] }}</small>
+        </button>
+      </div>
+      <span class="error-text" *ngIf="!draftScopes().size">
+        No scopes means no role can be granted anything for this application.
+      </span>
+    </div>
+
+    </div>
+
+    <footer class="ed-foot">
+      <button type="button" class="btn ghost" (click)="cancel()" [disabled]="saving()">Cancel</button>
+      <button type="button" class="btn primary" (click)="save()" [disabled]="!canSave()">
+        {{ saving() ? 'Saving…' : isCreating() ? 'Create application' : 'Save changes' }}
+      </button>
+    </footer>
+  </aside>
+</div>

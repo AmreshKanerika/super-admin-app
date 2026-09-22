@@ -15,8 +15,21 @@
   </div>
 </div>
 
+<div class="view-bar">
+  <span class="view-count">
+    {{ rows().length }} {{ rows().length === 1 ? 'subscription' : 'subscriptions' }}
+    across {{ orgGroups().length }} {{ orgGroups().length === 1 ? 'organization' : 'organizations' }}
+  </span>
+  <span class="view-actions">
+    <button type="button" class="btn sm ghost" *ngIf="orgGroups().length > 1" (click)="allCollapsed() ? expandAllOrgs() : collapseAllOrgs()">
+      <i class="ti" [class.ti-fold-down]="allCollapsed()" [class.ti-fold-up]="!allCollapsed()" aria-hidden="true"></i>
+      {{ allCollapsed() ? 'Expand all' : 'Collapse all' }}
+    </button>
+  </span>
+</div>
+
 <div class="scroll-x">
-  <table class="dtable lead-icon sub-table" *ngIf="rows().length; else empty">
+  <table class="dtable sub-table tree-table" *ngIf="rows().length; else empty">
     <thead>
       <tr>
         <th></th>
@@ -29,20 +42,41 @@
       </tr>
     </thead>
     <tbody>
-      <ng-container *ngFor="let g of orgGroups()">
+      <ng-container *ngFor="let g of orgGroups(); trackBy: trackByOrgId">
       <tr class="org-group-row">
         <td colspan="7">
-          <div class="org-group">
-            <a class="org-group-name" [routerLink]="['/organizations', g.orgId]" [queryParams]="showBack ? { from: 'overview' } : null">{{ g.orgName }}</a>
+          <div class="org-group tree-root">
+            <button
+              type="button"
+              class="twisty"
+                    [attr.aria-expanded]="!isOrgCollapsed(g)"
+              [attr.aria-label]="(isOrgCollapsed(g) ? 'Show' : 'Hide') + ' subscriptions for ' + g.orgName"
+              (click)="toggleOrg(g.orgId)"
+            >
+              <i class="ti" [class.ti-chevron-down]="!isOrgCollapsed(g)" [class.ti-chevron-right]="isOrgCollapsed(g)" aria-hidden="true"></i>
+            </button>
+                  <a class="org-group-name" [routerLink]="['/organizations', g.orgId]" [queryParams]="showBack ? { from: 'overview' } : null">{{ g.orgName }}</a>
             <span class="org-group-count">{{ g.subscriptions.length }} {{ g.subscriptions.length === 1 ? 'subscription' : 'subscriptions' }}</span>
             <span class="org-group-summary">{{ statusSummary(g) }}</span>
           </div>
         </td>
       </tr>
-      <ng-container *ngFor="let s of g.subscriptions">
+      <ng-container *ngFor="let s of g.subscriptions; let isLast = last; trackBy: trackBySubscriptionId">
+        <ng-container *ngIf="!isOrgCollapsed(g)">
         <tr class="sub-row">
-          <td>
-            <button type="button" class="expand-btn" (click)="toggleExpand(s.subscriptionId)">{{ expandedId() === s.subscriptionId ? '▾' : '▸' }}</button>
+          <td class="tree-cell">
+            <!-- depth 1 draws a single elbow; `last` stops its vertical stroke at the
+                 elbow so the branch visibly closes under the final subscription. -->
+            <app-tree-branch [rails]="[]" [depth]="1" [last]="isLast"></app-tree-branch>
+            <button
+              type="button"
+              class="expand-btn"
+              [attr.aria-expanded]="expandedId() === s.subscriptionId"
+              [attr.aria-label]="(expandedId() === s.subscriptionId ? 'Hide' : 'Show') + ' history for ' + planName(s.planId)"
+              (click)="toggleExpand(s.subscriptionId)"
+            >
+              <i class="ti" [class.ti-chevron-down]="expandedId() === s.subscriptionId" [class.ti-chevron-right]="expandedId() !== s.subscriptionId" aria-hidden="true"></i>
+            </button>
           </td>
           <td class="strong">{{ planName(s.planId) }}</td>
           <td><app-status-pill [label]="s.planStatus" [tone]="tone(s.planStatus)"></app-status-pill></td>
@@ -50,6 +84,12 @@
           <td>{{ formatDate(s.planEndDate) }}</td>
           <td><app-countdown [date]="s.planEndDate"></app-countdown></td>
           <td class="row-actions">
+            <span class="managed-elsewhere" *ngIf="isAzureManaged(s); else lifecycleActions">
+              <i class="ti ti-brand-azure" aria-hidden="true"></i>
+              <span>Managed in Azure Marketplace — read only</span>
+            </span>
+
+            <ng-template #lifecycleActions>
             <div class="action-group">
               <button type="button" class="action-btn" (click)="extend(s)" title="Extend by 90 days">
                 <i class="ti ti-calendar-plus"></i><span>Extend</span>
@@ -60,16 +100,20 @@
               <button type="button" class="action-btn" *ngIf="isSuperAdmin()" (click)="openChangePlan(s)" title="Change plan">
                 <i class="ti ti-replace"></i><span>Change plan</span>
               </button>
-              <button type="button" class="action-btn" *ngIf="isSuperAdmin() && s.planStatus === 'ACTIVE'" (click)="suspend(s)" title="Suspend">
+              <button type="button" class="action-btn" *ngIf="s.planStatus === 'ACTIVE'" (click)="suspend(s)" title="Suspend">
                 <i class="ti ti-player-pause"></i><span>Suspend</span>
               </button>
-              <button type="button" class="action-btn" *ngIf="isSuperAdmin() && s.planStatus === 'SUSPENDED'" (click)="reactivate(s)" title="Reactivate">
+              <button type="button" class="action-btn" *ngIf="s.planStatus === 'ACTIVE' || s.planStatus === 'SUSPENDED'" (click)="deactivate(s)" title="Deactivate">
+                <i class="ti ti-player-stop"></i><span>Deactivate</span>
+              </button>
+              <button type="button" class="action-btn" *ngIf="s.planStatus === 'SUSPENDED' || s.planStatus === 'INACTIVE'" (click)="reactivate(s)" title="Reactivate">
                 <i class="ti ti-player-play"></i><span>Reactivate</span>
               </button>
             </div>
             <button type="button" class="action-btn danger" *ngIf="isSuperAdmin() && s.planStatus !== 'CANCELLED'" (click)="cancel(s)" title="Cancel subscription">
               <i class="ti ti-ban"></i><span>Cancel</span>
             </button>
+            </ng-template>
           </td>
         </tr>
         <tr *ngIf="expandedId() === s.subscriptionId" class="history-row">
@@ -86,14 +130,19 @@
             <ng-template #noHist><p class="text-faint" style="padding:10px 0">No history recorded yet.</p></ng-template>
           </td>
         </tr>
+        </ng-container>
       </ng-container>
       </ng-container>
     </tbody>
   </table>
   <ng-template #empty>
-    <app-empty-state title="No subscriptions match these filters" message="Clear a filter to see more subscriptions."></app-empty-state>
+    <ng-container *ngTemplateOutlet="noResults"></ng-container>
   </ng-template>
 </div>
+
+<ng-template #noResults>
+  <app-empty-state title="No subscriptions match these filters" message="Clear a filter to see more subscriptions."></app-empty-state>
+</ng-template>
 
 <div class="backdrop" *ngIf="changePlanTarget() as target" (click)="closeChangePlan()">
   <div class="panel change-panel" (click)="$event.stopPropagation()">

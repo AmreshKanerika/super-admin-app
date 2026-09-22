@@ -1,92 +1,393 @@
-<div class="dashboard">
-  <header class="dashboard-header">
-    <div>
-      <span class="dashboard-eyebrow">FLIP PLATFORM CONSOLE <span class="eyebrow-separator">/</span> OVERVIEW</span>
+<div class="dash">
+  <!-- ── Hero band ──────────────────────────────────────────────────────── -->
+  <header class="hero">
+    <div class="hero-text">
+      <span class="hero-eyebrow">FLIP PLATFORM CONSOLE <span class="sep">/</span> OVERVIEW</span>
       <h1>Platform overview</h1>
-      <p>Organizations, subscriptions and the work that needs your attention.</p>
+      <p>{{ scopeSentence() }}</p>
     </div>
-    <div class="header-actions">
-      <a class="pulse-summary" routerLink="/organizations" [queryParams]="{ needsAttention: 'true', from: 'overview' }">
-        <span class="pulse-icon"><i class="ti ti-activity" aria-hidden="true"></i></span>
-        <span><strong>{{ organizationsRequiringAction() }}</strong><small>{{ organizationsRequiringAction() === 1 ? 'organization needs attention' : 'organizations need attention' }} · View list →</small></span>
+
+    <div class="hero-figures">
+      <a class="hero-link" routerLink="/organizations" [queryParams]="{ needsAttention: 'true', from: 'overview' }">
+        <span class="hl-icon"><i class="ti ti-activity" aria-hidden="true"></i></span>
+        <span><strong>{{ a.attentionRows().length }}</strong><small>need attention · open list →</small></span>
       </a>
     </div>
   </header>
 
-  <section class="dashboard-section" aria-labelledby="footprint-title">
-    <div class="section-heading"><h2 id="footprint-title">Platform totals</h2><p>Live counts from organizations and subscriptions</p></div>
-    <div class="footprint-grid">
-      <a class="footprint-card" *ngFor="let k of footprintKpis()" routerLink="/organizations" [queryParams]="drilldownParams(k)" [attr.aria-label]="k.label + ': ' + k.value + '. View organizations'">
-        <span class="card-top"><span>{{ k.label }}</span><i class="ti" [class]="k.icon" aria-hidden="true"></i></span>
-        <strong>{{ k.value }}</strong>
-        <span class="card-bottom">{{ k.detail }} <i class="ti ti-arrow-up-right" aria-hidden="true"></i></span>
-      </a>
+  <!-- ── Slicer: one row, above everything it scopes ────────────────────── -->
+  <section class="slicer" aria-label="Dashboard filters">
+    <div class="slicer-top">
+      <div class="slicer-heading">
+        <span class="slicer-label"><i class="ti ti-adjustments-horizontal" aria-hidden="true"></i> Explore the data</span>
+        <span class="slicer-help">Choose a date range, then click any chart to filter the page.</span>
+      </div>
+      <div class="filter-actions">
+        <button type="button" class="btn sm ghost" (click)="exportCsv()" title="Download the organizations in this slice">
+          <i class="ti ti-download" aria-hidden="true"></i> Export CSV
+        </button>
+        <button type="button" class="btn sm" [disabled]="!a.hasAnyFilter()" (click)="a.clearAll(); resetVisibleRows()">Reset filters</button>
+      </div>
+    </div>
+
+    <div class="slicer-row slicer-controls">
+      <span class="control-label">Date range</span>
+
+      <div class="preset-group" role="group" aria-label="Date range presets">
+        <button
+          type="button"
+          *ngFor="let p of presets"
+          class="preset"
+          [class.on]="a.preset() === p.key"
+          [attr.aria-pressed]="a.preset() === p.key"
+          (click)="setPreset(p.key)"
+        >
+          <i class="ti ti-check" *ngIf="a.preset() === p.key" aria-hidden="true"></i>{{ p.label }}
+        </button>
+      </div>
+
+      <label class="basis">
+        <span>applied to</span>
+        <select class="input" [ngModel]="a.basis()" (ngModelChange)="a.basis.set($event); a.clearDim('period')">
+          <option *ngFor="let b of basisOptions" [value]="b.key">{{ b.label }}</option>
+        </select>
+      </label>
+
+    </div>
+
+    <div class="slicer-row custom" *ngIf="a.preset() === 'CUSTOM'">
+      <label class="field-inline">
+        <span>From</span>
+        <input class="input" type="datetime-local" [ngModel]="a.customFrom()" (ngModelChange)="a.customFrom.set($event); onCustomChange()" />
+      </label>
+      <label class="field-inline">
+        <span>To</span>
+        <input class="input" type="datetime-local" [ngModel]="a.customTo()" (ngModelChange)="a.customTo.set($event); onCustomChange()" />
+      </label>
+      <span class="hint">Leave either side empty for an open-ended range.</span>
+    </div>
+
+    <div class="chips" *ngIf="a.activeChips().length">
+      <span class="chips-label">Filtered by</span>
+      <button type="button" class="fchip" *ngFor="let c of a.activeChips()" (click)="removeChip(c)" [attr.aria-label]="'Remove filter ' + c.label">
+        {{ c.label }}<i class="ti ti-x" aria-hidden="true"></i>
+      </button>
+      <button type="button" class="fchip clear" (click)="a.clearCrossFilters()">Clear filters</button>
+    </div>
+
+    <p class="slicer-note" *ngIf="!a.hasAnyFilter()">
+      No filter applied — every figure below is an all-time total. Pick a range, or click any chart to slice the whole page.
+    </p>
+  </section>
+
+  <div class="section-intro">
+    <div>
+      <span class="section-kicker">AT A GLANCE</span>
+      <h2>Key metrics</h2>
+      <p>A quick read on subscriptions, renewals and commercial health.</p>
+    </div>
+    <span class="section-context">{{ a.windowLabel() }}</span>
+  </div>
+
+  <!-- ── KPI row ────────────────────────────────────────────────────────── -->
+  <div class="kpi-grid">
+    <app-stat-tile
+      *ngFor="let k of a.kpis()"
+      [compact]="true"
+      [label]="k.label"
+      [icon]="k.icon"
+      [value]="k.value"
+      [delta]="deltaOf(k)"
+      [deltaLabel]="a.deltaLabel()"
+      [hint]="k.hint"
+      [trend]="k.trend"
+      [color]="k.color"
+      [upIsGood]="k.upIsGood"
+      [active]="kpiActive(k)"
+      [filterable]="!!k.filter"
+      (tileToggle)="onKpiClick(k)"
+    ></app-stat-tile>
+  </div>
+
+  <section class="signal-band" aria-label="Portfolio health">
+    <div class="signal-heading"><span class="section-kicker">PORTFOLIO HEALTH</span><strong>How this slice is performing</strong></div>
+    <div class="signal-items">
+      <div class="signal-item" *ngFor="let signal of executiveSignals()" [attr.data-tone]="signal.tone">
+        <span class="signal-icon"><i class="ti" [class]="signal.icon" aria-hidden="true"></i></span>
+        <div class="signal-copy"><span>{{ signal.label }}</span><strong>{{ signal.value }}%</strong><small>{{ signal.count }}</small></div>
+      </div>
     </div>
   </section>
 
-  <section class="dashboard-section" id="attention" aria-labelledby="signals-title">
-    <div class="section-heading"><h2 id="signals-title">Needs attention</h2><p>Open a metric to see the exact organizations</p></div>
-    <div class="signal-grid">
-      <a class="signal-card" *ngFor="let k of attentionKpis()" [class.has-alert]="k.value > 0" routerLink="/organizations" [queryParams]="drilldownParams(k)" [attr.aria-label]="k.label + ': ' + k.value + '. View organizations'">
-        <span class="signal-icon"><i class="ti" [class]="k.icon" aria-hidden="true"></i></span>
-        <span class="signal-value">{{ k.value }}</span>
-        <span class="signal-label">{{ k.label }}</span>
-        <small>{{ k.detail }}</small>
-      </a>
+  <div class="section-intro charts-intro">
+    <div>
+      <span class="section-kicker">PERFORMANCE</span>
+      <h2>Growth and subscriptions</h2>
+      <p>Track organization movement and see how your subscription book is distributed.</p>
     </div>
-  </section>
+    <div *ngIf="trendWindow().total > 12" role="group" aria-label="Chart period navigation" style="display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:8px">
+      <span class="muted">{{ trendWindowLabel() }}</span>
+      <button type="button" class="btn sm" aria-label="Show older chart periods" [disabled]="trendWindow().start === 0" (click)="olderPeriods()"><i class="ti ti-chevron-left" aria-hidden="true"></i> Older</button>
+      <button type="button" class="btn sm" aria-label="Show newer chart periods" [disabled]="trendWindow().page === 0" (click)="newerPeriods()">Newer <i class="ti ti-chevron-right" aria-hidden="true"></i></button>
+    </div>
+  </div>
 
-  <div class="insight-grid">
-    <section class="insight-panel growth-panel" aria-labelledby="growth-title">
-      <div class="panel-heading"><h2 id="growth-title">Onboarding &amp; expiry by month</h2><span class="period-label">LAST 6 MONTHS</span></div>
-      <p class="panel-subtitle">New organizations and scheduled subscription end dates by month.</p>
-      <div class="growth-chart" role="img" aria-label="Monthly onboarding and subscription end dates for the last six months">
-        <div class="chart-group" *ngFor="let m of monthly().months">
-          <div class="bar-area">
-            <div class="chart-bar onboarded" *ngIf="m.onboarded > 0" [style.height.%]="(m.onboarded / monthly().max) * 100" [attr.title]="m.label + ': ' + m.onboarded + ' onboarded'"></div>
-            <div class="chart-bar expiring" *ngIf="m.expiring > 0" [style.height.%]="(m.expiring / monthly().max) * 100" [attr.title]="m.label + ': ' + m.expiring + ' end dates'"></div>
-          </div>
-          <span class="chart-month">{{ m.label }}</span>
+  <div class="performance-grid">
+  <!-- ── Trend and composition ──────────────────────────────────────────── -->
+  <div class="grid-wide">
+    <app-chart-card
+      class="trend-card"
+      title="Lifecycle trend"
+      accent="#2a78d6"
+      [subtitle]="'New organizations, ended plans and reactivations ' + a.granularityLabel() + '. Click a period to filter the page.'"
+      [tableRows]="trendTable()"
+      [tableHeaders]="['Period', 'New', 'Ended plans', 'Reactivated', 'Difference']"
+      [empty]="!trendCategories().length"
+      [loading]="a.eventsLoading()"
+      footnote="Ended plans are current expired or unsubscribed subscriptions plotted by end date. Reactivations come from the audit log."
+    >
+      <app-line-chart
+        [categories]="trendCategories()"
+        [categoryKeys]="trendKeys()"
+        [series]="trendSeries()"
+        [selected]="a.selection().period"
+        [height]="340"
+        (bucketToggle)="toggle('period', $event)"
+      ></app-line-chart>
+    </app-chart-card>
+
+    <app-chart-card
+      class="status-card"
+      title="Subscription status"
+      accent="#008300"
+      subtitle="Where every organization in this slice stands today."
+      [tableRows]="statusTable()"
+      [tableHeaders]="['Status', 'Organizations', 'Share']"
+      [empty]="!a.rowsIgnoringStatus().length"
+      footnote="Unsubscribed folds in cancelled. No active plan covers inactive and unassigned."
+    >
+      <app-donut-chart
+        [slices]="statusSlices()"
+        [selected]="statusSelected()"
+        centreLabel="organizations"
+        (sliceToggle)="toggle('status', $event)"
+      ></app-donut-chart>
+    </app-chart-card>
+  </div>
+
+  <!-- ── Movement and plan mix ───────────────────────────────────────────── -->
+  <div class="grid-wide">
+    <app-chart-card
+      class="movement-card"
+      title="New vs ended plans"
+      accent="#e34948"
+      [subtitle]="'New and reactivated organizations compared with currently ended plans, ' + a.granularityLabel() + '.'"
+      [tableRows]="netTable()"
+      [tableHeaders]="['Period', 'New + reactivated', 'Ended plans', 'Difference']"
+      [empty]="!trendCategories().length"
+    >
+      <app-column-chart
+        [categories]="trendCategories()"
+        [categoryKeys]="trendKeys()"
+        [series]="netSeries()"
+        [selected]="a.selection().period"
+        mode="grouped"
+        [height]="340"
+        (bucketToggle)="toggle('period', $event)"
+      ></app-column-chart>
+    </app-chart-card>
+
+    <app-chart-card
+      class="planmix-card"
+      title="Plan mix"
+      accent="#4a3aa7"
+      subtitle="Which plans the book is concentrated in."
+      [tableRows]="planTable()"
+      [tableHeaders]="['Plan', 'Organizations', 'Share']"
+      [empty]="!planSlices().length"
+      emptyTitle="No plans assigned"
+      emptyMessage="Assign a plan to an organization to start tracking mix."
+      footnote="Top five plans by organization count; the rest fold into Other."
+    >
+      <app-donut-chart
+        [slices]="planSlices()"
+        [selected]="planSelected()"
+        centreLabel="with a plan"
+        (sliceToggle)="toggle('plan', $event)"
+      ></app-donut-chart>
+    </app-chart-card>
+  </div>
+  </div>
+
+  <div class="section-intro charts-intro">
+    <div>
+      <span class="section-kicker">DECISIONS</span>
+      <h2>Renewal and action</h2>
+      <p>Spot upcoming risk, understand conversion, and open the organizations that need a response.</p>
+    </div>
+  </div>
+
+  <!-- ── Row C: runway, billing, attention ──────────────────────────────── -->
+  <div class="grid-three">
+    <app-chart-card
+      title="Renewal runway"
+      accent="#c8551d"
+      subtitle="How much time is left on every live subscription."
+      [tableRows]="runwayTable()"
+      [tableHeaders]="['Window', 'Organizations', 'Share']"
+      [empty]="!runwayTotal()"
+      emptyTitle="No live subscriptions"
+      emptyMessage="Nothing in this slice has a running plan."
+    >
+      <div class="runway-head">
+        <div class="runway-total">
+          <strong>{{ runwayTotal() }}</strong>
+          <span>live subscriptions</span>
         </div>
+        <p class="pastdue" *ngIf="a.pastDue()" [style.color]="semantic.critical">
+          <i class="ti ti-alert-triangle-filled" aria-hidden="true"></i>
+          {{ a.pastDue() }} past their end date
+        </p>
       </div>
-      <div class="chart-legend"><span><i class="legend-dot onboarded"></i> Onboarded</span><span><i class="legend-dot expiring"></i> End dates</span></div>
-    </section>
+      <app-hbar-chart
+        [items]="runwayItems()"
+        [selected]="runwaySelected()"
+        scaleTo="total"
+        (barToggle)="toggle('expiry', $event)"
+      ></app-hbar-chart>
+    </app-chart-card>
 
-    <section class="insight-panel adoption-panel" aria-labelledby="adoption-title">
-      <div class="panel-heading"><h2 id="adoption-title">Plan assignments</h2><a routerLink="/plans" *ngIf="isSuperAdmin()">View plans <i class="ti ti-arrow-up-right" aria-hidden="true"></i></a></div>
-      <p class="panel-subtitle">Organizations currently assigned to each plan.</p>
-      <div class="adoption-list" *ngIf="planAdoption().entries.length; else noAdoption">
-        <a class="adoption-row" *ngFor="let e of planAdoption().entries" routerLink="/organizations" [queryParams]="{ planId: e.planId, from: 'overview' }" [attr.title]="e.name + ': ' + e.count + ' assignments'">
-          <span class="adoption-name">{{ e.name }}</span><strong>{{ e.count }}</strong>
-          <span class="adoption-track"><span [style.width.%]="(e.count / planAdoption().max) * 100"></span></span>
-        </a>
+    <app-chart-card
+      title="Paid vs trial"
+      accent="#2a78d6"
+      subtitle="Commercial split, and how much of the book has converted."
+      [tableRows]="billingTable()"
+      [tableHeaders]="['Type', 'Organizations', 'Share']"
+      [empty]="!a.rowsIgnoringBilling().length"
+    >
+      <app-hbar-chart
+        [items]="billingItems()"
+        [selected]="billingSelected()"
+        scaleTo="total"
+        (barToggle)="toggle('billing', $event)"
+      ></app-hbar-chart>
+
+      <div class="meters">
+        <app-meter
+          label="Converted to paid"
+          [value]="a.conversion().paid"
+          [max]="a.conversion().total"
+          [color]="slot.blue"
+          [caption]="a.conversion().paid + ' of ' + a.conversion().total + ' organizations in this slice are on a paid plan.'"
+        ></app-meter>
+        <app-meter
+          label="Renewal safety"
+          [value]="a.renewalHealth().healthy"
+          [max]="a.renewalHealth().withPlan"
+          [color]="slot.aqua"
+          caption="Active subscriptions with more than 30 days left."
+        ></app-meter>
       </div>
-      <ng-template #noAdoption><div class="empty-insight"><i class="ti ti-chart-bar-off" aria-hidden="true"></i><strong>No plan assignments yet</strong><span>Onboard an organization to start tracking adoption.</span></div></ng-template>
-    </section>
+    </app-chart-card>
+
+    <app-chart-card
+      class="attention-card"
+      title="Needs attention"
+      accent="#d03b3b"
+      subtitle="Each organization once, most urgent first."
+      [empty]="!attentionPreview().length"
+      emptyTitle="Nothing flagged"
+      emptyMessage="No organization in this slice needs action right now."
+    >
+      <a cardActions class="card-link" routerLink="/organizations" [queryParams]="{ needsAttention: 'true', from: 'overview' }"
+        >All {{ a.attentionRows().length }} <i class="ti ti-arrow-up-right" aria-hidden="true"></i
+      ></a>
+
+      <ul class="attention">
+        <li *ngFor="let r of attentionPreview()">
+          <a [routerLink]="['/organizations', r.org.orgId]" [queryParams]="{ from: 'overview' }">
+            <span class="av">{{ r.org.organizationName.charAt(0).toUpperCase() }}</span>
+            <span class="who"><strong>{{ r.org.organizationName }}</strong><small>{{ r.org.domainName }}</small></span>
+            <span class="issue" [class.urgent]="priority(r) < 2">{{ issueLabel(r) }}</span>
+            <app-countdown
+              *ngIf="r.subscription?.planStatus === 'ACTIVE' && r.daysToExpiry !== null && r.daysToExpiry <= 30"
+              [date]="r.subscription!.planEndDate"
+            ></app-countdown>
+            <i class="ti ti-chevron-right" aria-hidden="true"></i>
+          </a>
+        </li>
+      </ul>
+    </app-chart-card>
   </div>
 
-  <div class="lower-grid">
-    <section class="insight-panel attention-panel" aria-labelledby="priority-title">
-      <div class="panel-heading"><h2 id="priority-title">Organizations to review</h2><a routerLink="/organizations" [queryParams]="{ needsAttention: 'true', from: 'overview' }">View all {{ organizationsRequiringAction() }} <i class="ti ti-arrow-up-right" aria-hidden="true"></i></a></div>
-      <p class="panel-subtitle">Each organization is counted once. Open the list for every issue and next step.</p>
-      <div class="priority-list" *ngIf="attentionRows().length; else allClear">
-        <a class="priority-row" *ngFor="let r of attentionRows()" [routerLink]="['/organizations', r.org.orgId]" [queryParams]="{ from: 'overview' }">
-          <span class="org-avatar">{{ r.org.organizationName.charAt(0).toUpperCase() }}</span>
-          <span class="priority-org"><strong>{{ r.org.organizationName }}</strong><small>{{ r.org.domainName }}</small></span>
-          <span class="priority-plan">{{ planName(r.subscription?.planId) }}</span>
-          <span class="issue-badge" [class.urgent]="priority(r) < 2">{{ issueLabel(r) }}</span>
-          <span class="priority-expiry"><app-countdown *ngIf="r.subscription?.planStatus === 'ACTIVE' && r.daysToExpiry !== null && r.daysToExpiry <= 30" [date]="r.subscription!.planEndDate"></app-countdown><i class="ti ti-chevron-right" aria-hidden="true"></i></span>
-        </a>
+  <!-- ── The slice, as rows ─────────────────────────────────────────────── -->
+  <section class="table-card">
+    <header class="tc-head">
+      <div>
+        <h2>Organizations in this slice</h2>
+        <p>{{ a.rows().length }} {{ a.rows().length === 1 ? 'organization' : 'organizations' }} match every filter above.</p>
       </div>
-      <ng-template #allClear><div class="empty-insight"><i class="ti ti-circle-check" aria-hidden="true"></i><strong>No immediate actions</strong><span>There are no flagged organizations right now.</span></div></ng-template>
-    </section>
+      <div class="tc-actions">
+        <button type="button" class="btn sm ghost" (click)="exportCsv()"><i class="ti ti-download" aria-hidden="true"></i> Export CSV</button>
+        <a class="btn sm" routerLink="/organizations" [queryParams]="{ from: 'overview' }">Open full list</a>
+      </div>
+    </header>
 
-    <section class="insight-panel actions-panel" aria-labelledby="actions-title">
-      <div class="panel-heading"><h2 id="actions-title">Common tasks</h2></div>
-      <nav class="action-list" aria-label="Common tasks">
-        <a *ngFor="let s of shortcuts()" [routerLink]="s.path"><span class="action-icon"><i class="ti" [class]="s.icon" aria-hidden="true"></i></span><span><strong>{{ s.label }}</strong><small>{{ s.description }}</small></span><i class="ti ti-arrow-up-right action-arrow" aria-hidden="true"></i></a>
-      </nav>
-    </section>
-  </div>
+    <div class="tc-body" *ngIf="visibleRows().length; else noRows">
+      <table class="dtable">
+        <thead>
+          <tr>
+            <th>
+              <button type="button" class="sort" (click)="sortBy('name')">
+                Organization <i class="ti" [class.ti-arrow-up]="sortKey() === 'name' && sortAsc()" [class.ti-arrow-down]="sortKey() === 'name' && !sortAsc()" aria-hidden="true"></i>
+              </button>
+            </th>
+            <th>Plan</th>
+            <th>
+              <button type="button" class="sort" (click)="sortBy('status')">
+                Status <i class="ti" [class.ti-arrow-up]="sortKey() === 'status' && sortAsc()" [class.ti-arrow-down]="sortKey() === 'status' && !sortAsc()" aria-hidden="true"></i>
+              </button>
+            </th>
+            <th>Billing</th>
+            <th>Onboarded</th>
+            <th>
+              <button type="button" class="sort" (click)="sortBy('end')">
+                Ends <i class="ti" [class.ti-arrow-up]="sortKey() === 'end' && sortAsc()" [class.ti-arrow-down]="sortKey() === 'end' && !sortAsc()" aria-hidden="true"></i>
+              </button>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let r of visibleRows()">
+            <td class="strong">
+              <a class="row-link" [routerLink]="['/organizations', r.org.orgId]" [queryParams]="{ from: 'overview' }">{{ r.org.organizationName }}</a>
+              <small>{{ r.org.domainName }}</small>
+            </td>
+            <td>{{ planName(r.subscription?.planId) }}</td>
+            <td>
+              <span class="spill"><i class="sdot" [style.background]="statusColor(r)" aria-hidden="true"></i>{{ statusLabel[statusOf(r)] }}</span>
+            </td>
+            <td>{{ billingLabel[billingOf(r)] }}</td>
+            <td class="mono">{{ formatDate(r.org.createdDate) }}</td>
+            <td class="mono">
+              <span *ngIf="r.subscription; else noSub">{{ formatDate(r.subscription!.planEndDate) }}</span>
+              <app-countdown *ngIf="r.subscription?.planStatus === 'ACTIVE'" [date]="r.subscription!.planEndDate"></app-countdown>
+              <ng-template #noSub>—</ng-template>
+            </td>
+          </tr>
+        </tbody>
+      </table>
 
+      <app-scroll-sentinel *ngIf="hasMoreRowsBelow()" (reached)="showNextRows()"></app-scroll-sentinel>
+    </div>
+
+    <ng-template #noRows>
+      <div class="tc-empty">
+        <i class="ti ti-filter-off" aria-hidden="true"></i>
+        <strong>Nothing matches this slice</strong>
+        <span>Widen the date range or clear a filter to bring organizations back.</span>
+        <button type="button" class="btn sm primary" (click)="a.clearAll(); resetVisibleRows()">Reset all filters</button>
+      </div>
+    </ng-template>
+  </section>
 </div>

@@ -2,11 +2,14 @@
   <app-page-header eyebrow="Organization" [title]="o.organizationName" [showBack]="showBack" [backUrl]="backUrl">
     <app-status-pill *ngIf="activeSub()" [label]="activeSub()!.planStatus" [tone]="tone(activeSub()!.planStatus)"></app-status-pill>
     <button type="button" class="btn ghost" *ngIf="isSuperAdmin()" (click)="openEdit()">Edit</button>
-    <button type="button" class="btn ghost" *ngIf="isSuperAdmin() && activeSub()" (click)="openChangePlan()">Change plan</button>
-    <button type="button" class="btn primary" *ngIf="activeSub()?.planStatus === 'ACTIVE'" (click)="extendSubscription()">Extend subscription</button>
-    <button type="button" class="btn primary" *ngIf="isSuperAdmin() && activeSub()?.planStatus === 'SUSPENDED'" (click)="reactivate()">Reactivate</button>
+    <span class="managed-elsewhere" *ngIf="isAzureManaged()">
+      <i class="ti ti-brand-azure" aria-hidden="true"></i> Managed in Azure Marketplace — read only
+    </span>
+    <button type="button" class="btn ghost" *ngIf="isSuperAdmin() && activeSub() && !isAzureManaged()" (click)="openChangePlan()">Change plan</button>
+    <button type="button" class="btn primary" *ngIf="activeSub()?.planStatus === 'ACTIVE' && !isAzureManaged()" (click)="extendSubscription()">Extend subscription</button>
+    <button type="button" class="btn primary" *ngIf="isSuperAdmin() && activeSub()?.planStatus === 'SUSPENDED' && !isAzureManaged()" (click)="reactivate()">Reactivate</button>
 
-    <div class="more-menu" *ngIf="isSuperAdmin()" (click)="$event.stopPropagation()">
+    <div class="more-menu" *ngIf="isSuperAdmin() && !isAzureManaged()" (click)="$event.stopPropagation()">
       <button type="button" class="btn ghost icon-only" (click)="toggleMoreMenu($event)" aria-label="More actions" title="More actions">
         <i class="ti ti-dots" aria-hidden="true"></i>
       </button>
@@ -174,7 +177,7 @@
     <div *ngIf="activeTab() === 'subscriptions'">
       <div class="row gap-8" style="margin-bottom:14px">
         <div class="spacer"></div>
-        <a class="btn primary sm" *ngIf="isSuperAdmin()" [routerLink]="['/organizations', o.orgId, 'subscriptions', 'new']">Add subscription</a>
+        <a class="btn primary sm" *ngIf="canAssignPlan()" [routerLink]="['/organizations', o.orgId, 'subscriptions', 'new']">Add subscription</a>
       </div>
       <table class="dtable">
         <thead>
@@ -184,23 +187,51 @@
             <th>Status</th>
             <th>Start</th>
             <th>End</th>
+            <th>Actions</th>
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let s of allSubs()">
+          <tr *ngFor="let s of allSubs(); trackBy: trackBySubscriptionId">
             <td class="mono">{{ s.subscriptionId }}</td>
             <td>{{ planName(s.planId) }}</td>
             <td><app-status-pill [label]="s.planStatus" [tone]="tone(s.planStatus)"></app-status-pill></td>
             <td>{{ formatDate(s.planStartDate) }}</td>
             <td>{{ formatDate(s.planEndDate) }}</td>
+            <td class="sub-actions">
+              <span class="managed-elsewhere" *ngIf="lifecycle.isManagedInAzureMarketplace(s); else rowActions">
+                <i class="ti ti-brand-azure" aria-hidden="true"></i> Managed in Azure Marketplace
+              </span>
+              <ng-template #rowActions>
+                <span class="action-group">
+                  <button type="button" class="action-btn" (click)="lifecycle.extend(s)" title="Extend the end date">
+                    <i class="ti ti-calendar-plus" aria-hidden="true"></i><span>Extend</span>
+                  </button>
+                  <button type="button" class="action-btn" (click)="lifecycle.shorten(s)" title="Bring the end date forward">
+                    <i class="ti ti-calendar-minus" aria-hidden="true"></i><span>Shorten</span>
+                  </button>
+                  <button type="button" class="action-btn" *ngIf="s.planStatus === 'ACTIVE'" (click)="lifecycle.suspend(s)" title="Suspend">
+                    <i class="ti ti-player-pause" aria-hidden="true"></i><span>Suspend</span>
+                  </button>
+                  <button type="button" class="action-btn" *ngIf="s.planStatus === 'ACTIVE' || s.planStatus === 'SUSPENDED'" (click)="lifecycle.deactivate(s)" title="Deactivate">
+                    <i class="ti ti-player-stop" aria-hidden="true"></i><span>Deactivate</span>
+                  </button>
+                  <button type="button" class="action-btn" *ngIf="s.planStatus === 'SUSPENDED' || s.planStatus === 'INACTIVE'" (click)="lifecycle.reactivate(s)" title="Reactivate">
+                    <i class="ti ti-player-play" aria-hidden="true"></i><span>Reactivate</span>
+                  </button>
+                </span>
+              </ng-template>
+            </td>
           </tr>
         </tbody>
       </table>
-      <p class="hint" style="margin-top:14px" *ngIf="isSuperAdmin(); else salesSubsHint">Extend, suspend, and cancel actions for the active subscription live on the <a routerLink="/subscriptions">Subscriptions</a> screen, or use the buttons above.</p>
-      <ng-template #salesSubsHint><p class="hint" style="margin-top:14px">Renewals for the active subscription live on the <a routerLink="/subscriptions">Subscriptions</a> screen. Suspending or cancelling is handled by a super admin.</p></ng-template>
+      <p class="hint" style="margin-top:14px">Changing the plan or cancelling a subscription is handled by a super admin on the <a routerLink="/subscriptions">Subscriptions</a> screen.</p>
     </div>
 
     <!-- LIMITS -->
+    <div *ngIf="activeTab() === 'usage'">
+      <app-usage-limits [orgId]="orgId"></app-usage-limits>
+    </div>
+
     <div *ngIf="activeTab() === 'limits'">
       <app-limits-panel [orgId]="orgId"></app-limits-panel>
     </div>

@@ -6,6 +6,7 @@ import { PageHeaderComponent } from '../../core/ui/page-header.component';
 import { StatusPillComponent } from '../../core/ui/status-pill.component';
 import { CountdownComponent } from '../../core/ui/countdown.component';
 import { EmptyStateComponent } from '../../core/ui/empty-state.component';
+import { TreeBranchComponent } from '../../core/ui/tree-branch.component';
 import { OrganizationsService } from '../../services/organizations.service';
 import { SubscriptionsService } from '../../services/subscriptions.service';
 import { PlansService } from '../../services/plans.service';
@@ -13,6 +14,7 @@ import { AuditService } from '../../services/audit.service';
 import { ConfirmService } from '../../core/confirm.service';
 import { ToastService } from '../../core/toast.service';
 import { AuthService } from '../../core/auth/auth.service';
+import { SubscriptionLifecycleService } from '../../services/subscription-lifecycle.service';
 import { daysUntil, formatDate, formatDateTime, formatLimit, subscriptionStatusTone } from '../../core/status.util';
 import { OrgSubscribedPlan, PlanStatus } from '../../models';
 
@@ -26,7 +28,7 @@ export interface OrgSubscriptionGroup {
 @Component({
   selector: 'app-subscriptions-list',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, PageHeaderComponent, StatusPillComponent, CountdownComponent, EmptyStateComponent],
+  imports: [CommonModule, FormsModule, RouterLink, PageHeaderComponent, StatusPillComponent, CountdownComponent, EmptyStateComponent, TreeBranchComponent],
   templateUrl: './subscriptions-list.component.html',
   styleUrl: './subscriptions-list.component.scss'
 })
@@ -37,6 +39,7 @@ export class SubscriptionsListComponent {
   audit = inject(AuditService);
   auth = inject(AuthService);
   private confirm = inject(ConfirmService);
+  private lifecycle = inject(SubscriptionLifecycleService);
   private toast = inject(ToastService);
 
   // Extend/shorten/suspend/reactivate/cancel all mutate a real billing date or shut off a
@@ -55,6 +58,43 @@ export class SubscriptionsListComponent {
       this.showBack = true;
       this.backUrl = null;
     }
+  }
+
+  readonly expandedOrgs = signal<ReadonlySet<string>>(new Set<string>());
+
+  readonly allCollapsed = computed(() => {
+    const groups = this.orgGroups();
+    const expanded = this.expandedOrgs();
+    return groups.length > 0 && groups.every((group) => !expanded.has(group.orgId));
+  });
+
+  trackByOrgId = (_index: number, group: OrgSubscriptionGroup): string => group.orgId;
+
+  trackBySubscriptionId = (_index: number, subscription: OrgSubscribedPlan): string => subscription.subscriptionId;
+
+  isAzureManaged(subscription: OrgSubscribedPlan): boolean {
+    return subscription.azureMarketplaceManaged === true;
+  }
+
+  isOrgCollapsed(group: OrgSubscriptionGroup): boolean {
+    return !this.expandedOrgs().has(group.orgId);
+  }
+
+  toggleOrg(orgId: string): void {
+    this.expandedOrgs.update((current) => {
+      const next = new Set(current);
+      if (next.has(orgId)) next.delete(orgId);
+      else next.add(orgId);
+      return next;
+    });
+  }
+
+  expandAllOrgs(): void {
+    this.expandedOrgs.set(new Set(this.orgGroups().map((group) => group.orgId)));
+  }
+
+  collapseAllOrgs(): void {
+    this.expandedOrgs.set(new Set<string>());
   }
 
   tone = subscriptionStatusTone;
@@ -126,7 +166,7 @@ export class SubscriptionsListComponent {
   }
 
   planName(planId: string): string {
-    return this.plans.byId(planId)?.planName ?? planId;
+    return this.plans.displayNameForPlanId(planId);
   }
 
   defaultPlans() {
@@ -152,73 +192,11 @@ export class SubscriptionsListComponent {
   // earliest valid choice, otherwise "extend" could silently shorten it instead. There's no upper
   // bound; a super admin can push it out as far as they need.
   async extend(sub: OrgSubscribedPlan): Promise<void> {
-    const currentEnd = new Date(sub.planEndDate);
-    const proposed = new Date(currentEnd);
-    proposed.setDate(proposed.getDate() + 90);
-
-    const minDate = new Date(currentEnd);
-    minDate.setDate(minDate.getDate() + 1);
-
-    await this.confirm.open({
-      title: 'Extend subscription',
-      message: `${this.orgName(sub.orgId)} — current end date is ${formatDate(sub.planEndDate)}. Choose a new, later end date.`,
-      reasonRequired: true,
-      confirmLabel: 'Apply change',
-      extraInput: {
-        type: 'date',
-        label: 'New plan end date',
-        value: proposed.toISOString().slice(0, 10),
-        min: minDate.toISOString().slice(0, 10)
-      },
-      onConfirm: async (reason: string, extra?: any) => {
-        const iso = new Date(extra + 'T00:00:00.000Z').toISOString();
-        await this.subscriptions.extend(sub.subscriptionId, iso, reason ?? '');
-      }
-    });
-    this.toast.show('Subscription extended', 'success');
+    await this.lifecycle.extend(sub);
   }
 
-  // Shortening must land strictly before the current expiry (otherwise it isn't shortening
-  // anything) and no earlier than today or the plan's own start date, whichever is later — you
-  // can't retroactively shorten a subscription into a date that's already in the past relative to
-  // when it started, or before "now".
   async shorten(sub: OrgSubscribedPlan): Promise<void> {
-    const currentEnd = new Date(sub.planEndDate);
-    const proposed = new Date(currentEnd);
-    proposed.setDate(proposed.getDate() - 30);
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const start = new Date(sub.planStartDate);
-    const minDate = start > today ? start : today;
-    const maxDate = new Date(currentEnd);
-    maxDate.setDate(maxDate.getDate() - 1);
-
-    if (minDate >= maxDate) {
-      this.toast.show('This subscription cannot be shortened any further', 'critical');
-      return;
-    }
-    if (proposed < minDate) proposed.setTime(minDate.getTime());
-
-    await this.confirm.open({
-      title: 'Shorten subscription',
-      message: `${this.orgName(sub.orgId)} — current end date is ${formatDate(sub.planEndDate)}. Choose a new, earlier end date.`,
-      reasonRequired: true,
-      danger: true,
-      confirmLabel: 'Apply change',
-      extraInput: {
-        type: 'date',
-        label: 'New plan end date',
-        value: proposed.toISOString().slice(0, 10),
-        min: minDate.toISOString().slice(0, 10),
-        max: maxDate.toISOString().slice(0, 10)
-      },
-      onConfirm: async (reason: string, extra?: any) => {
-        const iso = new Date(extra + 'T00:00:00.000Z').toISOString();
-        await this.subscriptions.extend(sub.subscriptionId, iso, reason ?? '');
-      }
-    });
-    this.toast.show('Subscription shortened', 'success');
+    await this.lifecycle.shorten(sub);
   }
 
   openChangePlan(sub: OrgSubscribedPlan): void {
@@ -254,40 +232,18 @@ export class SubscriptionsListComponent {
   }
 
   async suspend(sub: OrgSubscribedPlan): Promise<void> {
-    const result = await this.confirm.open({
-      title: 'Suspend subscription',
-      message: `${this.orgName(sub.orgId)} loses access to every application immediately.`,
-      danger: true,
-      reasonRequired: true,
-      confirmLabel: 'Suspend access'
-    });
-    if (!result.confirmed) return;
-    await this.subscriptions.setStatus(sub.subscriptionId, 'SUSPENDED', result.reason);
-    this.toast.show('Subscription suspended', 'critical');
+    await this.lifecycle.suspend(sub);
+  }
+
+  async deactivate(sub: OrgSubscribedPlan): Promise<void> {
+    await this.lifecycle.deactivate(sub);
   }
 
   async reactivate(sub: OrgSubscribedPlan): Promise<void> {
-    const result = await this.confirm.open({
-      title: 'Reactivate subscription',
-      message: `Access is restored immediately for ${this.orgName(sub.orgId)}.`,
-      reasonRequired: true,
-      confirmLabel: 'Reactivate'
-    });
-    if (!result.confirmed) return;
-    await this.subscriptions.setStatus(sub.subscriptionId, 'ACTIVE', result.reason);
-    this.toast.show('Subscription reactivated', 'success');
+    await this.lifecycle.reactivate(sub);
   }
 
   async cancel(sub: OrgSubscribedPlan): Promise<void> {
-    const result = await this.confirm.open({
-      title: 'Cancel subscription',
-      message: `This ends ${this.orgName(sub.orgId)}'s subscription. It will not renew and access ends at the current expiry date.`,
-      danger: true,
-      requireTypedText: this.orgName(sub.orgId),
-      confirmLabel: 'Cancel subscription'
-    });
-    if (!result.confirmed) return;
-    await this.subscriptions.setStatus(sub.subscriptionId, 'CANCELLED', result.reason);
-    this.toast.show('Subscription cancelled', 'critical');
+    await this.lifecycle.cancel(sub);
   }
 }

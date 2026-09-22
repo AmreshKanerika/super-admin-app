@@ -4,6 +4,11 @@
   align-items: center;
   margin-bottom: 12px;
   flex-wrap: wrap;
+  padding: 14px;
+  border: 1px solid #e4e7f0;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 5px 20px rgba(36, 47, 80, 0.04);
 }
 
 .search {
@@ -46,17 +51,72 @@ th.sortable:hover {
   color: var(--ink-soft);
 }
 
-.pagination {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 16px;
+.view-bar .view-count {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #eef3ff;
+  color: #435d91;
+  font-weight: 700;
 }
 
-.pager-btns {
-  display: flex;
-  gap: 8px;
+.org-table-panel {
+  border: 1px solid #e1e5ef;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 10px 28px rgba(36, 47, 80, 0.055);
 }
+
+table.dtable.org-table th {
+  padding: 16px 18px;
+  border-bottom-color: #dce2ef;
+  background: linear-gradient(90deg, #f1edfb, #f3f7ff);
+  color: #514a76;
+  font-size: 11px;
+}
+
+table.dtable.org-table td {
+  padding: 13px 18px;
+  color: #404b5e;
+  font-size: 12.5px;
+}
+
+table.org-table tbody tr:nth-child(even) { background: #fcfbff; }
+table.org-table tbody tr:hover { background: #f2f4ff; }
+
+.org-cell { display: flex; align-items: center; gap: 11px; min-width: 0; }
+.oc-list-avatar {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex: none;
+  border-radius: 10px;
+  background: #eee9f8;
+  color: #684395;
+  font: 700 13px var(--k-font-display);
+}
+tr[data-status='ACTIVE'] .oc-list-avatar { background: #e1f3ec; color: #1b7357; }
+tr[data-status='UPCOMING'] .oc-list-avatar { background: #e9eaff; color: #5546a3; }
+tr[data-status='EXPIRED'] .oc-list-avatar,
+tr[data-status='CANCELLED'] .oc-list-avatar,
+tr[data-status='UNSUBSCRIBED'] .oc-list-avatar { background: #fde9ed; color: #a9394c; }
+tr[data-status='SUSPENDED'] .oc-list-avatar { background: #fff1d9; color: #8b6013; }
+
+table.dtable.org-table .row-link { color: #27334b; font-size: 13px; font-weight: 700; }
+.org-domain { font-family: var(--font-sans); color: #526078; }
+.plan-chip {
+  display: inline-flex;
+  max-width: 100%;
+  padding: 5px 9px;
+  border: 1px solid #dfe9fb;
+  border-radius: 8px;
+  background: #f0f5ff;
+  color: #365889;
+  font-size: 11.5px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
 
 .domain-value {
   display: inline-block;
@@ -104,3 +164,193 @@ th.sortable:hover {
 .attention-reasons strong, .attention-reasons span { display: block; white-space: normal; }
 .attention-reasons strong { color: #99552e; font-size: 12px; }
 .attention-reasons span { margin-top: 3px; color: var(--ink-soft); font-size: 12px; line-height: 1.45; }
+
+/* ── Card view ─────────────────────────────────────────────────────────── */
+
+.org-card {
+  --status-accent: #7b8798;
+  gap: 14px;
+  padding: 19px 20px;
+  border-color: #dfe4eb;
+  box-shadow: 0 5px 18px rgba(30, 40, 60, 0.045);
+}
+
+.org-card[data-status='ACTIVE'] { --status-accent: #238463; }
+.org-card[data-status='UPCOMING'] { --status-accent: #7455a3; }
+.org-card[data-status='SUSPENDED'] { --status-accent: #a36d17; }
+.org-card[data-status='EXPIRED'],
+.org-card[data-status='CANCELLED'],
+.org-card[data-status='UNSUBSCRIBED'] { --status-accent: #bd4957; }
+
+.org-card::before,
+.org-card:hover::before {
+  inset: 0 auto 0 0;
+  width: 3px;
+  height: 100%;
+  border-radius: 14px 0 0 14px;
+  background: var(--status-accent);
+  opacity: 1;
+}
+
+.org-card::after { display: none; }
+.org-card:hover { border-color: #bfc9d6; box-shadow: 0 12px 28px rgba(30, 40, 60, 0.1); }
+.org-card:hover .ec-title { color: var(--ink); }
+
+.org-card .ec-top {
+  align-items: flex-start;
+}
+
+.org-card .ec-title { font-size: 15.5px; }
+.org-card .ec-sub { color: #566174; font-family: var(--font-sans); font-size: 12px; line-height: 1.45; }
+.org-card .ec-meta { gap: 7px; color: #404b5d; font-size: 12px; }
+.org-card .ec-meta span { max-width: 100%; padding: 5px 8px; border: 1px solid #e8ecf1; border-radius: 8px; background: #f8fafc; overflow-wrap: anywhere; }
+.org-card .ec-meta .domain-flag { border-color: #f2dfb6; background: #fff8e9; }
+
+.oc-id {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+}
+
+.oc-avatar {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  border-radius: 9px;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font: 700 14px var(--k-font-display);
+}
+
+.oc-name {
+  min-width: 0;
+}
+
+.no-sub {
+  flex: none;
+  color: var(--ink-faint);
+  font-size: 10.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Not colour alone — the icon and the words carry it too, since this is the
+   flag someone is scanning for. */
+.domain-flag {
+  color: #a1741f;
+  font-weight: 600;
+}
+
+.domain-flag i {
+  color: inherit !important;
+}
+
+.oc-reasons {
+  list-style: none;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 9px;
+  background: var(--paper-sunken);
+}
+
+.oc-reasons li + li {
+  margin-top: 8px;
+}
+
+.oc-reasons strong {
+  display: block;
+  color: var(--ink);
+  font-size: 11.5px;
+}
+
+.oc-reasons span {
+  display: block;
+  margin-top: 2px;
+  color: var(--ink-faint);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.org-card .ec-foot {
+  justify-content: flex-start;
+  gap: 8px;
+  padding-top: 13px;
+  color: #566174;
+  font-size: 12px;
+}
+
+.org-card .oc-open { margin-left: auto; color: #61748f; font-size: 16px; }
+
+/* ── Responsive ────────────────────────────────────────────────────────── */
+
+@media (max-width: 860px) {
+  /* The search and the two selects are capped for a comfortable desktop line
+     length. Below this that cap just leaves gaps, so they share the row. */
+  .filterbar .search,
+  .filterbar .select {
+    max-width: none;
+    flex: 1 1 200px;
+  }
+}
+
+@media (max-width: 640px) {
+  .filterbar {
+    gap: 8px;
+  }
+
+  .filterbar .search,
+  .filterbar .select {
+    flex: 1 1 100%;
+  }
+
+  .quick-chips {
+    width: 100%;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+  }
+
+  .quick-chips::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Wrapping the quick filters would push the results off the first screen;
+     scrolling them sideways keeps the list where the reader expects it. */
+  .quick-chips .chip {
+    flex: 0 0 auto;
+  }
+
+}
+
+.scroll-hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 14px 0 4px;
+  color: var(--ink-faint);
+  font-size: 11.5px;
+}
+
+.scroll-hint i {
+  font-size: 14px;
+  animation: scroll-hint-nudge 1.6s ease-in-out infinite;
+}
+
+@keyframes scroll-hint-nudge {
+  0%, 100% { transform: translateY(0); opacity: 0.55; }
+  50% { transform: translateY(3px); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scroll-hint i { animation: none; }
+}
+
+.reset-filters {
+  margin-left: auto;
+  white-space: nowrap;
+}

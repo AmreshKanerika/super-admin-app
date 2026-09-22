@@ -27,6 +27,7 @@ export class AuditService {
   private auth = inject(AuthService);
 
   private readonly recent = signal<AuditLogEntry[]>([]);
+  private pendingRecentRefresh: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
     this.refreshRecent();
@@ -57,10 +58,21 @@ export class AuditService {
       result
     };
     firstValueFrom(this.http.post(`${API_BASE_URL}/platform/audit-log`, body))
-      .then(() => this.refreshRecent())
+      .then(() => this.scheduleRecentRefresh())
       .catch((err) => {
         console.error('Failed to record audit log entry', action, targetType, err);
       });
+  }
+
+  // Saving limits for twelve applications writes twelve audit entries, and re-reading the whole
+  // recent window after each one meant twelve extra GETs for a list at most two views are showing.
+  // Bursts are collapsed into a single refresh once the writes stop.
+  private scheduleRecentRefresh(): void {
+    if (this.pendingRecentRefresh) clearTimeout(this.pendingRecentRefresh);
+    this.pendingRecentRefresh = setTimeout(() => {
+      this.pendingRecentRefresh = null;
+      void this.refreshRecent();
+    }, 400);
   }
 
   private async refreshRecent(): Promise<void> {

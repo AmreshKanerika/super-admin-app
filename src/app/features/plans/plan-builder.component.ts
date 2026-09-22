@@ -1,20 +1,19 @@
 import { collectAncestorIds, collectDescendantIds } from '../../core/ui/app-tree.util';
-import { ApplicationExplorerComponent, ExplorerNode } from '../../core/ui/application-explorer.component';
+import { TreeBranchComponent } from '../../core/ui/tree-branch.component';
 import { Component, EventEmitter, Injector, Input, OnInit, Output, computed, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { PageHeaderComponent } from '../../core/ui/page-header.component';
-import { ToggleSwitchComponent } from '../../core/ui/toggle-switch.component';
 import { ApplicationsService } from '../../services/applications.service';
 import { PlansService } from '../../services/plans.service';
 import { OverviewService } from '../../services/overview.service';
 import { ConfirmService } from '../../core/confirm.service';
 import { AccessStatus, Application, BillingMode, SubscriptionPlan } from '../../models';
 import { formatLimit } from '../../core/status.util';
-import { AppNamePipe } from '../../core/app-name.pipe';
-import { formatAppName } from '../../core/app-name.util';
-import { FlatTreeMeta, decorateDfsRows , groupByRoot } from '../../core/ui/app-tree.util';
+import { AppDisplayNamePipe } from '../../core/app-name.pipe';
+import { displayNameOrFallback } from '../../core/app-name.util';
+import { FlatTreeMeta, decorateDfsRows } from '../../core/ui/app-tree.util';
 
 interface AppRowVm {
   app: Application;
@@ -29,7 +28,7 @@ interface AppRowVm {
 @Component({
   selector: 'app-plan-builder',
   standalone: true,
-  imports: [ApplicationExplorerComponent, CommonModule, FormsModule, RouterLink, PageHeaderComponent, ToggleSwitchComponent, AppNamePipe],
+  imports: [CommonModule, FormsModule, RouterLink, PageHeaderComponent, AppDisplayNamePipe, TreeBranchComponent],
   templateUrl: './plan-builder.component.html',
   styleUrl: './plan-builder.component.scss'
 })
@@ -53,6 +52,8 @@ export class PlanBuilderComponent implements OnInit {
   editingPlanId: string | null = null;
 
   planName = '';
+  displayName = '';
+  private planKeyTouched = false;
   description = '';
   billingMode: BillingMode = 'PREPAID';
   primaryAppId = '';
@@ -62,8 +63,16 @@ export class PlanBuilderComponent implements OnInit {
   applicationsRoots: Application[] = [];
 
   readonly appQuery = signal('');
-  readonly collapsedAppIds = signal<ReadonlySet<string>>(new Set<string>());
-  formatAppName = formatAppName;
+  readonly expandedAppIds = signal<ReadonlySet<string>>(new Set<string>());
+
+  private readonly parentAppIds = computed<string[]>(() => [
+    ...new Set(this.rows().map((row) => row.app.parentAppId).filter((appId): appId is string => !!appId))
+  ]);
+
+  private readonly collapsedAppIds = computed<ReadonlySet<string>>(() => {
+    const expanded = this.expandedAppIds();
+    return new Set(this.parentAppIds().filter((appId) => !expanded.has(appId)));
+  });
 
   private matcher(): ((row: AppRowVm) => boolean) | null {
     const term = this.appQuery().trim().toLowerCase();
@@ -71,7 +80,7 @@ export class PlanBuilderComponent implements OnInit {
       return null;
     }
     return (row) =>
-      formatAppName(row.app.appName).toLowerCase().includes(term) || row.app.appName.toLowerCase().includes(term);
+      displayNameOrFallback(row.app).toLowerCase().includes(term) || row.app.appName.toLowerCase().includes(term);
   }
 
   readonly visibleRows = computed<(AppRowVm & FlatTreeMeta)[]>(() =>
@@ -83,47 +92,22 @@ export class PlanBuilderComponent implements OnInit {
     })
   );
 
-  // Both steps render one card per top-level application; the flat lists above stay the source of
-  // truth for search, filtering and collapse.
-  readonly appGroups = computed(() => groupByRoot(this.visibleRows(), (row) => row.depth));
-  readonly limitGroups = computed(() => groupByRoot(this.visibleEnabledRows(), (row) => row.depth));
-
-  readonly explorerNodes = computed<ExplorerNode[]>(() => this.visibleRows().map(row => ({
-    id: row.app.appId, name: formatAppName(row.app.appName), depth: row.depth,
-    hasChildren: row.hasChildren, expanded: row.expanded, status: row.accessStatus, data: row,
-    path: collectAncestorIds(this.rows().map(r => r.app), row.app.appId).reverse().map(id => formatAppName(this.rows().find(r => r.app.appId === id)?.app.appName ?? id)).join(' / ')
-  })));
-
-  trackByGroupRow = (_: number, group: { root: { app: { appId: string } } }) => group.root.app.appId;
-
-  readonly visibleEnabledRows = computed<(AppRowVm & FlatTreeMeta)[]>(() =>
-    decorateDfsRows(
-      this.rows().filter((row) => row.accessStatus === 'ENABLED'),
-      {
-        depthOf: (row) => row.depth,
-        idOf: (row) => row.app.appId,
-        collapsedIds: new Set<string>(),
-        matches: null
-      }
-    )
-  );
-
   toggleAppCollapsed(appId: string): void {
-    const next = new Set(this.collapsedAppIds());
+    const next = new Set(this.expandedAppIds());
     if (next.has(appId)) {
       next.delete(appId);
     } else {
       next.add(appId);
     }
-    this.collapsedAppIds.set(next);
+    this.expandedAppIds.set(next);
   }
 
   expandAllApps(): void {
-    this.collapsedAppIds.set(new Set<string>());
+    this.expandedAppIds.set(new Set(this.parentAppIds()));
   }
 
   collapseAllApps(): void {
-    this.collapsedAppIds.set(new Set(this.rows().filter((row) => row.depth === 0).map((row) => row.app.appId)));
+    this.expandedAppIds.set(new Set<string>());
   }
 
   trackByAppRow(_index: number, row: AppRowVm & FlatTreeMeta): string {
@@ -182,6 +166,8 @@ export class PlanBuilderComponent implements OnInit {
   private _buildRows(existing?: SubscriptionPlan): void {
     if (existing) {
       this.planName = existing.planName;
+      this.displayName = existing.displayName ?? '';
+      this.planKeyTouched = true;
       this.description = existing.description;
       this.billingMode = existing.billingMode;
       this.primaryAppId = existing.primaryAppId ?? '';
@@ -288,6 +274,17 @@ export class PlanBuilderComponent implements OnInit {
 
   enabledRows = computed(() => this.rows().filter((r) => r.accessStatus === 'ENABLED'));
 
+  // Review shows the same hierarchy the previous steps did. Enabling a child forces its ancestors
+  // on, so the enabled set is always ancestor-closed and the branch never dangles.
+  readonly reviewRows = computed<(AppRowVm & FlatTreeMeta)[]>(() =>
+    decorateDfsRows(this.enabledRows(), {
+      depthOf: (row) => row.depth,
+      idOf: (row) => row.app.appId,
+      collapsedIds: new Set<string>(),
+      matches: null
+    })
+  );
+
   // primary_app_id is the accelerator a subscription is billed and de-duplicated against in the
   // multi-subscription model, so a plan without one can never be onboarded. Nothing in the builder
   // used to set it, which produced plans the onboarding wizard had to reject.
@@ -306,6 +303,29 @@ export class PlanBuilderComponent implements OnInit {
     return app.scopes.join(', ');
   }
 
+  allowanceTooltip(row: AppRowVm, kind: 'design' | 'runtime'): string {
+    const label = kind === 'design' ? 'Design-time' : 'Runtime';
+    if (row.accessStatus !== 'ENABLED') {
+      return `${label}: not applied while ${row.accessStatus.toLowerCase()}`;
+    }
+    const unlimited = kind === 'design' ? row.designUnlimited : row.runtimeUnlimited;
+    if (unlimited) {
+      return `${label}: unlimited`;
+    }
+    const limit = kind === 'design' ? row.designTimeLimit : row.runtimeLimit;
+    return `${label}: ${limit.toLocaleString()}`;
+  }
+
+  setAccessForAllVisible(status: AccessStatus): void {
+    for (const row of this.visibleRows()) {
+      if (row.accessStatus !== status) this.setAccessStatus(row, status);
+    }
+  }
+
+  enabledVisibleCount(): number {
+    return this.visibleRows().filter((row) => row.accessStatus === 'ENABLED').length;
+  }
+
   canGoNext(): boolean {
     if (this.step() === 0) {
       return !!this.planName.trim() && this.plans.nameAvailable(this.planName, this.editingPlanId ?? undefined);
@@ -318,6 +338,23 @@ export class PlanBuilderComponent implements OnInit {
       return !!this.primaryAppId;
     }
     return true;
+  }
+
+  onPlanKeyInput(): void {
+    this.planKeyTouched = true;
+    this.checkName();
+  }
+
+  // The key is derived from the label until someone edits it directly, so the common case is one
+  // field instead of two - the same behaviour the application catalogue already has.
+  suggestPlanName(): void {
+    if (this.editingPlanId || this.planKeyTouched) return;
+    this.planName = this.displayName
+      .trim()
+      .toUpperCase()
+      .replace(/[^A-Z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '');
+    this.checkName();
   }
 
   checkName(): void {
@@ -358,7 +395,7 @@ export class PlanBuilderComponent implements OnInit {
 
   async save(): Promise<void> {
     const apps = this.buildApps();
-    const draft = { planName: this.planName, description: this.description, billingMode: this.billingMode, primaryAppId: this.primaryAppId, apps };
+    const draft = { planName: this.planName, displayName: this.displayName.trim(), description: this.description, billingMode: this.billingMode, primaryAppId: this.primaryAppId, apps };
 
     if (this.editingPlanId) {
       const affectedOrgNames = this.overview

@@ -1,0 +1,596 @@
+:host {
+  display: block;
+}
+
+.lede {
+  max-width: 88ch;
+  margin: -8px 0 18px;
+  color: var(--ink-faint);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+.lede strong {
+  color: var(--ink-soft);
+}
+
+/* The editor is a panel beside the table rather than a modal: creating a
+   sub-application means reading the tree while filling the form, and a modal
+   would cover the thing being referred to. */
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+/* ── Catalog ───────────────────────────────────────────────────────────── */
+
+.catalog {
+  min-width: 0;
+  padding: 16px 18px 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #fff;
+}
+
+.catalog-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 11px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  color: var(--ink-faint);
+}
+
+.search:focus-within {
+  border-color: var(--accent);
+}
+
+.search input {
+  width: 220px;
+  max-width: 44vw;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 12.5px;
+}
+
+.count {
+  color: var(--ink-faint);
+  font-size: 11.5px;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+/* ── Tree rows ─────────────────────────────────────────────────────────── */
+
+.tree-cell {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.tree-label {
+  margin-left: 4px;
+  overflow-wrap: anywhere;
+}
+
+.twisty {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  flex: none;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--ink-faint);
+  font-size: 15px;
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.twisty:hover {
+  background: var(--paper-sunken);
+  color: var(--ink);
+}
+
+.twisty:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* Leaves reserve the same width, so every label on a level starts at the same x. */
+.twisty-spacer {
+  display: inline-block;
+  width: 22px;
+  flex: none;
+}
+
+.child-count {
+  margin-left: 7px;
+  padding: 1px 7px;
+  border: none;
+  border-radius: 20px;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font: 700 10px var(--font-sans);
+  cursor: pointer;
+}
+
+.child-count:hover {
+  background: #e4d3f2;
+}
+
+.tree-btn {
+  white-space: nowrap;
+}
+
+/* A derived label is a real gap in the catalog, so it is flagged inline rather
+   than left to look identical to a label someone actually chose. */
+.fallback {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 4px;
+  color: #a1741f;
+  font-size: 10.5px;
+  font-weight: 600;
+}
+
+.machine {
+  padding: 2px 7px;
+  border-radius: 5px;
+  background: var(--paper-sunken);
+  color: var(--ink-soft);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.muted {
+  color: var(--ink-faint);
+}
+
+.scope-chip {
+  display: inline-block;
+  margin: 0 4px 3px 0;
+  padding: 2px 7px;
+  border-radius: 20px;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+/* Locked vs free reads from the icon and the words, not the colour alone — the
+   whole point of the column is that it explains why a button is greyed out. */
+.usage {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--ink-faint);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.usage i {
+  font-size: 13px;
+}
+
+.usage.in-use {
+  color: #8a6510;
+  font-weight: 600;
+}
+
+.right {
+  text-align: right;
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+tbody tr.selected {
+  background: var(--ui-violet-wash);
+}
+
+.icon-btn {
+  width: 28px;
+  height: 28px;
+  margin-left: 2px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ink-faint);
+  font-size: 15px;
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+
+.icon-btn:hover:not(:disabled) {
+  border-color: var(--line);
+  background: var(--paper-sunken);
+  color: var(--ink);
+}
+
+.icon-btn.danger:hover:not(:disabled) {
+  border-color: var(--critical);
+  background: var(--critical-soft);
+  color: var(--critical);
+}
+
+.icon-btn:disabled {
+  opacity: 0.32;
+  cursor: not-allowed;
+}
+
+.icon-btn:disabled:hover {
+  border-color: transparent;
+  background: transparent;
+  color: var(--ink-faint);
+}
+
+/* ── Editor ────────────────────────────────────────────────────────────── */
+
+/* Capped to the viewport and scrolled internally. Sticky alone was not enough: the
+   panel is taller than the screen, so its footer sat below the fold and saving meant
+   scrolling the whole catalog past every application to reach the button. The form
+   scrolls inside; the header and the actions stay put. */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(19, 26, 31, 0.44);
+  backdrop-filter: blur(2px);
+  animation: backdrop-fade-in 0.16s ease both;
+}
+
+@keyframes backdrop-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes dialog-rise-in {
+  from { opacity: 0; transform: translateY(12px) scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+
+.editor {
+  width: min(580px, 100%);
+  display: flex;
+  flex-direction: column;
+  max-height: min(86vh, 780px);
+  padding: 0;
+  overflow: hidden;
+  box-shadow: 0 24px 60px rgba(28, 12, 44, 0.28);
+  animation: dialog-rise-in 0.2s cubic-bezier(0.22, 1, 0.36, 1) both;
+  border: 1px solid var(--line);
+  border-top: 3px solid var(--accent);
+  border-radius: 14px;
+  background: #fff;
+}
+
+.ed-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex: none;
+  padding: 18px 20px 12px;
+}
+
+/* min-height:0 is what actually lets this scroll — without it the flex child refuses
+   to shrink below its content and the overflow never engages. */
+.ed-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 4px 20px 16px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.ed-head h2 {
+  margin: 0;
+  font: 700 16px/1.25 var(--k-font-display);
+  letter-spacing: -0.02em;
+}
+
+.editor .hint code {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--paper-sunken);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+}
+
+.normalised {
+  color: var(--accent-ink);
+  font-size: 11px;
+}
+
+.normalised code {
+  font-family: var(--font-mono);
+}
+
+/* Shows the exact pairing the catalog will render, so the relationship between
+   the label and the machine key is visible before saving rather than after. */
+.preview {
+  padding: 11px 13px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 10px;
+  background: var(--ui-violet-wash);
+}
+
+.preview-label {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--ink-faint);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.preview-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-wrap: wrap;
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.preview-row i {
+  color: var(--accent-ink);
+  font-size: 17px;
+}
+
+.scopes {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.scope-toggle {
+  display: grid;
+  grid-template-columns: 18px auto;
+  align-items: baseline;
+  gap: 3px 9px;
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: #fff;
+  color: var(--ink-soft);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.12s ease, background-color 0.12s ease;
+}
+
+.scope-toggle:hover {
+  border-color: var(--line-strong);
+  background: var(--paper-sunken);
+}
+
+.scope-toggle.on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+
+.scope-toggle i {
+  font-size: 15px;
+}
+
+.sc-name {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.scope-toggle small {
+  grid-column: 2;
+  color: var(--ink-faint);
+  font-size: 10.5px;
+  line-height: 1.45;
+}
+
+.scope-toggle.on small {
+  color: #6f4a8c;
+}
+
+.ed-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+  flex: none;
+  padding: 13px 20px;
+  border-top: 1px solid var(--line);
+  background: #fff;
+}
+
+/* ── Responsive ────────────────────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  .backdrop {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .editor {
+    width: 100%;
+    max-height: 90vh;
+    border-radius: 16px 16px 0 0;
+  }
+}
+
+@media (max-width: 560px) {
+  .catalog {
+    padding: 14px;
+  }
+
+  .ed-head,
+  .ed-body,
+  .ed-foot {
+    padding-inline: 14px;
+  }
+
+  .search input {
+    width: 100%;
+  }
+}
+
+.catalog-bar .count {
+  margin-left: auto;
+}
+
+.catalog-bar {
+  gap: 10px;
+}
+
+.catalog-row[data-family='0'] { --family: var(--ui-violet); }
+.catalog-row[data-family='1'] { --family: var(--k-blue-bright); }
+.catalog-row[data-family='2'] { --family: var(--limit-runtime); }
+.catalog-row[data-family='3'] { --family: var(--ui-rose); }
+.catalog-row[data-family='4'] { --family: var(--brand-orange); }
+.catalog-row[data-family='5'] { --family: var(--k-purple); }
+
+.catalog-row > td:first-child {
+  box-shadow: inset 3px 0 0 color-mix(in oklab, var(--family) 70%, transparent);
+}
+
+.catalog-row[data-depth='1'] > td:first-child {
+  box-shadow: inset 3px 0 0 color-mix(in oklab, var(--family) 42%, transparent);
+}
+
+.catalog-row[data-depth='2'] > td:first-child,
+.catalog-row[data-depth='3'] > td:first-child {
+  box-shadow: inset 3px 0 0 color-mix(in oklab, var(--family) 24%, transparent);
+}
+
+.catalog-row.is-root > td {
+  background: color-mix(in oklab, var(--family) 4%, var(--paper-raised));
+}
+
+.catalog-row.is-root.is-parent > td:first-child .tree-label {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.catalog-row:hover > td {
+  background: color-mix(in oklab, var(--family) 8%, var(--paper-raised));
+}
+
+.catalog-row.selected > td {
+  background: color-mix(in oklab, var(--family) 13%, var(--paper-raised));
+}
+
+.app-initial {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  flex: none;
+  margin-left: 2px;
+  border-radius: 7px;
+  background: color-mix(in oklab, var(--family) 16%, transparent);
+  color: color-mix(in oklab, var(--family) 82%, var(--ink));
+  font: 700 10.5px var(--k-font-display);
+}
+
+.catalog-row.is-root .app-initial {
+  background: color-mix(in oklab, var(--family) 88%, transparent);
+  color: #fff;
+}
+
+.catalog-row .twisty {
+  color: color-mix(in oklab, var(--family) 65%, var(--ink-faint));
+}
+
+.catalog-row .twisty:hover {
+  background: color-mix(in oklab, var(--family) 12%, transparent);
+  color: color-mix(in oklab, var(--family) 85%, var(--ink));
+}
+
+.catalog-row .child-count {
+  background: color-mix(in oklab, var(--family) 16%, transparent);
+  color: color-mix(in oklab, var(--family) 80%, var(--ink));
+}
+
+.catalog-row .child-count:hover {
+  background: color-mix(in oklab, var(--family) 28%, transparent);
+}
+
+.catalog-row {
+  --tree-rail: color-mix(in oklab, var(--family) 42%, var(--line-strong));
+}
+
+.scope-chip[data-scope='VIEW'] {
+  background: var(--k-blue-pale);
+  color: var(--k-blue-deep);
+}
+
+.scope-chip[data-scope='EDIT'],
+.scope-chip[data-scope='ADD'] {
+  background: var(--limit-runtime-soft);
+  color: var(--limit-runtime);
+}
+
+.scope-chip[data-scope='EXECUTE'] {
+  background: var(--warning-soft);
+  color: #8a6510;
+}
+
+.scope-chip[data-scope='DELETE'] {
+  background: var(--critical-soft);
+  color: var(--critical);
+}
+
+.scope-chip[data-scope='ALL'] {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .backdrop,
+  .editor {
+    animation: none;
+  }
+}
+
+.catalog-row.just-created > td {
+  background: color-mix(in oklab, var(--success) 14%, var(--paper-raised));
+  animation: just-created-settle 4s ease-out both;
+}
+
+@keyframes just-created-settle {
+  0% { background: color-mix(in oklab, var(--success) 26%, var(--paper-raised)); }
+  100% { background: var(--paper-raised); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .catalog-row.just-created > td { animation: none; }
+}

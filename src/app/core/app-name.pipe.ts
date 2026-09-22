@@ -1,9 +1,9 @@
 import { Pipe, PipeTransform } from '@angular/core';
-import { formatAppName } from './app-name.util';
+import { AppWithNames, displayNameOrFallback } from './app-name.util';
 
-@Pipe({ name: 'appName', standalone: true })
-export class AppNamePipe implements PipeTransform {
-  transform(rawName: string | null | undefined): string {
-    return formatAppName(rawName);
+@Pipe({ name: 'appDisplayName', standalone: true })
+export class AppDisplayNamePipe implements PipeTransform {
+  transform(app: AppWithNames | string | null | undefined, fallback = ''): string {
+    return displayNameOrFallback(typeof app === 'string' ? { appName: app } : app, fallback);
   }
 }

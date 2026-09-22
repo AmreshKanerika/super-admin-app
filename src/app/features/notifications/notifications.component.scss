@@ -56,3 +56,43 @@
   color: var(--ink);
   font-variant-numeric: tabular-nums;
 }
+
+/* ── Responsive ────────────────────────────────────────────────────────── */
+
+
+/* ── Responsive ────────────────────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  /* 560px is a reading-width cap for the settings column. Below that it only
+     leaves an unused gap on the right. */
+  .settings-cards {
+    max-width: none;
+  }
+
+  .settings-card-head {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  /* Reminder offsets are a row of chips; scrolling them sideways keeps the
+     settings below them on the first screen instead of pushed off by wrapping. */
+  .offset-chips {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+  }
+
+  .offset-chips::-webkit-scrollbar {
+    display: none;
+  }
+
+  .offset-chips .chip {
+    flex: 0 0 auto;
+  }
+
+  .checkbox-row {
+    align-items: flex-start;
+  }
+}

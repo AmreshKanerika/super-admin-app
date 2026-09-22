@@ -1,0 +1,114 @@
+<div class="usage">
+  <header class="usage-intro">
+    <div><span class="eyebrow">PLAN USAGE</span><h2>Usage &amp; resets</h2>
+      <p>Choose a plan, review its pooled allowance and each application’s own counters, then select applications to reset.</p></div>
+    <button type="button" class="btn sm ghost" (click)="load()" [disabled]="loading() || resetting()">
+      <i class="ti ti-refresh" aria-hidden="true"></i> Refresh usage
+    </button>
+  </header>
+
+  <p class="error" role="alert" *ngIf="loadError()">{{ loadError() }}</p>
+  <p class="notice" role="status" *ngIf="loading()">Loading plan usage…</p>
+
+  <section class="plan-section" aria-label="Choose a plan" *ngIf="plans().length">
+    <div class="section-heading"><h3><span class="step">1</span> Choose a plan</h3><span>{{ plans().length }} active plans</span></div>
+    <div class="plan-grid">
+      <button type="button" class="plan-card" *ngFor="let plan of plans()"
+        [class.selected]="selectedPlanId() === plan.planId" [attr.aria-pressed]="selectedPlanId() === plan.planId"
+        [disabled]="busy()" (click)="selectPlan(plan.planId)">
+        <span class="plan-icon"><i class="ti ti-license" aria-hidden="true"></i></span>
+        <span class="plan-copy"><strong>{{ plan.planName }}</strong><small>{{ plan.apps.length }} applications · {{ format(plan.pool.limit) }} plan allowance</small></span>
+        <i class="ti" [class.ti-circle-check-filled]="selectedPlanId() === plan.planId" [class.ti-chevron-right]="selectedPlanId() !== plan.planId" aria-hidden="true"></i>
+      </button>
+    </div>
+  </section>
+
+  <ng-container *ngIf="selectedPlan() as plan; else choosePlan">
+    <section class="plan-detail" aria-label="Selected plan limits">
+      <div class="section-heading">
+        <div><h3><span class="step">2</span> {{ plan.planName }}</h3><p>This organization’s pooled allowance under this plan, counted across every application. Per-application counters are in step 3.</p></div>
+        <span class="status-pill" [class.exhausted]="plan.pool.exhausted">{{ plan.pool.exhausted ? 'Allowance exhausted' : 'Active plan' }}</span>
+      </div>
+      <div class="metrics">
+        <article class="metric total"><span class="metric-icon"><i class="ti ti-stack-2" aria-hidden="true"></i></span><div><span>Plan total limit</span><strong>{{ format(plan.pool.limit) }}</strong></div></article>
+        <article class="metric used"><span class="metric-icon"><i class="ti ti-chart-bar" aria-hidden="true"></i></span><div><span>Plan used</span><strong>{{ format(plan.pool.used) }}</strong></div></article>
+        <article class="metric remaining"><span class="metric-icon"><i class="ti ti-circle-check" aria-hidden="true"></i></span><div><span>Plan remaining</span><strong [class.danger]="plan.pool.exhausted">{{ format(plan.pool.remaining) }}</strong></div></article>
+      </div>
+    </section>
+
+    <section class="apps-section" aria-label="Applications in selected plan">
+      <header class="apps-heading">
+        <div><h3><span class="step">3</span> Per-application limits</h3><p>{{ rows().length }} applications in this plan, each with its own design-time and runtime counters inside the plan allowance above. Select apps with finite limits to reset their usage.</p></div>
+        <label class="search"><i class="ti ti-search" aria-hidden="true"></i><input type="search" placeholder="Search applications" aria-label="Search applications" [ngModel]="query()" (ngModelChange)="query.set($event)" /></label>
+      </header>
+
+      <div class="reset-toolbar" *ngIf="isSuperAdmin()">
+        <div class="scope-control"><span class="control-label">Reset type</span><div class="scope-group" role="group" aria-label="Reset type">
+          <button type="button" *ngFor="let option of scopes" [class.active]="scope() === option.key"
+            [attr.aria-pressed]="scope() === option.key" [disabled]="busy()" (click)="changeScope(option.key)">{{ option.label }}</button>
+        </div></div>
+        <div class="bulk-actions">
+          <button type="button" class="text-button" [disabled]="busy() || !eligibleRows().length || allSelected()" (click)="selectAll()">Select all</button>
+          <span aria-hidden="true">·</span>
+          <button type="button" class="text-button" [disabled]="busy() || !targetedRows().length" (click)="clearSelection()">Deselect all</button>
+          <span class="selection-count" aria-live="polite">{{ targetedRows().length }} / {{ eligibleRows().length }} eligible selected</span>
+        </div>
+        <span class="hint reset-action" [attr.data-tooltip]="!canReset() ? resetHint() : null" [attr.tabindex]="!canReset() ? 0 : null">
+          <button type="button" class="btn sm primary reset-button" [disabled]="!canReset()" (click)="resetUsage()">
+            <i class="ti ti-rotate-clockwise" aria-hidden="true"></i> {{ resetting() ? 'Reset in progress…' : 'Reset selected apps' }}
+          </button>
+        </span>
+      </div>
+      <p class="selection-help" *ngIf="isSuperAdmin()" aria-live="polite">
+        <ng-container *ngIf="targetedRows().length; else selectionHelp">{{ counterCount() }} finite counter(s) will reset to 0 used and the full remaining limit.</ng-container>
+        <ng-template #selectionHelp>{{ eligibleRows().length ? 'Select one or more apps. Finite limits can be reset even when used is 0.' : 'No finite limits for this reset type. These application counters are read-only.' }}</ng-template>
+        <span *ngIf="eligibleRows().length">Select all applies to every eligible app in this plan, including search results hidden from view.</span>
+      </p>
+
+      <div class="table-scroll" *ngIf="visibleRows().length; else noApps">
+        <table>
+          <thead>
+            <tr>
+              <th class="pick" rowspan="2" *ngIf="isSuperAdmin()">
+                <span class="hint" [attr.data-tooltip]="!eligibleRows().length ? resetHint() : null">
+                  <input type="checkbox" aria-label="Select all eligible applications in this plan" [checked]="allSelected()" [indeterminate]="partiallySelected()"
+                    [disabled]="busy() || !eligibleRows().length" (change)="toggleAll()" />
+                </span>
+              </th>
+              <th rowspan="2" class="app-name">Application</th><th rowspan="2">Access</th>
+              <th colspan="3" class="dimension design">Design time</th><th colspan="3" class="dimension runtime">Runtime</th>
+            </tr>
+            <tr class="subhead"><th class="number divider">Total limit</th><th class="number">Used</th><th class="number">Remaining</th>
+              <th class="number divider">Total limit</th><th class="number">Used</th><th class="number">Remaining</th></tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let row of visibleRows()" [class.picked]="selectedKeys().has(row.key)" [class.readonly]="!canResetRow(row)">
+              <td class="pick" *ngIf="isSuperAdmin()">
+                <span class="hint" [attr.data-tooltip]="!canResetRow(row) ? rowHint(row) : null" [attr.tabindex]="!canResetRow(row) ? 0 : null" [attr.aria-label]="!canResetRow(row) ? rowHint(row) : null">
+                  <input type="checkbox" [checked]="selectedKeys().has(row.key)" [disabled]="busy() || !canResetRow(row)"
+                    (change)="toggleApp(row)" [attr.aria-label]="'Select ' + row.appName" />
+                </span>
+              </td>
+              <td class="app-name"><strong>{{ row.appName }}</strong>
+                <span class="readonly-label hint" *ngIf="!canResetRow(row)" tabindex="0" [attr.data-tooltip]="rowHint(row)"><i class="ti ti-lock" aria-hidden="true"></i> Read-only</span>
+              </td>
+              <td><span class="access" [class.enabled]="row.accessStatus === 'ENABLED'">{{ row.accessStatus }}</span></td>
+              <td class="number divider"><span class="hint" [attr.data-tooltip]="dimensionHint(row.designTime) || null" [attr.tabindex]="!row.designTime.resettable ? 0 : null">{{ format(row.designTime.limit) }}</span></td>
+              <td class="number">{{ format(row.designTime.used) }}</td><td class="number" [class.danger]="row.designTime.exhausted">{{ format(row.designTime.remaining) }}</td>
+              <td class="number divider"><span class="hint" [attr.data-tooltip]="dimensionHint(row.runtime) || null" [attr.tabindex]="!row.runtime.resettable ? 0 : null">{{ format(row.runtime.limit) }}</span></td>
+              <td class="number">{{ format(row.runtime.used) }}</td><td class="number" [class.danger]="row.runtime.exhausted">{{ format(row.runtime.remaining) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <ng-template #noApps><div class="empty compact"><i class="ti ti-search" aria-hidden="true"></i><strong>{{ rows().length ? 'No matching applications' : 'No application counters' }}</strong><p>{{ rows().length ? 'Try a different application name.' : 'This plan has no application usage records.' }}</p></div></ng-template>
+      <footer class="table-footer"><span>Showing {{ visibleRows().length }} of {{ rows().length }} applications</span><span><i class="ti ti-info-circle" aria-hidden="true"></i> Unlimited limits are read-only. Hover or focus for details.</span></footer>
+    </section>
+  </ng-container>
+  <ng-template #choosePlan>
+    <div class="empty" *ngIf="!loading() && !loadError()"><i class="ti ti-license" aria-hidden="true"></i>
+      <strong>{{ plans().length ? 'Select a plan to view application limits' : 'No active plans' }}</strong>
+      <p>{{ plans().length ? 'Each plan has its own allowances, application usage and reset selection.' : 'Active plans will appear here once assigned to this organization.' }}</p>
+    </div>
+  </ng-template>
+</div>

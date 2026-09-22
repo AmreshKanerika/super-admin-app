@@ -10,24 +10,24 @@ import { Tone } from '../status.util';
       .pill {
         display: inline-flex;
         align-items: center;
-        font-size: 11px;
-        font-weight: 600;
-        padding: 3px 10px;
+        font-size: 11.5px;
+        font-weight: 700;
+        padding: 4px 10px;
         border-radius: 20px;
         letter-spacing: 0.01em;
         line-height: 1.5;
       }
       .success {
         background: var(--success-soft);
-        color: var(--success);
+        color: #176b4d;
       }
       .warning {
         background: var(--warning-soft);
-        color: var(--warning);
+        color: #825c0a;
       }
       .critical {
         background: var(--critical-soft);
-        color: var(--critical);
+        color: #a63340;
       }
       .accent {
         background: var(--accent-soft);

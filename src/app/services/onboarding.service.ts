@@ -7,6 +7,7 @@ import { OrganizationsService } from './organizations.service';
 import { PlansService } from './plans.service';
 import { SubscriptionsService } from './subscriptions.service';
 import { AuthService } from '../core/auth/auth.service';
+import { OrganizationOnboardingService } from './organization-onboarding.service';
 import { API_BASE_URL } from '../core/api-config';
 
 export interface OnboardingDraft {
@@ -51,6 +52,7 @@ export class OnboardingService {
   private plans = inject(PlansService);
   private subscriptions = inject(SubscriptionsService);
   private auth = inject(AuthService);
+  private platformEnvironment = inject(OrganizationOnboardingService);
 
   private readonly run = signal<ProvisioningRun | null>(null);
   private timer: ReturnType<typeof setInterval> | null = null;
@@ -109,22 +111,10 @@ export class OnboardingService {
     );
   }
 
-  private baseDomainPromise: Promise<string | null> | null = null;
-
-  // This environment's base domain (e.g. "dev.flipnow.cloud"), fetched once and cached for the life
-  // of the app — lets the wizard preview an organization's full future URL live, without hardcoding
-  // a suffix client-side that could drift from whatever DNS record the backend actually creates.
+  // Delegated rather than fetched again: both wizards want the same environment config, and each
+  // caching it separately meant the same endpoint was called once per service in a session.
   async getBaseDomain(): Promise<string | null> {
-    if (!this.baseDomainPromise) {
-      this.baseDomainPromise = firstValueFrom(this.http.get<{ baseDomain: string }>(`${API_BASE_URL}/platform/environment-config`))
-        .then((res) => res.baseDomain)
-        .catch((err) => {
-          console.error('Failed to load environment config', err);
-          this.baseDomainPromise = null;
-          return null;
-        });
-    }
-    return this.baseDomainPromise;
+    return this.platformEnvironment.getBaseDomain();
   }
 
   private async submit(draft: OnboardingDraft, adminPassword: string): Promise<OrganizationSetupResponse> {

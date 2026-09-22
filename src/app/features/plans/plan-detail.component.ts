@@ -1,4 +1,5 @@
-import { ApplicationExplorerComponent, ExplorerNode } from '../../core/ui/application-explorer.component';
+import { TreeBranchComponent } from '../../core/ui/tree-branch.component';
+import { PlanDisplayNamePipe } from '../../core/plan-name.pipe';
 import { Component, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -12,7 +13,6 @@ import { SubscriptionsService } from '../../services/subscriptions.service';
 import { ConfirmService } from '../../core/confirm.service';
 import { ToastService } from '../../core/toast.service';
 import { accessStatusTone, formatDate, formatLimit, planStateTone, subscriptionStatusTone } from '../../core/status.util';
-import { formatAppName } from '../../core/app-name.util';
 import { FlatTreeMeta, decorateDfsRows , groupByRoot } from '../../core/ui/app-tree.util';
 import { AppLimitConfig } from '../../models';
 
@@ -22,7 +22,7 @@ type PlanAppTreeRow = PlanAppRow & FlatTreeMeta;
 @Component({
   selector: 'app-plan-detail',
   standalone: true,
-  imports: [ApplicationExplorerComponent, CommonModule, FormsModule, RouterLink, PageHeaderComponent, StatusPillComponent],
+  imports: [CommonModule, FormsModule, RouterLink, PageHeaderComponent, StatusPillComponent, TreeBranchComponent, PlanDisplayNamePipe],
   templateUrl: './plan-detail.component.html',
   styleUrl: './plan-detail.component.scss'
 })
@@ -82,58 +82,74 @@ export class PlanDetailComponent {
   });
 
   readonly appQuery = signal('');
-  expandAllApps(): void { this.collapsedAppIds.set(new Set()); }
-  collapseAllApps(): void { this.collapsedAppIds.set(new Set(this.sortedApps().map(a => a.appId))); }
+  expandAllApps(): void { this.expandedAppIds.set(new Set(this.parentAppIds())); }
+  collapseAllApps(): void { this.expandedAppIds.set(new Set<string>()); }
 
-  readonly collapsedAppIds = signal<ReadonlySet<string>>(new Set<string>());
+  readonly expandedAppIds = signal<ReadonlySet<string>>(new Set<string>());
+
+  private readonly parentAppIds = computed<string[]>(() => {
+    const rows = this.sortedApps();
+    return rows
+      .filter((row, index) => {
+        const next = rows[index + 1];
+        return !!next && next.depth === row.depth + 1;
+      })
+      .map((row) => row.appId);
+  });
+
+  private readonly collapsedAppIds = computed<ReadonlySet<string>>(() => {
+    const expanded = this.expandedAppIds();
+    return new Set(this.parentAppIds().filter((appId) => !expanded.has(appId)));
+  });
 
   readonly appTreeRows = computed<PlanAppTreeRow[]>(() =>
     decorateDfsRows<PlanAppRow>(this.sortedApps(), {
       depthOf: (row) => row.depth,
       idOf: (row) => row.appId,
       collapsedIds: this.collapsedAppIds(),
-      matches: this.appQuery().trim() ? row => this.appName(row.appId).toLowerCase().includes(this.appQuery().trim().toLowerCase()) : null
+      matches: this.appQuery().trim() ? row => this.appDisplayName(row.appId).toLowerCase().includes(this.appQuery().trim().toLowerCase()) : null
     })
   );
 
   toggleAppCollapsed(appId: string): void {
-    const next = new Set(this.collapsedAppIds());
+    const next = new Set(this.expandedAppIds());
     if (next.has(appId)) {
       next.delete(appId);
     } else {
       next.add(appId);
     }
-    this.collapsedAppIds.set(next);
+    this.expandedAppIds.set(next);
   }
 
   // One card per top-level application, matching the Limits panel and the plan builder.
   readonly appGroups = computed(() => groupByRoot(this.appTreeRows(), (row) => row.depth));
 
-  readonly explorerNodes = computed<ExplorerNode[]>(() => this.appTreeRows().map(row => ({
-    id: row.appId, name: this.appName(row.appId), depth: row.depth,
-    hasChildren: row.hasChildren, expanded: row.expanded, status: row.accessStatus, data: row,
-    path: this.appPath(row.appId)
-  })));
   appPath(id: string): string {
     const names:string[] = [], seen=new Set<string>();
     let parent=this.applications.byId(id)?.parentAppId;
-    while(parent && !seen.has(parent)) { seen.add(parent); names.unshift(this.appName(parent)); parent=this.applications.byId(parent)?.parentAppId; }
+    while(parent && !seen.has(parent)) { seen.add(parent); names.unshift(this.appDisplayName(parent)); parent=this.applications.byId(parent)?.parentAppId; }
     return names.join(' / ');
   }
 
   trackByGroupApp = (_: number, group: { root: { appId: string } }) => group.root.appId;
 
   appInitial(row: { appId: string }): string {
-    return (this.appName(row.appId) || '?').trim().charAt(0).toUpperCase();
+    return (this.appDisplayName(row.appId) || '?').trim().charAt(0).toUpperCase();
   }
 
   trackByPlanAppId(_index: number, row: { appId: string }): string {
     return row.appId;
   }
 
-  appName(appId: string | null): string {
+  allowanceLabel(row: { accessStatus: string; designTimeLimit: number; runtimeLimit: number }, kind: 'design' | 'runtime'): string {
+    if (row.accessStatus !== 'ENABLED') return 'Inactive';
+    const limit = kind === 'design' ? row.designTimeLimit : row.runtimeLimit;
+    return limit === -1 ? '∞ Unlimited' : limit.toLocaleString();
+  }
+
+  appDisplayName(appId: string | null): string {
     if (!appId) return '—';
-    return formatAppName(this.applications.byId(appId)?.appName ?? appId);
+    return this.applications.displayNameForAppId(appId);
   }
 
   openAssign(): void {

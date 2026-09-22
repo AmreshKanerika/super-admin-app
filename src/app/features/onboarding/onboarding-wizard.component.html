@@ -158,6 +158,6 @@
   </div>
 </div>
 
-<app-modal-shell *ngIf="showCustomPlanModal()" title="Create custom plan" [width]="760" (close)="showCustomPlanModal.set(false)">
+<app-modal-shell *ngIf="showCustomPlanModal()" heading="Create custom plan" [width]="760" (close)="showCustomPlanModal.set(false)">
   <app-plan-builder [embedded]="true" (created)="onCustomPlanCreated($event)" (cancelled)="showCustomPlanModal.set(false)"></app-plan-builder>
 </app-modal-shell>

@@ -399,9 +399,43 @@ nav a:focus-visible, .toggle-btn:focus-visible, .profile-trigger:focus-visible, 
   min-width: 0;
   height: 100%;
   overflow-y: auto;
-  padding: 28px 32px 60px;
+  /* Shares the gutter every screen uses, so page content lines up with the frame
+     instead of each page inventing its own inset. */
+  padding: clamp(18px, 2.4vw, 28px) var(--gutter) 60px;
+  /* Long domain names and machine keys must not widen the page. */
+  overflow-wrap: anywhere;
 }
 
 .content > * {
   max-width: 1320px;
+}
+
+
+/* ---------------------------------------------------------------------------
+   Phone
+   The sidebar is already off-canvas below 640px. These fill the gaps around it.
+   --------------------------------------------------------------------------- */
+
+@media (max-width: 640px) {
+  /* The off-canvas panel sits above the page, so the page behind it must not
+     scroll underneath the backdrop. */
+  .shell:not(.collapsed) {
+    overflow: hidden;
+  }
+
+  .content {
+    padding-bottom: 72px;
+  }
+
+  .content > * {
+    max-width: none;
+  }
+}
+
+/* A phone in landscape has almost no vertical room; the nav list has to be able
+   to scroll past the profile block rather than being cut off by it. */
+@media (max-height: 480px) {
+  .sidebar nav {
+    overflow-y: auto;
+  }
 }

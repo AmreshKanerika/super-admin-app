@@ -8,7 +8,7 @@ import { Router } from '@angular/router';
   standalone: true,
   imports: [NgIf],
   template: `
-    <div class="ph">
+    <div class="ph colorful">
       <button class="back-btn" *ngIf="showBack" (click)="goBack()" aria-label="Back" title="Back">
         <i class="ti ti-arrow-left" aria-hidden="true"></i>
       </button>
@@ -32,22 +32,73 @@ import { Router } from '@angular/router';
         gap: 16px;
         margin-bottom: 24px;
         padding: 22px 24px 20px;
-        border: none;
+        border: 1px solid #e9e3ef;
         border-radius: 17px;
-        background: var(--ui-header-grad);
-        color: #fff;
-        box-shadow: 0 10px 24px rgba(66, 26, 99, 0.13);
+        background: linear-gradient(110deg, #f5f1fa, #fff 60%, #fbf5f8);
+        color: var(--ink);
+        box-shadow: 0 8px 24px rgba(40, 26, 65, 0.055);
         flex-wrap: wrap;
       }
+      .ph.colorful {
+        position: relative;
+        overflow: hidden;
+        gap: 28px;
+        margin-bottom: 16px;
+        padding: 30px 34px;
+        border: 0;
+        border-radius: 20px;
+        background: var(--ui-header-grad);
+        color: #fff;
+        box-shadow: 0 16px 32px rgba(71, 31, 95, 0.16);
+      }
+      .ph.colorful::after {
+        content: '';
+        position: absolute;
+        right: -45px;
+        bottom: -102px;
+        width: 280px;
+        height: 280px;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 50%;
+        box-shadow: 0 0 0 50px rgba(255, 255, 255, 0.035), 0 0 0 100px rgba(255, 255, 255, 0.025);
+        pointer-events: none;
+      }
+      .ph.colorful > * { position: relative; z-index: 1; }
+      .ph.colorful .eyebrow {
+        margin: 0;
+        color: #f1dbff;
+        font-size: 10px;
+        letter-spacing: 0.14em;
+      }
+      .ph.colorful h1 {
+        margin: 9px 0 6px;
+        overflow: visible;
+        text-overflow: clip;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        font: 700 clamp(26px, 2.6vw, 35px) / 1.12 var(--k-font-display);
+        letter-spacing: -0.04em;
+        color: #fff;
+      }
+      .ph.colorful .sub { margin: 0; font-size: 12.5px; line-height: 1.5; color: #f0dcf4; }
+      .ph.colorful .back-btn { background: rgba(255, 255, 255, 0.12); border-color: rgba(255, 255, 255, 0.3); color: #fff; }
+      .ph.colorful .back-btn:hover { background: rgba(255, 255, 255, 0.22); border-color: rgba(255, 255, 255, 0.55); }
+      .ph.colorful .back-btn:focus-visible { outline-color: #fff; }
+      .ph.colorful .ph-actions ::ng-deep .btn.ghost { background: rgba(255, 255, 255, 0.12); border-color: rgba(255, 255, 255, 0.35); color: #fff; }
+      .ph.colorful .ph-actions ::ng-deep .btn.ghost:hover { background: rgba(255, 255, 255, 0.22); }
+      .ph.colorful .ph-actions ::ng-deep .btn.primary { background: #fff; border-color: #fff; color: #674189; }
+      .ph.colorful .ph-actions ::ng-deep .btn.primary:hover { background: #f3eaf8; border-color: #f3eaf8; }
+      .ph.colorful .ph-actions ::ng-deep .btn.danger { background: rgba(255, 255, 255, 0.12); border-color: rgba(255, 255, 255, 0.4); color: #fff; }
+      .ph.colorful .ph-actions ::ng-deep .btn.danger:hover { background: rgba(255, 255, 255, 0.22); }
 
-      // A header can carry several action buttons (e.g. a plan's Assign/Edit/Clone/Delete/Archive
-      // row) — on a narrow viewport those must drop to their own row instead of forcing the whole
-      // page to scroll horizontally.
+      /* Allow action buttons to wrap on narrower screens. */
       .ph-actions {
         flex-wrap: wrap;
       }
 
       @media (max-width: 640px) {
+        .ph.colorful { padding: 22px 18px; }
+        .ph.colorful::after { right: -120px; opacity: 0.5; }
         .ph-text {
           flex-basis: 100%;
         }
@@ -64,44 +115,44 @@ import { Router } from '@angular/router';
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        background: rgba(255, 255, 255, 0.14);
+        background: #fff;
         border-radius: var(--radius, 8px);
-        border: 1px solid rgba(255, 255, 255, 0.34);
+        border: 1px solid var(--line-strong);
         font-size: 16px;
         line-height: 1;
         cursor: pointer;
-        color: #fff;
+        color: var(--accent-ink);
         transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
       }
-      .back-btn:hover { background: rgba(255, 255, 255, 0.26); border-color: rgba(255, 255, 255, 0.55); }
-      .back-btn:active { background: rgba(255, 255, 255, 0.34); }
-      .back-btn:focus-visible { outline: 2px solid #ffe0c9; outline-offset: 2px; }
+      .back-btn:hover { background: var(--accent-soft); border-color: var(--accent); }
+      .back-btn:active { background: var(--ui-violet-soft); }
+      .back-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-      // Buttons projected into the band sit on violet, so the neutral variants need to invert.
+      /* Keep projected actions legible on the light header. */
       .ph-actions ::ng-deep .btn.ghost {
-        background: rgba(255, 255, 255, 0.14);
-        border-color: rgba(255, 255, 255, 0.34);
-        color: #fff;
+        background: #fff;
+        border-color: var(--line-strong);
+        color: var(--ink);
       }
       .ph-actions ::ng-deep .btn.ghost:hover {
-        background: rgba(255, 255, 255, 0.26);
+        background: var(--accent-soft);
       }
       .ph-actions ::ng-deep .btn.primary {
-        background: #fff;
-        border-color: #fff;
-        color: #7937a8;
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #fff;
       }
       .ph-actions ::ng-deep .btn.primary:hover {
-        background: #f6ecfb;
-        border-color: #f6ecfb;
+        background: var(--accent-hover);
+        border-color: var(--accent-hover);
       }
       .ph-actions ::ng-deep .btn.danger {
-        background: rgba(255, 255, 255, 0.1);
-        border-color: rgba(255, 220, 220, 0.6);
-        color: #ffe3e3;
+        background: #fff;
+        border-color: var(--critical);
+        color: #a92f3c;
       }
       .ph-actions ::ng-deep .btn.danger:hover {
-        background: rgba(255, 255, 255, 0.2);
+        background: var(--critical-soft);
       }
 
       .ph-text {
@@ -115,7 +166,7 @@ import { Router } from '@angular/router';
         font-size: 11px;
         font-weight: 800;
         text-transform: uppercase;
-        color: #f1dbff;
+        color: var(--accent-ink);
         margin: 0 0 6px 0;
         letter-spacing: 0.12em;
       }
@@ -125,7 +176,7 @@ import { Router } from '@angular/router';
         margin: 0;
         font-weight: 700;
         letter-spacing: -0.03em;
-        color: #fff;
+        color: var(--ink);
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -133,7 +184,7 @@ import { Router } from '@angular/router';
 
       .sub {
         font-size: 13px;
-        color: #f0dcf4;
+        color: var(--ink-soft);
         margin-top: 6px;
         max-width: 62ch;
         overflow: hidden;

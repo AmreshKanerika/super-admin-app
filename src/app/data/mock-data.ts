@@ -27,17 +27,17 @@ function randInt(min: number, max: number): number {
 // ---------------------------------------------------------------------------
 
 export const APPLICATIONS: Application[] = [
-  { appId: 'app-ai-workbench', appName: 'AI Workbench', parentAppId: null, scopes: ['VIEW', 'EXECUTE', 'ALL'] },
-  { appId: 'app-excel-studio', appName: 'Excel Studio', parentAppId: null, scopes: ['VIEW', 'EDIT', 'ADD', 'DELETE'] },
-  { appId: 'app-insight-vault', appName: 'Insight Vault', parentAppId: null, scopes: ['VIEW', 'EDIT'] },
-  { appId: 'app-data-integration', appName: 'Data Integration', parentAppId: null, scopes: ['VIEW', 'EXECUTE', 'ALL'] },
-  { appId: 'app-connection-manager', appName: 'Connection Manager', parentAppId: 'app-data-integration', scopes: ['VIEW', 'EDIT', 'EXECUTE'] },
-  { appId: 'app-pipeline', appName: 'Pipeline', parentAppId: 'app-data-integration', scopes: ['VIEW', 'EXECUTE', 'DELETE'] },
-  { appId: 'app-scheduler', appName: 'Scheduler', parentAppId: 'app-data-integration', scopes: ['VIEW', 'EDIT', 'EXECUTE'] },
-  { appId: 'app-migration', appName: 'Migration', parentAppId: null, scopes: ['VIEW', 'EXECUTE', 'DELETE'] },
-  { appId: 'app-mdm', appName: 'MDM', parentAppId: null, scopes: ['VIEW', 'EDIT'] },
-  { appId: 'app-pdf-extractor', appName: 'PDF Extractor', parentAppId: null, scopes: ['VIEW', 'EXECUTE'] },
-  { appId: 'app-validation', appName: 'Validation', parentAppId: null, scopes: ['VIEW', 'EXECUTE'] }
+  { appId: 'app-ai-workbench', appName: 'AI Workbench', displayName: null, parentAppId: null, scopes: ['VIEW', 'EXECUTE', 'ALL'], assignedOrgCount: 0, planCount: 0, childCount: 0, editable: true, deletable: true, editLockReason: null, deleteLockReason: null },
+  { appId: 'app-excel-studio', appName: 'Excel Studio', displayName: null, parentAppId: null, scopes: ['VIEW', 'EDIT', 'ADD', 'DELETE'], assignedOrgCount: 0, planCount: 0, childCount: 0, editable: true, deletable: true, editLockReason: null, deleteLockReason: null },
+  { appId: 'app-insight-vault', appName: 'Insight Vault', displayName: null, parentAppId: null, scopes: ['VIEW', 'EDIT'], assignedOrgCount: 0, planCount: 0, childCount: 0, editable: true, deletable: true, editLockReason: null, deleteLockReason: null },
+  { appId: 'app-data-integration', appName: 'Data Integration', displayName: null, parentAppId: null, scopes: ['VIEW', 'EXECUTE', 'ALL'], assignedOrgCount: 0, planCount: 0, childCount: 0, editable: true, deletable: true, editLockReason: null, deleteLockReason: null },
+  { appId: 'app-connection-manager', appName: 'Connection Manager', displayName: null, parentAppId: 'app-data-integration', scopes: ['VIEW', 'EDIT', 'EXECUTE'], assignedOrgCount: 0, planCount: 0, childCount: 0, editable: true, deletable: true, editLockReason: null, deleteLockReason: null },
+  { appId: 'app-pipeline', appName: 'Pipeline', displayName: null, parentAppId: 'app-data-integration', scopes: ['VIEW', 'EXECUTE', 'DELETE'], assignedOrgCount: 0, planCount: 0, childCount: 0, editable: true, deletable: true, editLockReason: null, deleteLockReason: null },
+  { appId: 'app-scheduler', appName: 'Scheduler', displayName: null, parentAppId: 'app-data-integration', scopes: ['VIEW', 'EDIT', 'EXECUTE'], assignedOrgCount: 0, planCount: 0, childCount: 0, editable: true, deletable: true, editLockReason: null, deleteLockReason: null },
+  { appId: 'app-migration', appName: 'Migration', displayName: null, parentAppId: null, scopes: ['VIEW', 'EXECUTE', 'DELETE'], assignedOrgCount: 0, planCount: 0, childCount: 0, editable: true, deletable: true, editLockReason: null, deleteLockReason: null },
+  { appId: 'app-mdm', appName: 'MDM', displayName: null, parentAppId: null, scopes: ['VIEW', 'EDIT'], assignedOrgCount: 0, planCount: 0, childCount: 0, editable: true, deletable: true, editLockReason: null, deleteLockReason: null },
+  { appId: 'app-pdf-extractor', appName: 'PDF Extractor', displayName: null, parentAppId: null, scopes: ['VIEW', 'EXECUTE'], assignedOrgCount: 0, planCount: 0, childCount: 0, editable: true, deletable: true, editLockReason: null, deleteLockReason: null },
+  { appId: 'app-validation', appName: 'Validation', displayName: null, parentAppId: null, scopes: ['VIEW', 'EXECUTE'], assignedOrgCount: 0, planCount: 0, childCount: 0, editable: true, deletable: true, editLockReason: null, deleteLockReason: null }
 ];
 
 // ---------------------------------------------------------------------------
@@ -47,7 +47,7 @@ export const APPLICATIONS: Application[] = [
 export const PLANS: SubscriptionPlan[] = [
   {
     planId: 'plan-trial',
-    planName: 'Trial',
+    planName: 'Trial', displayName: null,
     description: 'Time-boxed evaluation plan with modest limits across the core applications.',
     planType: 'DEFAULT',
     planState: 'ACTIVE',
@@ -66,7 +66,7 @@ export const PLANS: SubscriptionPlan[] = [
   },
   {
     planId: 'plan-basic',
-    planName: 'Basic',
+    planName: 'Basic', displayName: null,
     description: 'Entry paid tier for small teams running a handful of integrations.',
     planType: 'DEFAULT',
     planState: 'ACTIVE',
@@ -88,7 +88,7 @@ export const PLANS: SubscriptionPlan[] = [
   },
   {
     planId: 'plan-premium',
-    planName: 'Premium',
+    planName: 'Premium', displayName: null,
     description: 'Growth tier — higher limits, adds Migration and Insight Vault.',
     planType: 'DEFAULT',
     planState: 'ACTIVE',
@@ -111,7 +111,7 @@ export const PLANS: SubscriptionPlan[] = [
   },
   {
     planId: 'plan-enterprise',
-    planName: 'Enterprise',
+    planName: 'Enterprise', displayName: null,
     description: 'Full catalogue, unlimited by default, for large multi-department tenants.',
     planType: 'DEFAULT',
     planState: 'ACTIVE',
@@ -129,7 +129,7 @@ export const PLANS: SubscriptionPlan[] = [
   },
   {
     planId: 'plan-meridian-custom',
-    planName: 'Meridian Custom',
+    planName: 'Meridian Custom', displayName: null,
     description: 'Built for Harborview Logistics — Data Integration suite plus AI Workbench, capped runtime on Pipeline.',
     planType: 'CUSTOM',
     planState: 'ACTIVE',
@@ -149,7 +149,7 @@ export const PLANS: SubscriptionPlan[] = [
   },
   {
     planId: 'plan-legacy-starter',
-    planName: 'Legacy Starter',
+    planName: 'Legacy Starter', displayName: null,
     description: 'Retired entry tier, kept only for historical reference on old subscriptions.',
     planType: 'CUSTOM',
     planState: 'ARCHIVED',
@@ -198,10 +198,14 @@ export const APP_USAGE: AppUsage[] = ORG_SUBSCRIBED_PLANS.flatMap((sub) => {
       return {
         orgId: sub.orgId,
         appId: a.appId,
+        appName: null,
         designTimeLimit: dtLimit,
         designTimeUsed: dtUsed,
+        // Unlimited stays unlimited rather than becoming a negative remainder.
+        designTimeRemaining: dtLimit === -1 ? -1 : Math.max(0, dtLimit - dtUsed),
         runtimeLimit: rtLimit,
         runtimeUsed: rtUsed,
+        runtimeRemaining: rtLimit === -1 ? -1 : Math.max(0, rtLimit - rtUsed),
         accessStatus: a.accessStatus
       };
     });

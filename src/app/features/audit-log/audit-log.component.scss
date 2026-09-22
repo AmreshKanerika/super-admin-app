@@ -116,19 +116,6 @@
   white-space: nowrap;
 }
 
-.pagination {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  margin-top: 16px;
-}
-
-.pager-btns {
-  display: flex;
-  gap: 8px;
-}
 
 @media (max-width: 640px) {
   .filter-bar {
@@ -150,4 +137,28 @@
     flex: 1 1 0;
     width: auto;
   }
+}
+
+.scroll-hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 14px 0 4px;
+  color: var(--ink-faint);
+  font-size: 11.5px;
+}
+
+.scroll-hint i {
+  font-size: 14px;
+  animation: scroll-hint-nudge 1.6s ease-in-out infinite;
+}
+
+@keyframes scroll-hint-nudge {
+  0%, 100% { transform: translateY(0); opacity: 0.55; }
+  50% { transform: translateY(3px); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scroll-hint i { animation: none; }
 }

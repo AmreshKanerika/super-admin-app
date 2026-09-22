@@ -94,6 +94,11 @@
                   "with": "src/environments/environment.sit.ts"
                 }
               ]
+            },
+            "local": {
+              "optimization": false,
+              "extractLicenses": false,
+              "sourceMap": true
             }
           },
           "defaultConfiguration": "production"
@@ -112,9 +117,12 @@
             },
             "sit": {
               "buildTarget": "super-admin:build:sit"
+            },
+            "local": {
+              "buildTarget": "super-admin:build:local"
             }
           },
-          "defaultConfiguration": "development"
+          "defaultConfiguration": "local"
         },
         "extract-i18n": {
           "builder": "@angular-devkit/build-angular:extract-i18n"

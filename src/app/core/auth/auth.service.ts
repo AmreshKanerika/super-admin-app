@@ -67,6 +67,21 @@ export class AuthService {
   role = signal<ConsoleUserRole | null>(null);
   private roleResolution: Promise<void> | null = null;
 
+  // --- capabilities -------------------------------------------------------
+  //
+  // Named once here rather than comparing role() at each call site, because two actions are
+  // deliberately shared with SALES and the rest are not — a bare `role() === 'SUPER_ADMIN'`
+  // scattered through templates makes that distinction invisible and easy to get wrong.
+  //
+  // These mirror @RequireConsoleRole on the matching endpoints. They decide what the UI offers;
+  // the server decides what it allows.
+
+  /** Clearing an organization's consumption counters. Restores a bought allowance, never grants more. */
+  canResetUsage = computed(() => this.role() === 'SUPER_ADMIN' || this.role() === 'SALES');
+
+  /** Assigning a plan to an existing organization — the sale itself. */
+  canAssignPlan = computed(() => this.role() === 'SUPER_ADMIN' || this.role() === 'SALES');
+
   currentUser = computed<CurrentUser | null>(() => {
     const s = this.session();
     if (!s) return null;

@@ -1,5 +1,7 @@
 @use 'application-settings';
 @use 'application-explorer';
+@use 'allowance-grid';
+@use 'responsive';
 // ---------------------------------------------------------------------------
 // FLIP Super Admin Console — global design tokens & utility classes
 // Palette, type and shape lifted from flip-ui's own theme (src/styles.scss)
@@ -32,7 +34,7 @@
   // The Overview's own header band and panel accents, shared so other pages can reuse them.
   // The rose end is deepened from the original #d96188: white small text over that stop measured
   // 2.71:1, which fails AA for anything that reaches the right of a wide band.
-  --ui-header-grad: linear-gradient(115deg, #7434b5, #963dad 58%, #c04f7d);
+  --ui-header-grad: linear-gradient(115deg, #7040a5, #8a49a0 58%, #aa5078);
   --ui-violet: #7c46a3;
   --ui-violet-soft: #eadcf5;
   --ui-violet-wash: #faf5ff;
@@ -425,6 +427,12 @@ table.dtable th {
   white-space: nowrap;
 }
 
+table.dtable {
+  /* Tree rails are drawn inside a cell's content box, so they bleed by exactly this to reach
+     the row edges. Kept next to the padding it mirrors so the two cannot drift apart. */
+  --tree-rail-bleed: 14px;
+}
+
 table.dtable td {
   padding: 14px 12px;
   border-bottom: 1px solid var(--line);
@@ -751,3 +759,246 @@ table.dtable td a.row-link {
   letter-spacing: 0.03em;
 }
 
+
+// ---------------------------------------------------------------------------
+// Browsing views — the card/list primitives shared by Organizations,
+// Applications, Plans and Subscriptions.
+//
+// Shared rather than redefined per screen so the four read as one product: the
+// same column behaviour at every width, the same card shape, the same lift on
+// hover. Screen-specific content stays in that screen's own stylesheet.
+// ---------------------------------------------------------------------------
+
+// auto-fill, not auto-fit: auto-fit stretches a lone card across the full row,
+// which makes one search result look like a different component.
+.view-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  gap: 14px;
+  align-items: stretch;
+}
+
+.view-grid.wide {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr));
+}
+
+.entity-card {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  min-width: 0;
+  height: 100%;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--paper-raised);
+  color: var(--ink);
+  text-align: left;
+  text-decoration: none;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+a.entity-card:hover,
+button.entity-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--line-strong);
+  box-shadow: 0 10px 24px rgba(43, 20, 66, 0.09);
+  text-decoration: none;
+}
+
+a.entity-card:focus-visible,
+button.entity-card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+// Title row: name on the left, status on the right. Wraps rather than truncating
+// the status, because a clipped status pill is worse than a second line.
+.entity-card .ec-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.entity-card .ec-title {
+  min-width: 0;
+  font: 700 14.5px/1.35 var(--k-font-display);
+  letter-spacing: -0.015em;
+  overflow-wrap: anywhere;
+}
+
+.entity-card .ec-sub {
+  display: block;
+  margin-top: 4px;
+  color: var(--ink-faint);
+  font-size: 11.5px;
+  overflow-wrap: anywhere;
+}
+
+.entity-card .ec-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  color: var(--ink-soft);
+  font-size: 11.5px;
+}
+
+.entity-card .ec-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.entity-card .ec-meta i {
+  color: var(--ink-faint);
+  font-size: 14px;
+}
+
+// Pushed to the bottom so cards of different content height still line their
+// footers up across a row.
+.entity-card .ec-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: auto;
+  padding-top: 11px;
+  border-top: 1px solid var(--line);
+  color: var(--ink-faint);
+  font-size: 11px;
+}
+
+.entity-card .ec-stat strong {
+  display: block;
+  color: var(--ink);
+  font: 700 15px/1.1 var(--k-font-display);
+}
+
+.entity-card .ec-stat small {
+  display: block;
+  margin-top: 2px;
+  color: var(--ink-faint);
+  font-size: 10px;
+}
+
+// The row that carries a screen's filters and the view toggle together.
+.view-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.view-bar .view-count {
+  color: var(--ink-faint);
+  font-size: 11.5px;
+  white-space: nowrap;
+}
+
+$card-accent-rotation: (
+  var(--ui-violet),
+  var(--k-blue-bright),
+  var(--limit-runtime),
+  var(--ui-rose),
+  var(--brand-orange),
+  var(--k-purple)
+);
+
+@keyframes card-rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.view-grid > * {
+  animation: card-rise-in 0.34s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@for $index from 1 through 12 {
+  .view-grid > *:nth-child(#{$index}) {
+    animation-delay: #{($index - 1) * 32}ms;
+  }
+}
+
+@for $index from 1 through 6 {
+  .view-grid > *:nth-child(6n + #{$index}) {
+    --card-accent: #{nth($card-accent-rotation, $index)};
+  }
+}
+
+.entity-card {
+  --card-accent: var(--ui-violet);
+  position: relative;
+  isolation: isolate;
+}
+
+.entity-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  border-radius: 14px 14px 0 0;
+  background: linear-gradient(90deg, var(--card-accent), transparent 88%);
+  opacity: 0.85;
+  transition: opacity 0.18s ease, height 0.18s ease;
+}
+
+.entity-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: 14px;
+  background: radial-gradient(120% 80% at 0% 0%, var(--card-accent), transparent 62%);
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+
+.entity-card:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in oklab, var(--card-accent) 40%, var(--line));
+  box-shadow: 0 14px 30px rgba(43, 20, 66, 0.13);
+}
+
+.entity-card:hover::before {
+  height: 4px;
+  opacity: 1;
+}
+
+.entity-card:hover::after {
+  opacity: 0.07;
+}
+
+.entity-card .ec-title {
+  transition: color 0.18s ease;
+}
+
+.entity-card:hover .ec-title {
+  color: var(--card-accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .view-grid > * {
+    animation: none;
+  }
+
+  .entity-card,
+  .entity-card::before,
+  .entity-card::after,
+  .entity-card .ec-title {
+    transition: none;
+  }
+
+  .entity-card:hover {
+    transform: none;
+  }
+}

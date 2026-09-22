@@ -5,9 +5,11 @@ import { AppLimitConfig, BillingMode, SubscriptionPlan } from '../models';
 import { AuditService } from './audit.service';
 import { ToastService } from '../core/toast.service';
 import { API_BASE_URL } from '../core/api-config';
+import { planDisplayNameOrFallback } from '../core/plan-name.util';
 
 export interface PlanDraft {
   planName: string;
+  displayName?: string | null;
   description: string;
   billingMode: BillingMode;
   primaryAppId: string;
@@ -53,6 +55,11 @@ export class PlansService {
     return this.plans;
   }
 
+  displayNameForPlanId(planId: string | null | undefined): string {
+    if (!planId) return '';
+    return planDisplayNameOrFallback(this.byId(planId), planId);
+  }
+
   byId(planId: string): SubscriptionPlan | undefined {
     return this.plans().find((p) => p.planId === planId);
   }
@@ -72,6 +79,7 @@ export class PlansService {
     const tempPlan: SubscriptionPlan = {
       planId: tempId,
       planName: draft.planName,
+      displayName: draft.displayName ?? null,
       description: draft['description'] ?? '',
       planType: 'CUSTOM',
       planState: 'DRAFT',
@@ -90,6 +98,7 @@ export class PlansService {
       const plan = await firstValueFrom(
         this.http.post<SubscriptionPlan>(`${API_BASE_URL}/platform/plans`, {
           planName: draft.planName,
+          displayName: draft.displayName ?? null,
           billingMode: draft.billingMode,
           primaryAppId: draft.primaryAppId || null,
           apps: draft.apps
@@ -100,8 +109,8 @@ export class PlansService {
       // there's no need for a follow-up refresh() (that was doubling every save's latency and,
       // if it ever failed, rolling back a save that had actually already succeeded).
       this.plans.update((list) => list.map((p) => (p.planId === tempId ? plan : p)));
-      this.audit.log(options?.auditAction ?? 'PLAN_CREATED', 'Plan', options?.auditLabel ?? plan.planName);
-      this.toast.show(options?.successMessage?.(plan) ?? `Plan '${plan.planName}' created`, 'success');
+      this.audit.log(options?.auditAction ?? 'PLAN_CREATED', 'Plan', options?.auditLabel ?? planDisplayNameOrFallback(plan, plan.planName));
+      this.toast.show(options?.successMessage?.(plan) ?? `Plan '${planDisplayNameOrFallback(plan, plan.planName)}' created`, 'success');
       return plan;
     } catch (err: any) {
       // rollback temp
@@ -112,7 +121,7 @@ export class PlansService {
     }
   }
 
-  async update(planId: string, patch: Partial<Pick<SubscriptionPlan, 'planName' | 'description' | 'billingMode' | 'primaryAppId' | 'apps'>>): Promise<void> {
+  async update(planId: string, patch: Partial<Pick<SubscriptionPlan, 'planName' | 'displayName' | 'description' | 'billingMode' | 'primaryAppId' | 'apps'>>): Promise<void> {
     const existing = this.byId(planId);
     if (!existing) {
       throw new Error('Plan not found');
@@ -129,6 +138,7 @@ export class PlansService {
       const updated = await firstValueFrom(
         this.http.put<SubscriptionPlan>(`${API_BASE_URL}/platform/plans/${planId}`, {
           planName: merged.planName,
+          displayName: merged.displayName ?? null,
           billingMode: merged.billingMode,
           primaryAppId: merged.primaryAppId || null,
           apps: merged.apps
@@ -136,8 +146,8 @@ export class PlansService {
       );
       // replace with authoritative server copy — no follow-up refresh() needed, see create() above.
       this.plans.update((list) => list.map((p) => (p.planId === planId ? updated : p)));
-      this.audit.log('PLAN_UPDATED', 'Plan', updated.planName);
-      this.toast.show(`Plan '${updated.planName}' updated`, 'success');
+      this.audit.log('PLAN_UPDATED', 'Plan', planDisplayNameOrFallback(updated, updated.planName));
+      this.toast.show(`Plan '${planDisplayNameOrFallback(updated, updated.planName)}' updated`, 'success');
     } catch (err: any) {
       // rollback
       this.plans.update((list) => list.map((p) => (p.planId === planId ? prev : p)));

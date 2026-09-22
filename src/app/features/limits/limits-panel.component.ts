@@ -1,18 +1,17 @@
-import { ApplicationExplorerComponent, ExplorerNode } from '../../core/ui/application-explorer.component';
+import { TreeBranchComponent } from '../../core/ui/tree-branch.component';
 import { Component, Input, OnChanges, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApplicationsService } from '../../services/applications.service';
 import { AppUsageService } from '../../services/app-usage.service';
 import { SubscriptionsService } from '../../services/subscriptions.service';
-import { ToggleSwitchComponent } from '../../core/ui/toggle-switch.component';
 import { ConfirmService } from '../../core/confirm.service';
 import { ToastService } from '../../core/toast.service';
 import { AccessStatus, Application } from '../../models';
 import { formatLimit } from '../../core/status.util';
-import { AppNamePipe } from '../../core/app-name.pipe';
-import { formatAppName } from '../../core/app-name.util';
-import { TreeRow, allParentIds, buildTreeRows, collectAncestorIds, collectDescendantIds } from '../../core/ui/app-tree.util';
+import { AppDisplayNamePipe } from '../../core/app-name.pipe';
+import { displayNameOrFallback } from '../../core/app-name.util';
+import { TreeRow, allParentIds, buildTreeRows, collectAncestorIds } from '../../core/ui/app-tree.util';
 
 type LimitKind = 'design' | 'runtime';
 type StatusFilter = 'ALL' | 'ENABLED' | 'DISABLED' | 'HIDDEN' | 'MODIFIED';
@@ -42,7 +41,7 @@ const BLANK_STATE: LimitState = {
 @Component({
   selector: 'app-limits-panel',
   standalone: true,
-  imports: [ApplicationExplorerComponent, CommonModule, FormsModule, ToggleSwitchComponent, AppNamePipe],
+  imports: [CommonModule, FormsModule, AppDisplayNamePipe, TreeBranchComponent],
   templateUrl: './limits-panel.component.html',
   styleUrl: './limits-panel.component.scss'
 })
@@ -56,14 +55,13 @@ export class LimitsPanelComponent implements OnChanges {
   private toast = inject(ToastService);
 
   formatLimit = formatLimit;
-  formatAppName = formatAppName;
 
   private readonly activeOrgId = signal('');
   // Set only after refreshForOrg resolves, so the catalog can tell "still loading" apart
   // from "loaded, and the org genuinely has these apps".
   private readonly loadedOrgId = signal('');
   private readonly overrides = signal<Map<string, LimitState>>(new Map());
-  private readonly collapsedIds = signal<ReadonlySet<string>>(new Set<string>());
+  private readonly expandedIds = signal<ReadonlySet<string>>(new Set<string>());
 
   readonly query = signal('');
   readonly statusFilter = signal<StatusFilter>('ALL');
@@ -125,7 +123,7 @@ export class LimitsPanelComponent implements OnChanges {
     const matched = new Set<string>();
     for (const app of this.catalog()) {
       const nameMatches =
-        !term || formatAppName(app.appName).toLowerCase().includes(term) || app.appName.toLowerCase().includes(term);
+        !term || displayNameOrFallback(app).toLowerCase().includes(term) || app.appName.toLowerCase().includes(term);
       const statusMatches =
         status === 'ALL' ||
         (status === 'MODIFIED'
@@ -142,13 +140,12 @@ export class LimitsPanelComponent implements OnChanges {
     const catalog = this.catalog();
     const states = this.effectiveStates();
     const overrides = this.overrides();
-    const collapsed = this.collapsedIds();
-    const expandedIds = new Set(allParentIds(catalog).filter((appId) => !collapsed.has(appId)));
+    const expandedIds = this.expandedIds();
 
     return buildTreeRows<Application>(
       catalog,
       { expandedIds, matchedIds: this.matchedIds() },
-      (first, second) => formatAppName(first.appName).localeCompare(formatAppName(second.appName))
+      (first, second) => displayNameOrFallback(first).localeCompare(displayNameOrFallback(second))
     ).map((row) => {
       const enabled = row.descendantIds.filter(
         (appId) => (states.get(appId)?.accessStatus ?? BLANK_STATE.accessStatus) === 'ENABLED'
@@ -196,7 +193,7 @@ export class LimitsPanelComponent implements OnChanges {
     this.activeOrgId.set(this.orgId);
     this.loadedOrgId.set('');
     this.overrides.set(new Map());
-    this.collapsedIds.set(new Set<string>());
+    this.expandedIds.set(new Set<string>());
     this.query.set('');
     this.statusFilter.set('ALL');
 
@@ -220,29 +217,29 @@ export class LimitsPanelComponent implements OnChanges {
   }
 
   toggleExpanded(appId: string): void {
-    const next = new Set(this.collapsedIds());
+    const next = new Set(this.expandedIds());
     if (next.has(appId)) {
       next.delete(appId);
     } else {
       next.add(appId);
     }
-    this.collapsedIds.set(next);
+    this.expandedIds.set(next);
   }
 
   expandAll(): void {
-    this.collapsedIds.set(new Set<string>());
+    this.expandedIds.set(new Set(allParentIds(this.catalog())));
   }
 
   collapseAll(): void {
-    this.collapsedIds.set(new Set(allParentIds(this.catalog())));
+    this.expandedIds.set(new Set<string>());
   }
 
   revealApp(appId: string): void {
-    const next = new Set(this.collapsedIds());
+    const next = new Set(this.expandedIds());
     for (const ancestorId of collectAncestorIds(this.catalog(), appId)) {
-      next.delete(ancestorId);
+      next.add(ancestorId);
     }
-    this.collapsedIds.set(next);
+    this.expandedIds.set(next);
   }
 
   setStatusFilter(filter: StatusFilter): void {
@@ -254,111 +251,16 @@ export class LimitsPanelComponent implements OnChanges {
     this.statusFilter.set('ALL');
   }
 
-  // The flat DFS list is what search, filtering and collapse all operate on; grouping it by root
-  // here keeps that logic untouched while letting the template render one card per top-level app.
-  readonly groups = computed(() => {
-    const out: { root: LimitTreeRow; children: LimitTreeRow[] }[] = [];
-    for (const row of this.rows()) {
-      if (row.depth === 0) {
-        out.push({ root: row, children: [] });
-      } else if (out.length) {
-        out[out.length - 1].children.push(row);
-      }
+
+  allowanceTooltip(row: LimitTreeRow, kind: LimitKind): string {
+    const label = kind === 'design' ? 'Design-time' : 'Runtime';
+    if (row.state.accessStatus !== 'ENABLED') {
+      return `${label}: not applied while ${row.state.accessStatus.toLowerCase()}`;
     }
-    return out;
-  });
-
-  readonly explorerNodes = computed<ExplorerNode[]>(() => this.rows().map(row => ({
-    id: row.item.appId, name: formatAppName(row.item.appName), depth: row.depth,
-    hasChildren: row.hasChildren, expanded: row.expanded, status: row.state.accessStatus,
-    dirty: row.dirty, data: row,
-    path: collectAncestorIds(this.catalog(), row.item.appId).reverse().map(id => formatAppName(this.catalog().find(a => a.appId === id)?.appName ?? id)).join(' / ')
-  })));
-
-  trackByGroupId = (_: number, group: { root: LimitTreeRow }) => group.root.item.appId;
-
-  // First letter of the display name, so a 63-row tree has something to scan down other than text.
-  // Access cascades down and pulls its parent chain up, so a change to one application is never
-  // really about one application. Inspecting an app on its own meant making a change here and
-  // hunting through the tree to see what else it moved - and left a large panel holding two
-  // numbers. The inspector now shows the family the change actually touches: the chain above the
-  // selected app, and everything nested beneath it, each editable in place.
-  familyAncestors(row: LimitTreeRow): LimitTreeRow[] {
-    return this.familyOf(row.item.appId).ancestors;
-  }
-
-  familyChildren(row: LimitTreeRow): LimitTreeRow[] {
-    return this.familyOf(row.item.appId).children;
-  }
-
-  trackFamilyMember = (_: number, member: LimitTreeRow) => member.item.appId;
-
-  // These are read several times per row from the template, on every change-detection pass. The
-  // cache lives inside a computed() so it is thrown away and rebuilt the moment the catalogue or
-  // any state it derives from changes - there is no staleness to manage, and repeat calls in one
-  // pass return the same array instance rather than rebuilding the family each time.
-  private readonly familyCache = computed(() => {
-    this.catalog();
-    this.effectiveStates();
-    this.overrides();
-    return new Map<string, { ancestors: LimitTreeRow[]; children: LimitTreeRow[] }>();
-  });
-
-  private familyOf(appId: string): { ancestors: LimitTreeRow[]; children: LimitTreeRow[] } {
-    const cache = this.familyCache();
-    const cached = cache.get(appId);
-    if (cached) {
-      return cached;
+    if (this.isUnlimited(row, kind)) {
+      return `${label}: unlimited \u2014 ${this.usedValue(row, kind).toLocaleString()} used`;
     }
-
-    const catalog = this.catalog();
-    const present = (candidate: LimitTreeRow | null): candidate is LimitTreeRow => candidate !== null;
-    const family = {
-      ancestors: collectAncestorIds(catalog, appId).reverse().map((id) => this.rowFor(id)).filter(present),
-      children: collectDescendantIds(catalog, appId).map((id) => this.rowFor(id)).filter(present)
-    };
-    cache.set(appId, family);
-    return family;
-  }
-
-  // Depth relative to the selected application, so nesting still reads in the inspector even
-  // though the family starts partway down the catalogue's own hierarchy.
-  relativeDepth(row: LimitTreeRow, member: LimitTreeRow): number {
-    return Math.max(0, member.depth - row.depth);
-  }
-
-  // Built from the catalogue rather than rows(), which only holds what the tree is currently
-  // showing - a collapsed or filtered-out child is still part of the family.
-  private rowFor(appId: string): LimitTreeRow | null {
-    const catalog = this.catalog();
-    const app = catalog.find((candidate) => candidate.appId === appId);
-    if (!app) {
-      return null;
-    }
-    const states = this.effectiveStates();
-    const descendantIds = collectDescendantIds(catalog, appId);
-    const enabled = descendantIds.filter(
-      (id) => (states.get(id)?.accessStatus ?? BLANK_STATE.accessStatus) === 'ENABLED'
-    ).length;
-
-    return {
-      item: app,
-      depth: collectAncestorIds(catalog, appId).length,
-      hasChildren: descendantIds.length > 0,
-      expanded: true,
-      childCount: catalog.filter((candidate) => candidate.parentAppId === appId).length,
-      descendantIds,
-      matched: true,
-      rails: [],
-      isLastChild: false,
-      state: states.get(appId) ?? BLANK_STATE,
-      dirty: this.overrides().has(appId),
-      rollup: { total: descendantIds.length, enabled }
-    };
-  }
-
-  appInitial(row: LimitTreeRow): string {
-    return (this.formatAppName(row.item.appName) || '?').trim().charAt(0).toUpperCase();
+    return `${label}: ${this.limitValue(row, kind).toLocaleString()} \u2014 ${this.usageLabel(row, kind)}`;
   }
 
   isUnlimited(row: LimitTreeRow, kind: LimitKind): boolean {
@@ -423,7 +325,7 @@ export class LimitsPanelComponent implements OnChanges {
         this.mutate(descendantId, (state) => ({ ...state, accessStatus }));
       }
       this.toast.show(
-        `${formatAppName(row.item.appName)} and ${row.descendantIds.length} nested application${row.descendantIds.length === 1 ? '' : 's'} set to ${accessStatus.toLowerCase()}`,
+        `${displayNameOrFallback(row.item)} and ${row.descendantIds.length} nested application${row.descendantIds.length === 1 ? '' : 's'} set to ${accessStatus.toLowerCase()}`,
         'success'
       );
     }
@@ -438,7 +340,7 @@ export class LimitsPanelComponent implements OnChanges {
       }
       if (ancestorIds.length) {
         this.toast.show(
-          `Also enabled ${ancestorIds.length} parent application${ancestorIds.length === 1 ? '' : 's'} so ${formatAppName(row.item.appName)} is reachable`,
+          `Also enabled ${ancestorIds.length} parent application${ancestorIds.length === 1 ? '' : 's'} so ${displayNameOrFallback(row.item)} is reachable`,
           'success'
         );
       }
@@ -480,16 +382,39 @@ export class LimitsPanelComponent implements OnChanges {
   }
 
   async saveChanges(): Promise<void> {
-    const pending = this.pendingEntries();
+    await this.saveEntries(this.pendingEntries());
+  }
+
+  async saveRow(row: LimitTreeRow): Promise<void> {
+    const state = this.overrides().get(row.item.appId);
+    if (!state) return;
+    await this.saveEntries([{ app: row.item, state }]);
+  }
+
+  revertRow(row: LimitTreeRow): void {
+    const next = new Map(this.overrides());
+    next.delete(row.item.appId);
+    this.overrides.set(next);
+  }
+
+  setAccessForAllVisible(accessStatus: AccessStatus): void {
+    for (const row of this.rows()) {
+      if (row.state.accessStatus !== accessStatus) {
+        this.mutate(row.item.appId, (state) => ({ ...state, accessStatus }));
+      }
+    }
+  }
+
+  private async saveEntries(pending: { app: Application; state: LimitState }[]): Promise<void> {
     if (!pending.length) {
       return;
     }
 
     const result = await this.confirm.open({
-      title: 'Confirm limit changes',
+      title: pending.length === 1 ? `Save limits for ${displayNameOrFallback(pending[0].app)}` : 'Confirm limit changes',
       message: `You are about to change limits for ${pending.length} application${pending.length > 1 ? 's' : ''} in this organization.`,
       diffLines: pending.map(({ app, state }) => ({
-        label: formatAppName(app.appName),
+        label: displayNameOrFallback(app),
         from: `${this.formatLimit(this.baseStates().get(app.appId)?.designTimeLimit ?? -1)} design / ${this.formatLimit(this.baseStates().get(app.appId)?.runtimeLimit ?? -1)} runtime`,
         to: `${state.accessStatus} · ${this.formatLimit(state.designTimeLimit)} design / ${this.formatLimit(state.runtimeLimit)} runtime`
       })),
@@ -516,7 +441,7 @@ export class LimitsPanelComponent implements OnChanges {
           saved.add(app.appId);
         } catch (error) {
           console.error('Failed to save limit for app', app.appId, error);
-          failed.push(formatAppName(app.appName));
+          failed.push(displayNameOrFallback(app));
         }
       }
     } finally {
