@@ -17,6 +17,12 @@
     <option *ngFor="let p of plans.list()()" [value]="p.planId">{{ p.planName }}</option>
   </select>
 
+  <select class="input select" aria-label="Onboarded" title="Order and range by onboarding date"
+          [ngModel]="onboardedView()" (ngModelChange)="setOnboardedView($event)">
+    <option value="" disabled>Onboarded…</option>
+    <option *ngFor="let o of onboardedOptions" [value]="o.value">{{ o.label }}</option>
+  </select>
+
   <div class="quick-chips">
     <button
       type="button"

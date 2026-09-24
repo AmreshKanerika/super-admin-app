@@ -40,18 +40,41 @@ export class OffboardingListComponent implements OnInit {
     const list = this.organizations.list()();
     if (!term) return list;
     return list.filter(
-      (o) => o.organizationName.toLowerCase().includes(term) || o.domainName.toLowerCase().includes(term)
+      // domainName is null for orgs without a URL; calling toLowerCase() on it threw and broke search
+      (o) => (o.organizationName ?? '').toLowerCase().includes(term) || (o.domainName ?? '').toLowerCase().includes(term)
     );
   });
 
+  // "Onboarded" filter: newest first by default, or an order / recent window (newest first).
+  readonly onboardedOptions: { value: OnboardedView; label: string }[] = [
+    { value: 'latest', label: 'Latest first' },
+    { value: 'earliest', label: 'Earliest first' },
+    { value: 'last7', label: 'Last 7 days' },
+    { value: 'last30', label: 'Last 30 days' },
+    { value: 'last90', label: 'Last 90 days' }
+  ];
+  onboardedView = signal<OnboardedView>('latest');
+
+  private matchingSearchAndDate = computed(() => {
+    const view = this.onboardedView();
+    const windowDays = WINDOW_DAYS[view];
+    const cutoff = windowDays ? Date.now() - windowDays * 86_400_000 : null;
+    const list = cutoff === null
+      ? this.matchingSearch()
+      : this.matchingSearch().filter((o) => createdTime(o) >= cutoff);
+    const direction = view === 'earliest' ? 1 : -1;
+    return [...list].sort((a, b) =>
+      (createdTime(a) - createdTime(b)) * direction || a.organizationName.localeCompare(b.organizationName));
+  });
+
   counts = computed(() => {
-    const list = this.matchingSearch();
+    const list = this.matchingSearchAndDate();
     const expired = list.filter((o) => o.isDecommissioned).length;
     return { all: list.length, active: list.length - expired, expired };
   });
 
   filtered = computed(() => {
-    const list = this.matchingSearch();
+    const list = this.matchingSearchAndDate();
     const filter = this.statusFilter();
     if (filter === 'ACTIVE') return list.filter((o) => !o.isDecommissioned);
     if (filter === 'EXPIRED') return list.filter((o) => o.isDecommissioned);
@@ -157,4 +180,12 @@ export class OffboardingListComponent implements OnInit {
     const httpError = err as { error?: { message?: string }; message?: string };
     return httpError?.error?.message || httpError?.message || fallback;
   }
+}
+
+type OnboardedView = 'latest' | 'earliest' | 'last7' | 'last30' | 'last90';
+const WINDOW_DAYS: Partial<Record<OnboardedView, number>> = { last7: 7, last30: 30, last90: 90 };
+
+// organizations1.created_date; rows without a parsable date sort as oldest.
+function createdTime(org: { createdDate: string }): number {
+  return Date.parse(org.createdDate) || 0;
 }

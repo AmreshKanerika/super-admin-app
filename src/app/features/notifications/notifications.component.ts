@@ -72,7 +72,8 @@ export class NotificationsComponent {
       .list()()
       .filter((s) => s.planStatus === 'ACTIVE')
       .map((s) => ({ sub: s, days: daysUntil(s.planEndDate) }))
-      .filter((r) => r.days <= 30)
+      // open-ended subscriptions (no end date) never expire
+      .filter((r): r is { sub: typeof r.sub; days: number } => r.days !== null && r.days <= 30)
       .sort((a, b) => a.days - b.days)
   );
 

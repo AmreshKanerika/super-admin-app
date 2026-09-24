@@ -15,7 +15,7 @@ import { ConfirmService } from '../../core/confirm.service';
 import { ToastService } from '../../core/toast.service';
 import { AuthService } from '../../core/auth/auth.service';
 import { SubscriptionLifecycleService } from '../../services/subscription-lifecycle.service';
-import { daysUntil, formatDate, formatDateTime, formatLimit, subscriptionStatusTone } from '../../core/status.util';
+import { daysUntil, formatDate, formatDateTime, formatLimit, sortableDays, subscriptionStatusTone } from '../../core/status.util';
 import { OrgSubscribedPlan, PlanStatus } from '../../models';
 
 export interface OrgSubscriptionGroup {
@@ -118,9 +118,9 @@ export class SubscriptionsListComponent {
       .filter((s) => {
         if (this.expiringInDays === null) return true;
         const d = daysUntil(s.planEndDate);
-        return d >= 0 && d <= this.expiringInDays!;
+        return d !== null && d >= 0 && d <= this.expiringInDays!;
       })
-      .sort((a, b) => daysUntil(a.planEndDate) - daysUntil(b.planEndDate));
+      .sort((a, b) => sortableDays(a.planEndDate) - sortableDays(b.planEndDate));
   }
 
   // An organization can hold several subscriptions at once (a renewal booked alongside the running
@@ -145,7 +145,7 @@ export class SubscriptionsListComponent {
         subscriptions,
         // The group sorts by its most urgent subscription, so an organization with anything
         // expiring soon stays at the top of the page the way the flat list did.
-        soonestDays: Math.min(...subscriptions.map((s) => daysUntil(s.planEndDate)))
+        soonestDays: Math.min(...subscriptions.map((s) => sortableDays(s.planEndDate)))
       }))
       .sort((a, b) => a.soonestDays - b.soonestDays || a.orgName.localeCompare(b.orgName));
   }

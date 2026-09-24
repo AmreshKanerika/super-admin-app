@@ -24,9 +24,9 @@ import { countdownLabel, countdownTone, daysUntil } from '../status.util';
   ]
 })
 export class CountdownComponent {
-  @Input({ required: true }) date!: string;
+  @Input({ required: true }) date!: string | null;
 
-  days(): number {
+  days(): number | null {
     return daysUntil(this.date);
   }
 

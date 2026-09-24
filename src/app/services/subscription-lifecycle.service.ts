@@ -20,7 +20,8 @@ export class SubscriptionLifecycleService {
   async extend(subscription: OrgSubscribedPlan): Promise<boolean> {
     if (this.refuseWhenManagedInAzureMarketplace(subscription)) return false;
 
-    const currentEnd = new Date(subscription.planEndDate);
+    // open-ended subscription (no end date): extend from today
+    const currentEnd = subscription.planEndDate ? new Date(subscription.planEndDate) : new Date();
     const proposed = new Date(currentEnd);
     proposed.setDate(proposed.getDate() + 90);
     const earliestAllowed = new Date(currentEnd);
@@ -39,6 +40,10 @@ export class SubscriptionLifecycleService {
 
   async shorten(subscription: OrgSubscribedPlan): Promise<boolean> {
     if (this.refuseWhenManagedInAzureMarketplace(subscription)) return false;
+    if (!subscription.planEndDate) {
+      this.toast.show('This subscription has no end date - use Extend to set one first', 'critical');
+      return false;
+    }
 
     const currentEnd = new Date(subscription.planEndDate);
     const proposed = new Date(currentEnd);
@@ -165,7 +170,7 @@ export class SubscriptionLifecycleService {
       },
       onConfirm: async (reason: string, chosenDate?: string) => {
         const chosen = new Date(chosenDate + 'T00:00:00.000Z').toISOString();
-        if (chosen === new Date(subscription.planEndDate).toISOString()) return;
+        if (subscription.planEndDate && chosen === new Date(subscription.planEndDate).toISOString()) return;
         await this.subscriptions.extend(subscription.subscriptionId, chosen, reason ?? '');
         appliedEndDate = chosen;
       }

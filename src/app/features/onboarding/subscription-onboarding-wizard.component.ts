@@ -245,7 +245,7 @@ export class SubscriptionOnboardingWizardComponent {
   toggleEditDomainName(): void {
     this.editDomainName = !this.editDomainName;
     if (this.editDomainName && !this.domainName.trim()) {
-      this.domainName = this.resolvedDomainName() ?? '';
+      this.domainName = this.fullWebAddress() ?? '';
     }
     if (!this.editDomainName) {
       this.domainName = '';
@@ -349,7 +349,8 @@ export class SubscriptionOnboardingWizardComponent {
     return {
       organizationName: this.organizationName,
       domainPrefix: this.domainPrefix,
-      domainName: this.editDomainName ? this.domainName : '',
+      // Always the full https URL (default or edited) - it is stored as-is in organizations1.domain_name
+      domainName: this.fullWebAddress() ?? '',
       emailDomain: this.emailDomain,
       orgExternalId: this.orgExternalId,
       paidOrg: this.paidOrg,

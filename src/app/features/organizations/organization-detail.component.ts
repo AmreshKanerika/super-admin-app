@@ -50,7 +50,8 @@ export class OrganizationDetailComponent {
 
   readonly domainUrl = computed(() => {
     const domain = this.domain();
-    return domain ? `https://${domain.domainName}` : '';
+    // domainName is stored as a full https URL (older rows may be a bare host) - never double the scheme
+    return domain ? `https://${domain.domainName.replace(/^https?:\/\//, '')}` : '';
   });
 
   readonly domainHeadline = computed(() => {
@@ -332,7 +333,8 @@ export class OrganizationDetailComponent {
   async extendSubscription(): Promise<void> {
     const sub = this.activeSub();
     if (!sub) return;
-    const currentEnd = new Date(sub.planEndDate);
+    // open-ended subscription (no end date): extend from today
+    const currentEnd = sub.planEndDate ? new Date(sub.planEndDate) : new Date();
     const proposed = new Date(currentEnd);
     proposed.setDate(proposed.getDate() + 90);
     const result = await this.confirm.open({
@@ -380,6 +382,10 @@ export class OrganizationDetailComponent {
     const org = this.org();
     const sub = this.activeSub();
     if (!org || !sub) return;
+    if (!sub.planEndDate) {
+      this.toast.show('This subscription has no end date, so there is nothing to remind about', 'critical');
+      return;
+    }
     const days = Math.max(0, Math.round((+new Date(sub.planEndDate) - Date.now()) / 86_400_000));
     try {
       await this.notifications.sendReminder(org.orgId, sub.subscriptionId, org.adminEmail, 7, `Your FLIP subscription expires in ${days} days`);

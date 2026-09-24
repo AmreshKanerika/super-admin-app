@@ -241,10 +241,15 @@ export class AnalyticsService {
         subscriptions.set(sub.orgId, sub);
       }
     }
+    const allByOrg = new Map<string, OrgSubscribedPlan[]>();
+    for (const sub of this.subscriptions.list()()) {
+      allByOrg.set(sub.orgId, [...(allByOrg.get(sub.orgId) ?? []), sub]);
+    }
     return this.organizations.list()().map((org) => {
       const subscription = subscriptions.get(org.orgId);
       return {
         org,
+        subscriptions: allByOrg.get(org.orgId) ?? [],
         subscription,
         plan: subscription ? plans.get(subscription.planId) : undefined,
         daysToExpiry: subscription ? daysUntil(subscription.planEndDate) : null

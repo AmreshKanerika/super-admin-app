@@ -69,7 +69,7 @@ export interface Organization {
   orgId: string;
   organizationName: string;
   domainPrefix: string;
-  domainName: string;
+  domainName: string | null;   // null for orgs that never had a URL assigned
   schemaName: string;
   keycloakRealmName: string;
   isPaidOrg: boolean;
@@ -90,7 +90,7 @@ export interface OrgSubscribedPlan {
   orgId: string;
   planId: string;
   planStartDate: string;
-  planEndDate: string;
+  planEndDate: string | null;   // null = open-ended subscription
   planStatus: PlanStatus;
   statusReason?: string;
   azureMarketplaceManaged?: boolean;

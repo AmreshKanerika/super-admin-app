@@ -16,7 +16,11 @@ import { AuthService } from '../../core/auth/auth.service';
 import { subscriptionStatusTone, formatDate } from '../../core/status.util';
 import { PlanStatus } from '../../models';
 
-type SortKey = 'name' | 'expiry';
+type SortKey = 'name' | 'expiry' | 'created';
+
+/** Options of the "Onboarded" filter: an order, or a recent window (always newest first). */
+export type OnboardedView = 'latest' | 'earliest' | 'last7' | 'last30' | 'last90';
+const WINDOW_DAYS: Partial<Record<OnboardedView, number>> = { last7: 7, last30: 30, last90: 90 };
 
 @Component({
   selector: 'app-organizations-list',
@@ -57,8 +61,17 @@ export class OrganizationsListComponent {
   needsActivation = false;
   needsAttention = false;
 
-  sortKey = signal<SortKey>('expiry');
-  sortAsc = signal(true);
+  // Newest onboarded organizations first by default.
+  sortKey = signal<SortKey>('created');
+  sortAsc = signal(false);
+
+  readonly onboardedOptions: { value: OnboardedView; label: string }[] = [
+    { value: 'latest', label: 'Latest first' },
+    { value: 'earliest', label: 'Earliest first' },
+    { value: 'last7', label: 'Last 7 days' },
+    { value: 'last30', label: 'Last 30 days' },
+    { value: 'last90', label: 'Last 90 days' }
+  ];
   private static readonly ROWS_PER_SCROLL_STEP = 25;
 
   visibleLimit = OrganizationsListComponent.ROWS_PER_SCROLL_STEP;
@@ -79,6 +92,11 @@ export class OrganizationsListComponent {
     this.createdWithinDays = q.get('createdWithinDays') ? Number(q.get('createdWithinDays')) : null;
     this.needsActivation = q.get('needsActivation') === 'true';
     this.needsAttention = q.get('needsAttention') === 'true';
+    // The attention queue is ordered by urgency, not by onboarding date.
+    if (this.needsAttention) {
+      this.sortKey.set('expiry');
+      this.sortAsc.set(true);
+    }
 
     const from = q.get('from');
     if (from === 'overview') {
@@ -115,7 +133,9 @@ export class OrganizationsListComponent {
       }
       let cmp = 0;
       if (this.sortKey() === 'name') cmp = a.org.organizationName.localeCompare(b.org.organizationName);
+      else if (this.sortKey() === 'created') cmp = createdTime(a) - createdTime(b);
       else cmp = (a.daysToExpiry ?? 999999) - (b.daysToExpiry ?? 999999);
+      if (!cmp) return a.org.organizationName.localeCompare(b.org.organizationName);
       return this.sortAsc() ? cmp : -cmp;
     });
     return sorted;
@@ -159,8 +179,25 @@ export class OrganizationsListComponent {
     if (this.sortKey() === key) this.sortAsc.set(!this.sortAsc());
     else {
       this.sortKey.set(key);
-      this.sortAsc.set(true);
+      // dates read naturally newest-first; names and expiry ascending
+      this.sortAsc.set(key !== 'created');
     }
+  }
+
+  /** Current value of the "Onboarded" filter, derived from the sort + created window. */
+  onboardedView(): OnboardedView | '' {
+    const windowDays = this.createdWithinDays;
+    const match = (Object.keys(WINDOW_DAYS) as OnboardedView[]).find((v) => WINDOW_DAYS[v] === windowDays);
+    if (windowDays && match) return match;
+    if (this.sortKey() !== 'created') return '';
+    return this.sortAsc() ? 'earliest' : 'latest';
+  }
+
+  setOnboardedView(view: OnboardedView): void {
+    this.createdWithinDays = WINDOW_DAYS[view] ?? null;
+    this.sortKey.set('created');
+    this.sortAsc.set(view === 'earliest');
+    this.onFilterChange();
   }
 
   onFilterChange(): void {
@@ -213,6 +250,8 @@ export class OrganizationsListComponent {
     this.createdWithinDays = null;
     this.needsActivation = false;
     this.needsAttention = false;
+    this.sortKey.set('created');
+    this.sortAsc.set(false);
     this.onFilterChange();
   }
 
@@ -266,4 +305,9 @@ export class OrganizationsListComponent {
   rowKey(_index: number, row: OrgOverviewRow): string {
     return row.org.orgId;
   }
+}
+
+// organizations1.created_date; rows without a parsable date sort as oldest.
+function createdTime(row: OrgOverviewRow): number {
+  return Date.parse(row.org.createdDate) || 0;
 }

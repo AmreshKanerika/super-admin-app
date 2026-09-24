@@ -7,6 +7,11 @@
     <input class="input" [ngModel]="search()" (ngModelChange)="search.set($event)" placeholder="Search by name or domain…" aria-label="Search organizations" />
   </label>
 
+  <select class="input select offb-onboarded" aria-label="Onboarded" title="Order and range by onboarding date"
+          [ngModel]="onboardedView()" (ngModelChange)="onboardedView.set($event)">
+    <option *ngFor="let o of onboardedOptions" [value]="o.value">{{ o.label }}</option>
+  </select>
+
   <div class="filter-chips" role="group" aria-label="Filter by status">
     <button type="button" class="chip" [class.active]="statusFilter() === 'ALL'" (click)="setFilter('ALL')">
       All <span class="chip-count">{{ counts().all }}</span>
