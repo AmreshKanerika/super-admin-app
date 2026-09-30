@@ -8,7 +8,9 @@
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "build:sit": "ng build --configuration sit",
-    "build:dev": "ng build --configuration development"
+    "build:dev": "ng build --configuration dev",
+    "help:pdf": "node scripts/build-help-pdf.mjs",
+    "theme:package": "node -e \"require('fs').mkdirSync('dist',{recursive:true})\" && jar --create --file dist/flip-super-admin-keycloak-theme.jar -C keycloak-theme ."
   },
   "private": true,
   "dependencies": {

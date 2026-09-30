@@ -1,0 +1,292 @@
+/*
+ * FLIP Platform console — Keycloak login theme (parent: keycloak.v2).
+ * Only restyles Keycloak's own markup, so sign in, update password, forgot password,
+ * verify email and error pages all pick it up without template overrides.
+ */
+@import url('https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
+
+:root {
+  --flip-ink: #20253b;
+  --flip-ink-soft: #697184;
+  --flip-line: #d9deea;
+  --flip-violet: #7c46a3;
+  --flip-violet-deep: #6a3a8c;
+  --flip-focus: rgba(135, 80, 182, 0.16);
+  --flip-danger: #a8331b;
+  --flip-danger-soft: #fff4f1;
+  --flip-font-body: 'Schibsted Grotesk', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+  --flip-font-display: 'Space Grotesk', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+
+  /* PatternFly tokens used by keycloak.v2 */
+  --pf-v5-global--primary-color--100: var(--flip-violet);
+  --pf-v5-global--primary-color--200: var(--flip-violet-deep);
+  --pf-v5-global--link--Color: var(--flip-violet);
+  --pf-v5-global--link--Color--hover: var(--flip-violet-deep);
+  --pf-v5-global--FontFamily--text: var(--flip-font-body);
+  --pf-v5-global--FontFamily--heading: var(--flip-font-display);
+  --keycloak-card-top-color: transparent;
+}
+
+/* ---- Page ---------------------------------------------------------------------------- */
+
+.login-pf body,
+body#keycloak-bg {
+  min-height: 100vh;
+  background:
+    radial-gradient(ellipse at 18% 22%, #bd87ff99, transparent 38%),
+    radial-gradient(ellipse at 90% 78%, #ffad7599, transparent 42%),
+    radial-gradient(ellipse at 44% 94%, #e947b366, transparent 38%),
+    linear-gradient(145deg, #7035be 0%, #722ba3 42%, #b9428b 76%, #ee795f 100%) fixed;
+  font-family: var(--flip-font-body);
+  color: var(--flip-ink);
+}
+
+.pf-v5-c-login {
+  background: none;
+}
+
+.pf-v5-c-login__container {
+  grid-template-columns: minmax(0, 30rem);
+  padding-inline: 16px;
+}
+
+/* ---- Brand header ---------------------------------------------------------------------- */
+
+.pf-v5-c-login__header {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 18px;
+}
+
+#kc-header-wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 13px;
+  padding: 11px 16px;
+  border: 1px solid #ffffffb3;
+  border-radius: 12px;
+  background: #ffffffed;
+  box-shadow: 0 8px 28px #39146024;
+  /* The realm's display name is replaced by the FLIP lockup. */
+  font-size: 0 !important;
+  letter-spacing: 0;
+  line-height: 1;
+  text-transform: none;
+  color: transparent !important;
+}
+
+#kc-header-wrapper::before {
+  content: '';
+  display: block;
+  width: 78px;
+  height: 26px;
+  background: url('../img/flip-logo.svg') no-repeat left center / contain;
+}
+
+#kc-header-wrapper::after {
+  content: 'Platform console';
+  padding-left: 13px;
+  border-left: 1px solid #d7d2e0;
+  color: #6c6880;
+  font: 600 12px/22px var(--flip-font-body);
+}
+
+/* ---- Card ------------------------------------------------------------------------------ */
+
+.pf-v5-c-login__main {
+  border: 1px solid #ffffff66;
+  border-radius: 20px;
+  background: #fffdfb;
+  box-shadow: 0 24px 60px #2b0f4a40;
+  overflow: hidden;
+}
+
+.pf-v5-c-login__main-header {
+  display: block;
+  border-top: 0;
+  padding: 34px 36px 6px;
+}
+
+.pf-v5-c-login__main-header::before {
+  content: 'SECURE ACCESS';
+  display: block;
+  width: fit-content;
+  margin-bottom: 16px;
+  padding: 6px 10px;
+  border: 1px solid #ecdaf4;
+  border-radius: 6px;
+  background: #f5edf9;
+  color: #7550a6;
+  font: 700 10.5px/1 var(--flip-font-body);
+  letter-spacing: 0.12em;
+}
+
+#kc-page-title {
+  font-family: var(--flip-font-display);
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1.12;
+  letter-spacing: -0.04em;
+  color: var(--flip-ink);
+}
+
+.pf-v5-c-login__main-body {
+  padding: 18px 36px 8px;
+}
+
+.pf-v5-c-login__main-footer {
+  padding: 0 36px 28px;
+  color: var(--flip-ink-soft);
+}
+
+/* ---- Form ------------------------------------------------------------------------------ */
+
+.pf-v5-c-form__label-text {
+  color: #30374c;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.pf-v5-c-form-control {
+  --pf-v5-c-form-control--before--BorderStyle: none;
+  --pf-v5-c-form-control--after--BorderStyle: none;
+  border: 1px solid var(--flip-line);
+  border-radius: 9px;
+  background: #fff;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.pf-v5-c-form-control:hover {
+  border-color: #b6bfd0;
+}
+
+.pf-v5-c-form-control:focus-within {
+  border-color: #8750b6;
+  box-shadow: 0 0 0 3px var(--flip-focus);
+}
+
+.pf-v5-c-form-control > input,
+.pf-v5-c-form-control > select,
+.pf-v5-c-form-control > textarea {
+  min-height: 48px;
+  padding-inline: 14px;
+  color: var(--flip-ink);
+  font: 14px var(--flip-font-body);
+}
+
+.pf-v5-c-form-control.pf-m-error,
+.pf-v5-c-form-control:has(input[aria-invalid='true']) {
+  border-color: #e3a595;
+}
+
+.pf-v5-c-form-control::before,
+.pf-v5-c-form-control::after,
+.pf-v5-c-input-group__item::before,
+.pf-v5-c-input-group__item::after {
+  border: 0 !important;
+}
+
+.pf-v5-c-input-group .pf-v5-c-form-control {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.pf-v5-c-input-group .pf-v5-c-button.pf-m-control {
+  border: 1px solid var(--flip-line);
+  border-left: 1px solid #eef0f5;
+  border-radius: 0 9px 9px 0;
+  background: #fff;
+  color: #79839a;
+}
+
+.pf-v5-c-input-group .pf-v5-c-button.pf-m-control::after {
+  border: 0;
+}
+
+.pf-v5-c-input-group .pf-v5-c-button.pf-m-control:hover {
+  color: var(--flip-violet);
+}
+
+/* ---- Buttons --------------------------------------------------------------------------- */
+
+.pf-v5-c-button.pf-m-primary {
+  min-height: 50px;
+  border: 0;
+  border-radius: 10px;
+  background: linear-gradient(100deg, #7035be 0%, #8b3fa8 55%, #b9428b 100%);
+  box-shadow: 0 10px 24px #6d2fa540;
+  font: 700 14.5px var(--flip-font-body);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+}
+
+.pf-v5-c-button.pf-m-primary:hover,
+.pf-v5-c-button.pf-m-primary:focus-visible {
+  filter: brightness(1.05);
+  transform: translateY(-1px);
+  box-shadow: 0 14px 28px #6d2fa552;
+}
+
+.pf-v5-c-button.pf-m-secondary {
+  border-radius: 10px;
+  color: var(--flip-violet);
+}
+
+.pf-v5-c-button.pf-m-link,
+#kc-form-options a,
+.pf-v5-c-login__main-footer a,
+#kc-info-wrapper a {
+  color: var(--flip-violet);
+  font-weight: 600;
+}
+
+/* ---- Messages ---------------------------------------------------------------------------- */
+
+.pf-v5-c-alert {
+  border-radius: 10px;
+  box-shadow: none;
+}
+
+.pf-v5-c-alert.pf-m-danger,
+.pf-v5-c-alert.pf-m-error {
+  border: 1px solid #f2c6bc;
+  background: var(--flip-danger-soft);
+  color: var(--flip-danger);
+}
+
+.pf-v5-c-helper-text__item.pf-m-error,
+.pf-v5-c-form__helper-text .pf-m-error {
+  color: var(--flip-danger);
+}
+
+/* "Authorized platform users only", matching the console's own sign-in page. */
+.pf-v5-c-login__main::after {
+  content: 'Authorized platform users only';
+  display: block;
+  padding: 14px 36px;
+  border-top: 1px solid #f0e9f4;
+  background: #faf6fc;
+  color: #7a7390;
+  font: 600 11.5px var(--flip-font-body);
+  text-align: center;
+}
+
+/* ---- Small screens ----------------------------------------------------------------------- */
+
+@media (max-width: 520px) {
+  .pf-v5-c-login__main-header,
+  .pf-v5-c-login__main-body,
+  .pf-v5-c-login__main-footer {
+    padding-inline: 22px;
+  }
+
+  #kc-page-title {
+    font-size: 27px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pf-v5-c-form-control,
+  .pf-v5-c-button.pf-m-primary {
+    transition: none;
+  }
+}
