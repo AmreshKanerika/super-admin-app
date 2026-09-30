@@ -1,7 +1,7 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, timeout } from 'rxjs';
 import { API_BASE_URL, KEYCLOAK_BASE_URL, KEYCLOAK_CLIENT_ID, KEYCLOAK_REALM } from '../api-config';
 import { decodeJwtPayload } from './jwt.util';
 import { ConsoleUserRole } from '../../models';
@@ -57,6 +57,7 @@ export class AuthService {
   private router = inject(Router);
   private readonly session = signal<StoredSession | null>(readStoredSession());
   private refreshTimer: ReturnType<typeof setTimeout> | null = null;
+  private refreshInFlight: Promise<boolean> | null = null;
   private expiryTimer: ReturnType<typeof setTimeout> | null = null;
 
   isAuthenticated = computed(() => this.session() !== null);
@@ -131,7 +132,7 @@ export class AuthService {
       const response = await firstValueFrom(
         this.http.post<KeycloakTokenResponse>(TOKEN_URL, body.toString(), {
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
-        })
+        }).pipe(timeout(15000))
       );
       this.persist({
         accessToken: response.access_token,
@@ -172,7 +173,7 @@ export class AuthService {
 
   private async resolveRole(): Promise<void> {
     try {
-      const response = await firstValueFrom(this.http.get<ConsoleUserMeResponse>(`${API_BASE_URL}/platform/console-users/me`));
+      const response = await firstValueFrom(this.http.get<ConsoleUserMeResponse>(`${API_BASE_URL}/platform/console-users/me`).pipe(timeout(15000)));
       this.role.set(response.role);
     } catch (err) {
       console.error('Could not resolve console role — failing closed', err);
@@ -194,7 +195,7 @@ export class AuthService {
       await firstValueFrom(
         this.http.post(LOGOUT_URL, body.toString(), {
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
-        })
+        }).pipe(timeout(15000))
       );
     } catch (err) {
       console.error('Failed to revoke Keycloak session server-side (local session already cleared)', err);
@@ -217,7 +218,13 @@ export class AuthService {
     return this.refreshAccessToken(s);
   }
 
-  private async refreshAccessToken(s: StoredSession): Promise<boolean> {
+  private refreshAccessToken(s: StoredSession): Promise<boolean> {
+    if (!this.refreshInFlight) this.refreshInFlight = this.performRefresh(s).finally(() => { this.refreshInFlight = null; });
+    return this.refreshInFlight;
+  }
+
+  private async performRefresh(s: StoredSession): Promise<boolean> {
+    if (this.session() !== s) return false;
     const body = new URLSearchParams({
       grant_type: 'refresh_token',
       client_id: KEYCLOAK_CLIENT_ID,
@@ -228,8 +235,9 @@ export class AuthService {
       const response = await firstValueFrom(
         this.http.post<KeycloakTokenResponse>(TOKEN_URL, body.toString(), {
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
-        })
+        }).pipe(timeout(15000))
       );
+      if (this.session() !== s) return false;
       this.persist({
         accessToken: response.access_token,
         refreshToken: response.refresh_token,
@@ -239,7 +247,7 @@ export class AuthService {
       return true;
     } catch (err) {
       console.error('Session refresh failed, signing out', err);
-      await this.logout();
+      if (this.session() === s) await this.logout();
       return false;
     }
   }

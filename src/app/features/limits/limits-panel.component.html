@@ -3,7 +3,7 @@
     <div>
       <span class="workspace-eyebrow">APPLICATION MANAGEMENT</span>
       <h2>Access &amp; allowances</h2>
-      <p>Set access and allowances for every application in one place. Applications start <strong>unlimited</strong> — click an allowance to cap it. Edit as many rows as you like, then save one or all of them.</p>
+      <p>Set access and allowances for every application in one place. New applications appear here as <strong>Hidden</strong>. Assign a plan that includes an application before enabling it. Hidden applications are not visible to the organization. Edit as many rows as you like, then save one or all of them.</p>
     </div>
     <button class="btn ghost sm" (click)="resetUsage()">Reset usage</button>
   </div>
@@ -68,7 +68,7 @@
       </span>
     </div>
 
-    <div class="scroll-x">
+    <fieldset [disabled]="!ready() || saving()" style="border:0;padding:0;margin:0;min-width:0"><div class="scroll-x">
       <table class="dtable limits-table">
         <thead>
           <tr>
@@ -109,7 +109,7 @@
             </td>
 
             <td class="col-access">
-              <span class="access-toggle" role="group" [attr.aria-label]="'Access for ' + (row.item | appDisplayName)">
+              <span *ngIf="assignedAppIds().has(row.item.appId); else unassignedApp" class="access-toggle" role="group" [attr.aria-label]="'Access for ' + (row.item | appDisplayName)">
                 <button type="button" class="on-enabled" [class.on]="row.state.accessStatus === 'ENABLED'" [attr.aria-pressed]="row.state.accessStatus === 'ENABLED'" (click)="setAccess(row, 'ENABLED')">Enabled</button>
                 <button type="button" class="on-disabled" [class.on]="row.state.accessStatus === 'DISABLED'" [attr.aria-pressed]="row.state.accessStatus === 'DISABLED'" (click)="setAccess(row, 'DISABLED')">Disabled</button>
                 <button type="button" class="on-hidden" [class.on]="row.state.accessStatus === 'HIDDEN'" [attr.aria-pressed]="row.state.accessStatus === 'HIDDEN'" (click)="setAccess(row, 'HIDDEN')">Hidden</button>
@@ -117,14 +117,15 @@
             </td>
 
             <td class="col-limit">
-              <ng-container *ngTemplateOutlet="allowanceCell; context: { $implicit: row, kind: 'design' }"></ng-container>
+              <ng-container *ngIf="assignedAppIds().has(row.item.appId); else unassignedAllowance"><ng-container *ngTemplateOutlet="allowanceCell; context: { $implicit: row, kind: 'design' }"></ng-container></ng-container>
             </td>
 
             <td class="col-limit">
-              <ng-container *ngTemplateOutlet="allowanceCell; context: { $implicit: row, kind: 'runtime' }"></ng-container>
+              <ng-container *ngIf="assignedAppIds().has(row.item.appId); else unassignedAllowance"><ng-container *ngTemplateOutlet="allowanceCell; context: { $implicit: row, kind: 'runtime' }"></ng-container></ng-container>
             </td>
 
             <td class="col-row-actions">
+              <a *ngIf="ready() && !assignedAppIds().has(row.item.appId)" class="btn sm ghost" [routerLink]="['/organizations', orgId, 'subscriptions', 'new']" [queryParams]="{ applicationId: row.item.appId }">Assign plan to activate</a>
               <span class="row-actions" *ngIf="row.dirty">
                 <button type="button" class="icon-btn" [disabled]="saving()" (click)="revertRow(row)" title="Discard this row's changes" [attr.aria-label]="'Discard changes to ' + (row.item | appDisplayName)">
                   <i class="ti ti-arrow-back-up" aria-hidden="true"></i>
@@ -139,9 +140,11 @@
       </table>
     </div>
 
-    <p class="grid-help">Unlimited has no usage cap. An allowance of 0 prevents usage. Disabled and hidden applications keep their saved allowances.</p>
+    </fieldset><p class="grid-help">Unlimited has no usage cap. An allowance of 0 prevents usage. Disabled and hidden applications keep their saved allowances.</p>
   </ng-template>
 
+  <ng-template #unassignedApp><span class="chip hidden">Hidden · not assigned</span></ng-template>
+  <ng-template #unassignedAllowance><span class="text-faint">Not assigned</span></ng-template>
   <ng-template #allowanceCell let-row let-kind="kind">
     <div class="allowance-cell" [class.inactive]="row.state.accessStatus !== 'ENABLED'" [title]="allowanceTooltip(row, kind)">
       <button

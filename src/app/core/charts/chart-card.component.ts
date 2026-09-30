@@ -86,21 +86,15 @@ import { TableRow } from './chart.types';
         display: flex;
         flex-direction: column;
         height: 100%;
-        padding: 22px 24px 20px;
+        padding: 20px 22px;
         border: 1px solid var(--line);
-        border-radius: 16px;
+        border-radius: 12px;
         background: #fff;
-        box-shadow: 0 8px 28px rgba(40, 20, 60, 0.05);
+        box-shadow: 0 2px 4px rgba(20, 30, 50, 0.025);
         overflow: hidden;
         transition: opacity 0.18s ease;
       }
-      .ccard::before {
-        position: absolute;
-        inset: 0 0 auto;
-        height: 3px;
-        background: var(--card-accent, var(--accent));
-        content: '';
-      }
+
       .ccard.dimmed {
         opacity: 0.55;
       }
@@ -113,7 +107,7 @@ import { TableRow } from './chart.types';
       }
       .cc-title h3 {
         margin: 0;
-        font: 700 16px/1.25 var(--k-font-display);
+        font: 600 14px/1.4 var(--k-font-body);
         letter-spacing: -0.015em;
         color: var(--ink);
       }

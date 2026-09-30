@@ -75,7 +75,8 @@ export const routes: Routes = [
       },
       {
         path: 'subscriptions',
-        loadComponent: () => import('./features/subscriptions/subscriptions-list.component').then((m) => m.SubscriptionsListComponent)
+        redirectTo: 'organizations',
+        pathMatch: 'full'
       },
       {
         path: 'notifications',

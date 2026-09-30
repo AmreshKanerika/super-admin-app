@@ -1,6 +1,6 @@
 import { HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
-import { catchError, throwError } from 'rxjs';
+import { catchError, from, switchMap, throwError } from 'rxjs';
 import { API_BASE_URL } from '../api-config';
 import { AuthService } from './auth.service';
 
@@ -13,9 +13,14 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const isApiRequest = req.url.startsWith(API_BASE_URL);
   const token = auth.getAccessToken();
 
-  const authedReq = isApiRequest && token ? req.clone({ setHeaders: { Authorization: `Bearer ${token}` } }) : req;
+  const request$ = isApiRequest && token
+    ? from(auth.ensureValidSession()).pipe(switchMap(valid => {
+        if (!valid) return throwError(() => new Error('Your session expired. Please sign in again.'));
+        return next(req.clone({ setHeaders: { Authorization: `Bearer ${auth.getAccessToken()}` } }));
+      }))
+    : next(req);
 
-  return next(authedReq).pipe(
+  return request$.pipe(
     catchError((err) => {
       if (isApiRequest && err.status === 401) {
         auth.logout();

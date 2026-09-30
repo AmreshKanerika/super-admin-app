@@ -6,8 +6,8 @@ const KEYCLOAK_HOST = 'https://auth.sit.flipnow.cloud';  // Keycloak base URL fo
 export const environment = {
   production: true,
   env: 'SIT',
-  apiBaseUrl: `${GATEWAY_HOST}/flip-admin`,
-  keycloakBaseUrl: KEYCLOAK_HOST,
-  keycloakRealm: 'flip',
+    apiBaseUrl: 'http://localhost:8085/flip-admin',
+  keycloakBaseUrl: 'https://sit-auth-admin.flipnow.cloud',
+  keycloakRealm: 'flip-super-admin',
   keycloakClientId: 'super-admin',
 };

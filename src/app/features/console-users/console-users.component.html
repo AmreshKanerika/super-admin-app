@@ -14,6 +14,7 @@
         <th>Name</th>
         <th>Role</th>
         <th>Status</th>
+        <th>Actions</th>
       </tr>
     </thead>
     <tbody>
@@ -27,6 +28,13 @@
             [tone]="u.keycloakSubjectId ? 'success' : 'warning'"
           ></app-status-pill>
         </td>
+        <td>
+          <div class="user-actions" *ngIf="u.role === 'SALES'; else protectedAdmin">
+            <button class="btn ghost" type="button" (click)="openEdit(u)">Edit</button>
+            <button class="btn ghost" type="button" (click)="removing.set(u)">Remove access</button>
+          </div>
+          <ng-template #protectedAdmin><span class="text-muted">Protected account</span></ng-template>
+        </td>
       </tr>
     </tbody>
   </table>
@@ -36,6 +44,24 @@
     </p>
   </ng-template>
 </div>
+
+<app-modal-shell *ngIf="editing()" heading="Edit sales user" [width]="480" (close)="!submitting() && editing.set(null)">
+  <div class="field"><label for="sales-name">Name</label><input id="sales-name" class="input" [(ngModel)]="editName" [disabled]="submitting()" /></div>
+  <div class="field"><label for="sales-email">Email</label><input id="sales-email" class="input" type="email" [(ngModel)]="editEmail" [disabled]="submitting()" /></div>
+  <p class="hint">Existing login username stays the same. Console role remains Sales.</p>
+  <div class="wizard-actions">
+    <button class="btn ghost" [disabled]="submitting()" (click)="editing.set(null)">Cancel</button>
+    <button class="btn primary" [disabled]="submitting() || !editName.trim() || !editEmail.trim()" (click)="saveEdit()">{{ submitting() ? 'Saving…' : 'Save changes' }}</button>
+  </div>
+</app-modal-shell>
+
+<app-modal-shell *ngIf="removing() as user" heading="Remove console access?" [width]="480" (close)="!submitting() && removing.set(null)">
+  <p><strong>{{ user.displayName || user.email }}</strong> will lose access to this console. Their login for other applications will remain available.</p>
+  <div class="wizard-actions">
+    <button class="btn ghost" [disabled]="submitting()" (click)="removing.set(null)">Cancel</button>
+    <button class="btn primary" [disabled]="submitting()" (click)="removeUser()">{{ submitting() ? 'Removing…' : 'Remove access' }}</button>
+  </div>
+</app-modal-shell>
 
 <app-modal-shell *ngIf="addOpen()" heading="Add a console user" [width]="480" (close)="closeAdd()">
   <div class="field">

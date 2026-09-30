@@ -8,6 +8,7 @@
   [backUrl]="'/organizations'">
 </app-page-header>
 
+<p class="panel" *ngIf="requestedApplicationId">Activating <strong>{{ requestedApplication()?.displayName || requestedApplication()?.appName || 'the selected application' }}</strong>: choose a plan that includes it. If none is available, create a plan with this application enabled. Access is granted only after subscription provisioning succeeds.</p>
 <div class="stepper">
   <ng-container *ngFor="let label of stepLabels(); let i = index">
     <button

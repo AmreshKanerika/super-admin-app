@@ -72,12 +72,14 @@ export class NotificationsService {
       })
     );
     this.logSignal.update((list) => [entry, ...list]);
+    if (entry.status !== 'SENT') throw new Error('Email was not sent. Check the database SMTP Settings and recipient, then retry.');
     this.audit.log('REMINDER_SENT', 'Notification', `${entry.recipient} — ${subject}`);
   }
 
   async resend(logId: string): Promise<void> {
     const entry = await firstValueFrom(this.http.post<NotificationLogEntry>(`${API_BASE_URL}/platform/notifications/${logId}/resend`, {}));
     this.logSignal.update((list) => list.map((n) => (n.id === logId ? entry : n)));
+    if (entry.status !== 'SENT') throw new Error('Email retry failed. Check SMTP Settings and recipient.');
     this.audit.log('REMINDER_RESENT', 'Notification', entry.recipient ?? logId);
   }
 }

@@ -12,15 +12,23 @@ export class OrganizationsService {
   private http = inject(HttpClient);
   private toast = inject(ToastService);
   private readonly orgs = signal<Organization[]>([]);
+  private readonly removedIds = new Set<string>();
+  private refreshVersion = 0;
+
+  removeFromCache(orgId: string): void {
+    this.removedIds.add(orgId);
+    this.orgs.update(list => list.filter(org => org.orgId !== orgId));
+  }
 
   constructor() {
     this.refresh();
   }
 
   async refresh(): Promise<void> {
+    const version = ++this.refreshVersion;
     try {
       const orgs = await firstValueFrom(this.http.get<Organization[]>(`${API_BASE_URL}/platform/organizations`));
-      this.orgs.set(orgs);
+      if (version === this.refreshVersion) this.orgs.set(orgs.filter(org => !this.removedIds.has(org.orgId)));
     } catch (err) {
       console.error('Failed to load organizations', err);
       this.toast.show("Couldn't load organizations — check your connection and refresh.", 'critical');

@@ -354,3 +354,48 @@ table.dtable.org-table .row-link { color: #27334b; font-size: 13px; font-weight:
   margin-left: auto;
   white-space: nowrap;
 }
+
+.plan-stack { display:flex; flex-direction:column; gap:6px; min-width:150px; width:100%; }
+.plan-chip { align-items:center; gap:8px; text-decoration:none; white-space:normal; }
+.plan-chip small { font-size:9px; margin-left:auto; color:#67788d; }
+.plan-chip:hover { border-color:#a795cc; background:#f5f0fb; }
+.org-card .ec-meta .plan-chip span { border:0; background:transparent; padding:0; }
+.domain-value { overflow-wrap:anywhere; white-space:normal; font-size:12px; }
+.live-domain { color:#356a95; text-decoration:none; }
+.live-domain:hover { text-decoration:underline; }
+.org-card { cursor:default; height:100%; }
+.org-card .ec-title { display:block; text-decoration:none; overflow-wrap:anywhere; }
+.org-card .ec-foot { margin-top:auto; }
+.org-card .ec-meta { align-items:flex-start; }
+.onboarded-date { font-size:11px; color:#788397; white-space:nowrap; }
+.sort-button { border:0; background:transparent; color:inherit; font:inherit; text-transform:inherit; cursor:pointer; padding:0; }
+.org-table { min-width:1050px; }
+.org-table td { vertical-align:top; }
+.org-table .org-primary { width:23%; }
+.org-table .org-domain { width:25%; }
+.org-card .ec-top { flex-wrap:wrap; }
+
+.plan-disclosure { display:flex; align-items:center; gap:9px; width:100%; padding:10px; border:1px solid #e1d9ed; border-radius:10px; background:#f9f6fd; color:#66498a; cursor:pointer; text-align:left; }
+.plan-disclosure:hover { background:#f0e9f8; border-color:#bda6d4; }
+.plan-group-icon { display:grid; place-items:center; width:28px; height:28px; border-radius:8px; background:#ece3f6; flex:none; }
+.plan-group-title { flex:1; }
+.plan-group-title strong { display:block; font-size:11px; font-weight:650; }
+.plan-group-title small { display:block; margin-top:3px; font-size:10px; color:#887798; }
+.plan-tree { list-style:none; margin:0 0 0 21px; padding:0 0 0 16px; border-left:1px solid #d9cce7; }
+.plan-tree li { position:relative; padding-top:8px; }
+.plan-tree li::before { content:''; position:absolute; left:-17px; top:25px; width:16px; border-top:1px solid #d9cce7; }
+.plan-node { display:flex; flex-direction:column; gap:5px; padding:10px; border:1px solid #e6e8ef; background:#fff; border-radius:9px; text-decoration:none; }
+.plan-node:hover { border-color:#bda6d4; background:#fcfaff; }
+.plan-node-heading { display:flex; justify-content:space-between; gap:8px; color:#4a3a60; font-size:11px; }
+.plan-node small { font-size:10px; color:#818997; white-space:normal; }
+.plan-node-status { align-self:flex-start; color:#68748b; font-size:9px; font-weight:600; }
+.org-card .ec-meta .plan-group-icon, .org-card .ec-meta .plan-group-title, .org-card .ec-meta .plan-node-heading, .org-card .ec-meta .plan-node-status { padding:0; border:0; background:transparent; }
+.plan-stack button:focus-visible, .plan-node:focus-visible { outline:2px solid #825ca3; outline-offset:3px; }
+
+.expanded-plan-header { display:flex; align-items:center; gap:8px; margin-bottom:12px; color:#69517f; font-size:12px; }
+.expanded-plan-header span { margin-left:auto; color:#8c8296; font-size:10px; }
+.org-table .plan-detail-row td { background:#faf8fd; padding:16px 24px 20px 52px; border-top:0; }
+.plan-detail-row .plan-tree { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; margin:0; padding:0; border:0; }
+.plan-detail-row .plan-tree li { padding:0; }
+.plan-detail-row .plan-tree li::before { display:none; }
+.plan-detail-row .plan-node { border-left:3px solid #c5acde; }

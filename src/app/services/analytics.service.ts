@@ -18,15 +18,11 @@ import { BILLING_COLOR, EXPIRY_RAMP, STATUS_COLOR, VIZ_SLOT } from '../core/char
 //      Which date it tests is the reader's choice (`DateBasis`), because "the
 //      last 30 days" means something different for onboarding than it does for
 //      renewals. With no window, everything on the page is all-time totals.
-//   2. **Cross-filters** — clicking any mark (a ring segment, a tile, a bar, a
-//      period) adds that value to the slice, and every other visual re-reads
-//      against it. A visual never filters itself by its own dimension: the ring
-//      still shows all six statuses with the unselected ones dimmed, so the
-//      reader keeps their bearings instead of watching the chart collapse to a
-//      single segment.
+//   2. Cross-filters apply to every KPI, chart and drill-down. The plan
+//      grouping alone ignores its own dimension to keep Other membership stable.
 // ---------------------------------------------------------------------------
 
-export type RangePreset = 'ALL' | '7D' | '30D' | '90D' | 'MTD' | 'QTD' | 'YTD' | 'CUSTOM';
+export type RangePreset = 'ALL' | '7D' | '30D' | '90D' | '6M' | 'MTD' | 'QTD' | 'YTD' | 'CUSTOM';
 
 /** Which date the window is tested against. */
 export type DateBasis = 'ONBOARDED' | 'SUB_START' | 'SUB_END';
@@ -259,7 +255,7 @@ export class AnalyticsService {
 
   // --- slicer state --------------------------------------------------------
 
-  readonly preset = signal<RangePreset>('ALL');
+  readonly preset = signal<RangePreset>('6M');
   readonly customFrom = signal<string>('');
   readonly customTo = signal<string>('');
   readonly basis = signal<DateBasis>('ONBOARDED');
@@ -319,6 +315,10 @@ export class AnalyticsService {
         return { from: startOfDay(now - 29 * DAY), to: now };
       case '90D':
         return { from: startOfDay(now - 89 * DAY), to: now };
+      case '6M': {
+        const d = new Date(now);
+        return { from: new Date(d.getFullYear(), d.getMonth() - 5, 1).getTime(), to: now };
+      }
       case 'MTD': {
         const d = new Date(now);
         return { from: new Date(d.getFullYear(), d.getMonth(), 1).getTime(), to: now };
@@ -362,6 +362,7 @@ export class AnalyticsService {
       '7D': 'Last 7 days',
       '30D': 'Last 30 days',
       '90D': 'Last 90 days',
+      '6M': 'Last 6 months',
       MTD: 'Month to date',
       QTD: 'Quarter to date',
       YTD: 'Year to date',
@@ -419,7 +420,7 @@ export class AnalyticsService {
     if (exclude !== 'billing' && sel.billing.length && !sel.billing.includes(billingKeyOf(row))) return false;
     if (exclude !== 'plan' && sel.plan.length) {
       const planId = row.subscription?.planId ?? '__none__';
-      const topPlanIds = new Set(this.planMix().filter((slice) => slice.key !== '__other__' && slice.key !== '__none__').map((slice) => slice.key));
+      const topPlanIds = this.topPlanIds();
       const inOther = sel.plan.includes('__other__') && planId !== '__none__' && !topPlanIds.has(planId);
       if (!sel.plan.includes(planId) && !inOther) return false;
     }
@@ -442,6 +443,15 @@ export class AnalyticsService {
     const w = windowOverride ?? this.window();
     return this.sourceRows().filter((row) => this.inWindow(row, w) && this.matchesCross(row, exclude));
   }
+
+  private readonly topPlanIds = computed(() => {
+    const counts = new Map<string, number>();
+    for (const row of this.rowsFor('plan')) {
+      const id = row.subscription?.planId;
+      if (id) counts.set(id, (counts.get(id) ?? 0) + 1);
+    }
+    return new Set([...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 5).map(([id]) => id));
+  });
 
   readonly rows = computed(() => this.rowsFor());
   readonly rowsIgnoringStatus = computed(() => this.rowsFor('status'));
@@ -471,7 +481,7 @@ export class AnalyticsService {
     const from = w.from ?? earliest;
     const to = w.to ?? now;
     if (to <= from) return [];
-    return bucketsBetween(from, to, pickGranularity(to - from));
+    return bucketsBetween(from, to, this.preset() === '6M' ? 'month' : pickGranularity(to - from));
   });
 
   readonly granularityLabel = computed(() => {
@@ -490,7 +500,10 @@ export class AnalyticsService {
     const counts = new Array(buckets.length).fill(0);
     for (const at of dates) {
       if (at === null) continue;
+      const window = this.window();
+      if ((window.from !== null && at < window.from) || (window.to !== null && at > window.to)) continue;
       for (let i = 0; i < buckets.length; i++) {
+        if (this.selection().period.length && !this.selection().period.includes(buckets[i].key)) continue;
         if (at >= buckets[i].start && at <= buckets[i].end) {
           counts[i]++;
           break;
@@ -503,7 +516,7 @@ export class AnalyticsService {
   // --- lifecycle events, sliced -------------------------------------------
 
   private eventsIn(type: LifecycleEvent['type'], w: { from: number | null; to: number | null }, respectPeriod = true): LifecycleEvent[] {
-    const allowed = new Set(this.rowsAllTime().map((r) => r.org.orgId));
+    const allowed = new Set(this.rowsFor(undefined, w).map((r) => r.org.orgId));
     const selectedPeriods = respectPeriod ? this.selection().period : [];
     const buckets = selectedPeriods.length ? this.buckets() : [];
     return this.events().filter((e) => {
@@ -511,10 +524,8 @@ export class AnalyticsService {
       if (w.from !== null && e.at < w.from) return false;
       if (w.to !== null && e.at > w.to) return false;
       if (selectedPeriods.length && !buckets.some((b) => selectedPeriods.includes(b.key) && e.at >= b.start && e.at <= b.end)) return false;
-      // An event whose organization is filtered out of the slice is not in the
-      // slice either. Events with no org id are kept — dropping them would
-      // silently undercount rather than visibly.
-      return e.orgId === null || allowed.has(e.orgId);
+      // Events must belong to an organization in the same filtered cohort.
+      return e.orgId !== null && allowed.has(e.orgId);
     });
   }
 
@@ -536,6 +547,30 @@ export class AnalyticsService {
 
   private countBy(rows: OrgOverviewRow[], predicate: (r: OrgOverviewRow) => boolean): number {
     return rows.filter(predicate).length;
+  }
+
+  /** Match the count shown on a dashboard card without changing chart filters. */
+  organizationsForKpi(key: string): OrgOverviewRow[] {
+    if (key === 'total') return this.rows();
+    if (key === 'reactivated') {
+      const ids = new Set(this.eventsIn('REACTIVATED', this.window()).map(event => event.orgId));
+      return this.rows().filter(row => ids.has(row.org.orgId));
+    }
+    return this.rows().filter(row => {
+      switch (key) {
+        case 'subscribed': return statusKeyOf(row) === 'ACTIVE';
+        case 'salesRenewals':
+        case 'nearExpiry': return row.subscription?.planStatus === 'ACTIVE' &&
+          row.daysToExpiry !== null && row.daysToExpiry >= 0 && row.daysToExpiry <= 30;
+        case 'expired': return statusKeyOf(row) === 'EXPIRED';
+        case 'unsubscribed': return statusKeyOf(row) === 'UNSUBSCRIBED';
+        case 'salesTrials': return !row.org.isPaidOrg && statusKeyOf(row) === 'ACTIVE';
+        case 'salesWinback': return ['EXPIRED', 'UNSUBSCRIBED'].includes(statusKeyOf(row));
+        case 'paid': return !!row.org.isPaidOrg;
+        case 'trial': return !row.org.isPaidOrg;
+        default: return false;
+      }
+    });
   }
 
   readonly kpis = computed<KpiDefinition[]>(() => {
@@ -560,11 +595,11 @@ export class AnalyticsService {
         label: 'Total organizations',
         icon: 'ti-building',
         color: VIZ_SLOT.violet,
-        value: this.grandTotal(),
+        value: rows.length,
         previous: null,
-        trend: this.countInBuckets(this.sourceRows().map((r) => parse(r.org.createdDate))),
+        trend: this.countInBuckets(rows.map((r) => parse(r.org.createdDate))),
         upIsGood: true,
-        hint: 'All organizations on the platform',
+        hint: 'Organizations in the selected filters',
         filter: null
       },
       {
@@ -622,7 +657,7 @@ export class AnalyticsService {
         color: VIZ_SLOT.aqua,
         value: this.reactivated(),
         previous: prevWindow && !this.selection().period.length ? this.distinctOrgs(this.eventsIn('REACTIVATED', prevWindow)) : null,
-        trend: this.countInBuckets(this.eventsIn('REACTIVATED', { from: null, to: null }, false).map((e) => e.at)),
+        trend: this.countInBuckets(this.eventsIn('REACTIVATED', this.window()).map((e) => e.at)),
         upIsGood: true,
         hint: this.eventsFailed() ? 'Audit log unavailable' : 'Won back from suspended or expired',
         filter: null
@@ -675,7 +710,7 @@ export class AnalyticsService {
   // --- visuals -------------------------------------------------------------
 
   readonly statusMix = computed(() => {
-    const rows = this.rowsIgnoringStatus();
+    const rows = this.rows();
     return STATUS_ORDER.map((key) => ({
       key,
       label: STATUS_LABEL[key],
@@ -685,7 +720,7 @@ export class AnalyticsService {
   });
 
   readonly billingMix = computed(() => {
-    const rows = this.rowsIgnoringBilling();
+    const rows = this.rows();
     return (['PAID', 'TRIAL'] as BillingKey[]).map((key) => ({
       key,
       label: BILLING_LABEL[key],
@@ -700,7 +735,7 @@ export class AnalyticsService {
    * under colour-vision deficiency — so the tail folds instead.
    */
   readonly planMix = computed(() => {
-    const rows = this.rowsIgnoringPlan();
+    const rows = this.rows();
     const counts = new Map<string, number>();
     let unassigned = 0;
     for (const row of rows) {
@@ -713,21 +748,22 @@ export class AnalyticsService {
     }
     const slots: string[] = [VIZ_SLOT.blue, VIZ_SLOT.orange, VIZ_SLOT.aqua, VIZ_SLOT.yellow, VIZ_SLOT.magenta];
     const sorted = [...counts.entries()].sort((a, b) => b[1] - a[1]);
-    const head = sorted.slice(0, 5).map(([planId, value], i) => ({
+    const head = sorted.filter(([id]) => this.topPlanIds().has(id)).map(([planId, value], i) => ({
       key: planId,
       label: this.plans.byId(planId)?.planName ?? planId,
       value,
       color: slots[i]
     }));
-    const tail = sorted.slice(5).reduce((sum, [, v]) => sum + v, 0);
+    const others = sorted.filter(([id]) => !this.topPlanIds().has(id));
+    const tail = others.reduce((sum, [, v]) => sum + v, 0);
     const out = [...head];
-    if (tail > 0) out.push({ key: '__other__', label: `Other (${sorted.length - 5} plans)`, value: tail, color: VIZ_SLOT.violet });
+    if (tail > 0) out.push({ key: '__other__', label: `Other (${others.length} plans)`, value: tail, color: VIZ_SLOT.violet });
     if (unassigned > 0) out.push({ key: '__none__', label: 'No plan assigned', value: unassigned, color: STATUS_COLOR['NONE'] });
     return out;
   });
 
   readonly expiryRunway = computed(() => {
-    const rows = this.rowsIgnoringExpiry();
+    const rows = this.rows();
     return EXPIRY_ORDER.map((key, i) => ({
       key,
       label: EXPIRY_LABEL[key],
@@ -742,7 +778,7 @@ export class AnalyticsService {
 
   /** New / churned / reactivated over the window, on one axis. */
   readonly lifecycleTrend = computed(() => {
-    const rows = this.rowsAllTime();
+    const rows = this.rows();
     const isChurn = (r: OrgOverviewRow) => {
       const k = statusKeyOf(r);
       return k === 'EXPIRED' || k === 'UNSUBSCRIBED';
@@ -814,7 +850,7 @@ export class AnalyticsService {
   }
 
   clearAll(): void {
-    this.preset.set('ALL');
+    this.preset.set('6M');
     this.customFrom.set('');
     this.customTo.set('');
     this.basis.set('ONBOARDED');

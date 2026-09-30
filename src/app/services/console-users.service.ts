@@ -41,4 +41,14 @@ export class ConsoleUsersService {
     this.users.update((list) => [...list, { ...created, temporaryPassword: undefined }]);
     return created;
   }
+
+  async update(id: string, request: { email: string; displayName: string }): Promise<void> {
+    const updated = await firstValueFrom(this.http.put<ConsoleUser>(`${API_BASE_URL}/platform/console-users/${id}`, request));
+    this.users.update(list => list.map(user => user.id === id ? updated : user));
+  }
+
+  async remove(id: string): Promise<void> {
+    await firstValueFrom(this.http.delete(`${API_BASE_URL}/platform/console-users/${id}`));
+    this.users.update(list => list.filter(user => user.id !== id));
+  }
 }

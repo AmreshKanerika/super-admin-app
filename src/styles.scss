@@ -343,6 +343,7 @@ button {
 // ---------------------------------------------------------------------------
 
 .field {
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -368,6 +369,7 @@ button {
 .input,
 select.input,
 textarea.input {
+  min-width: 0;
   font-family: inherit;
   font-size: 13.5px;
   padding: 9px 12px;

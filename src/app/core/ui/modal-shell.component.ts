@@ -34,6 +34,7 @@ import { Component, EventEmitter, HostListener, Input, Output } from '@angular/c
         box-shadow: var(--shadow-lg);
         width: 100%;
         max-height: 88vh;
+        max-height: 88dvh;
         overflow-y: auto;
       }
       .head {
@@ -61,6 +62,11 @@ import { Component, EventEmitter, HostListener, Input, Output } from '@angular/c
       }
       .body {
         padding: 22px;
+      }
+      @media (max-width: 480px) {
+        .backdrop { padding: 12px; }
+        .head, .body { padding: 16px; }
+        .x { min-width: 44px; min-height: 44px; }
       }
     `
   ]

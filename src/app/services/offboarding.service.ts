@@ -52,6 +52,7 @@ export class OffboardingService {
       this.http.post(`${API_BASE_URL}/platform/organizations/${orgId}/offboarding/purge-now`, { reason, requestedBy })
     );
     this.audit.log('ORG_PURGED', 'Organization', org?.organizationName ?? orgId, 'SUCCESS', orgId);
+    this.organizations.removeFromCache(orgId);
     await Promise.all([this.organizations.refresh(), this.subscriptions.refresh()]);
   }
 

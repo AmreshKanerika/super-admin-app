@@ -24,7 +24,7 @@ interface Segment extends DonutSlice {
   standalone: true,
   imports: [CommonModule],
   template: `
-    <div class="donut-wrap">
+    <div class="donut-wrap" [class.stacked]="stacked()">
       <div class="ring">
         <svg [attr.viewBox]="'0 0 ' + box + ' ' + box" role="img" [attr.aria-label]="ariaLabel()">
           <g *ngFor="let s of segments(); trackBy: trackKey">
@@ -90,6 +90,9 @@ interface Segment extends DonutSlice {
         flex-wrap: wrap;
         margin-top: 12px;
       }
+      .donut-wrap.stacked { flex-direction: column; gap: 8px; margin-top: 0; }
+      .stacked .ring { width: 164px; }
+      .stacked .legend { width: 100%; flex: auto; min-width: 0; }
       .ring {
         flex: 0 0 auto;
         width: 220px;
@@ -195,6 +198,7 @@ interface Segment extends DonutSlice {
   ]
 })
 export class DonutChartComponent {
+  readonly stacked = input(false);
   readonly slices = input<DonutSlice[]>([]);
   /** Keys currently selected as cross-filters. Empty means "nothing selected". */
   readonly selected = input<string[]>([]);

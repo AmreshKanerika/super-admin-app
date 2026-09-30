@@ -1,10 +1,11 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { PageHeaderComponent } from '../../core/ui/page-header.component';
 import { ModalShellComponent } from '../../core/ui/modal-shell.component';
 import { PlanBuilderComponent } from '../plans/plan-builder.component';
+import { ApplicationsService } from '../../services/applications.service';
 import { PlansService } from '../../services/plans.service';
 import { ToastService } from '../../core/toast.service';
 import { OrganizationsService } from '../../services/organizations.service';
@@ -38,6 +39,14 @@ export class SubscriptionOnboardingWizardComponent {
   private subscriptionsService = inject(SubscriptionsService);
   private plans = inject(PlansService);
   onboarding = inject(OrganizationOnboardingService);
+
+  private applications = inject(ApplicationsService);
+  readonly requestedApplicationId = this.route.snapshot.queryParamMap.get('applicationId');
+  readonly requestedApplication = computed(() => this.requestedApplicationId ? this.applications.byId(this.requestedApplicationId) : undefined);
+  private includesRequestedApplication(plan: OnboardingPlan): boolean {
+    if (!this.requestedApplicationId) return true;
+    return plan.primaryAppId === this.requestedApplicationId || !!this.plans.byId(plan.planId)?.apps.some(app => app.appId === this.requestedApplicationId && app.accessStatus === 'ENABLED');
+  }
 
   mode: WizardMode = 'NEW_ORGANIZATION';
   organizationId: string | null = null;
@@ -142,11 +151,11 @@ export class SubscriptionOnboardingWizardComponent {
   }
 
   readyPlans(): OnboardingPlan[] {
-    return this.onboarding.availablePlans()().filter((plan) => plan.onboardingReady);
+    return this.onboarding.availablePlans()().filter((plan) => plan.onboardingReady && this.includesRequestedApplication(plan));
   }
 
   blockedPlans(): OnboardingPlan[] {
-    return this.onboarding.availablePlans()().filter((plan) => !plan.onboardingReady);
+    return this.onboarding.availablePlans()().filter((plan) => !plan.onboardingReady && this.includesRequestedApplication(plan));
   }
 
   planById(planId: string): OnboardingPlan | undefined {

@@ -1,4 +1,5 @@
-import { Component } from '@angular/core';
+import { NavigationHistoryService } from './core/navigation-history.service';
+import { Component, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { GlobalLoadingIndicatorComponent } from './core/ui/global-loading-indicator.component';
 
@@ -10,5 +11,6 @@ import { GlobalLoadingIndicatorComponent } from './core/ui/global-loading-indica
   styleUrl: './app.component.scss'
 })
 export class AppComponent {
+  private readonly navigationHistory = inject(NavigationHistoryService);
   title = 'super-admin';
 }

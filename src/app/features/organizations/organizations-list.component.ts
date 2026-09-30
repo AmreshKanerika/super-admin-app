@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -19,7 +19,7 @@ import { PlanStatus } from '../../models';
 type SortKey = 'name' | 'expiry' | 'created';
 
 /** Options of the "Onboarded" filter: an order, or a recent window (always newest first). */
-export type OnboardedView = 'latest' | 'earliest' | 'last7' | 'last30' | 'last90';
+export type OnboardedView = 'latest' | 'earliest' | 'last7' | 'last30' | 'last90' | 'nameAZ' | 'nameZA' | 'expiry';
 const WINDOW_DAYS: Partial<Record<OnboardedView, number>> = { last7: 7, last30: 30, last90: 90 };
 
 @Component({
@@ -52,6 +52,10 @@ export class OrganizationsListComponent {
   formatDate = formatDate;
 
   search = '';
+  private readonly filterRevision = signal(0);
+  private searchTimer: ReturnType<typeof setTimeout> | undefined;
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly appliedSearch = signal('');
   planStatus: PlanStatus | '' = '';
   planId = '';
   expiringInDays: number | null = null;
@@ -66,8 +70,11 @@ export class OrganizationsListComponent {
   sortAsc = signal(false);
 
   readonly onboardedOptions: { value: OnboardedView; label: string }[] = [
-    { value: 'latest', label: 'Latest first' },
-    { value: 'earliest', label: 'Earliest first' },
+    { value: 'latest', label: 'Newest onboarded' },
+    { value: 'earliest', label: 'Oldest onboarded' },
+    { value: 'nameAZ', label: 'Name: A–Z' },
+    { value: 'nameZA', label: 'Name: Z–A' },
+    { value: 'expiry', label: 'Expiring soonest' },
     { value: 'last7', label: 'Last 7 days' },
     { value: 'last30', label: 'Last 30 days' },
     { value: 'last90', label: 'Last 90 days' }
@@ -83,6 +90,7 @@ export class OrganizationsListComponent {
   backUrl: string | null = null;
 
   constructor() {
+    this.destroyRef.onDestroy(() => clearTimeout(this.searchTimer));
     const q = this.route.snapshot.queryParamMap;
     this.planStatus = (q.get('planStatus') as PlanStatus) ?? '';
     this.expiringInDays = q.get('expiringInDays') ? Number(q.get('expiringInDays')) : null;
@@ -106,14 +114,11 @@ export class OrganizationsListComponent {
     }
   }
 
-  // Plain methods, not computed(): several inputs here (search, planStatus, planId,
-  // expiringInDays, paidOnly) are ngModel-bound plain fields, not signals, so a
-  // computed() would never see them change and would go stale. Angular's default
-  // change detection re-evaluates template method calls every cycle, which keeps
-  // this correct at the data volumes this app deals with.
-  filtered(): OrgOverviewRow[] {
-    const rows = this.overview.filter(this.overview.rows(), {
-      search: this.search,
+  // One cached pass per data/filter change, not on every change-detection cycle.
+  readonly filtered = computed<OrgOverviewRow[]>(() => {
+    this.filterRevision();
+    const rows = this.overview.filter(this.overview.rows().filter(row => !row.org.isDecommissioned), {
+      search: this.appliedSearch(),
       planStatus: this.planStatus || undefined,
       planId: this.planId || undefined,
       expiringInDays: this.expiringInDays ?? undefined,
@@ -139,7 +144,7 @@ export class OrganizationsListComponent {
       return this.sortAsc() ? cmp : -cmp;
     });
     return sorted;
-  }
+  });
 
   visibleRows(): OrgOverviewRow[] {
     const rows = this.filtered();
@@ -189,18 +194,29 @@ export class OrganizationsListComponent {
     const windowDays = this.createdWithinDays;
     const match = (Object.keys(WINDOW_DAYS) as OnboardedView[]).find((v) => WINDOW_DAYS[v] === windowDays);
     if (windowDays && match) return match;
-    if (this.sortKey() !== 'created') return '';
+    if (this.sortKey() === 'name') return this.sortAsc() ? 'nameAZ' : 'nameZA';
+    if (this.sortKey() === 'expiry') return 'expiry';
     return this.sortAsc() ? 'earliest' : 'latest';
   }
 
   setOnboardedView(view: OnboardedView): void {
     this.createdWithinDays = WINDOW_DAYS[view] ?? null;
-    this.sortKey.set('created');
-    this.sortAsc.set(view === 'earliest');
+    this.sortKey.set(view === 'expiry' ? 'expiry' : view === 'nameAZ' || view === 'nameZA' ? 'name' : 'created');
+    this.sortAsc.set(view === 'earliest' || view === 'nameAZ' || view === 'expiry');
     this.onFilterChange();
   }
 
+  onSearchChange(value: string): void {
+    this.search = value;
+    clearTimeout(this.searchTimer);
+    this.searchTimer = setTimeout(() => {
+      this.appliedSearch.set(value.trim());
+      this.visibleLimit = OrganizationsListComponent.ROWS_PER_SCROLL_STEP;
+    }, 180);
+  }
+
   onFilterChange(): void {
+    this.filterRevision.update(value => value + 1);
     this.visibleLimit = OrganizationsListComponent.ROWS_PER_SCROLL_STEP;
     this.router.navigate([], {
       relativeTo: this.route,
@@ -214,6 +230,7 @@ export class OrganizationsListComponent {
         needsActivation: this.needsActivation ? 'true' : null,
         needsAttention: this.needsAttention ? 'true' : null
       },
+      replaceUrl: true,
       queryParamsHandling: 'merge'
     });
   }
@@ -241,7 +258,9 @@ export class OrganizationsListComponent {
   }
 
   resetFilters(): void {
+    clearTimeout(this.searchTimer);
     this.search = '';
+    this.appliedSearch.set('');
     this.planStatus = '';
     this.planId = '';
     this.expiringInDays = null;
@@ -267,7 +286,7 @@ export class OrganizationsListComponent {
       [
         r.org.organizationName,
         r.org.domainName,
-        this.planName(r.subscription?.planId),
+        r.subscriptions.map(s => this.planName(s.planId)).join(' | '),
         r.subscription?.planStatus ?? '',
         r.subscription ? formatDate(r.subscription.planStartDate) : '',
         r.subscription ? formatDate(r.subscription.planEndDate) : ''
@@ -286,9 +305,28 @@ export class OrganizationsListComponent {
     this.toast.show(`Exported ${rows.length} organizations to CSV`, 'success');
   }
 
-  pendingActivationCount(): number {
-    return this.overview.rows().filter((row) => row.org.domainStatus && row.org.domainStatus !== 'ACTIVE').length;
+  readonly pendingActivationCount = computed(() => this.overview.rows().filter(row => row.org.domainStatus && row.org.domainStatus !== 'ACTIVE').length);
+
+  domainUrl(row: OrgOverviewRow): string | null {
+    if (row.org.domainStatus !== 'ACTIVE' || !row.org.domainName) return null;
+    try {
+      const raw = row.org.domainName.trim();
+      const url = new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`);
+      return ['https:', 'http:'].includes(url.protocol) && !url.username && !url.password ? url.href : null;
+    } catch { return null; }
   }
+
+  readonly expandedOrganizations = signal<ReadonlySet<string>>(new Set());
+  togglePlans(orgId: string): void {
+    this.expandedOrganizations.update(current => {
+      const next = new Set(current);
+      if (next.has(orgId)) next.delete(orgId); else next.add(orgId);
+      return next;
+    });
+  }
+
+  readonly subscriptionsByOrg = computed(() => new Map(this.overview.rows().map(row => [row.org.orgId,
+    [...row.subscriptions].sort((a, b) => (Date.parse(b.planStartDate) || 0) - (Date.parse(a.planStartDate) || 0))])));
 
   domainChipTitle(org: { domainStatus: string | null; domainDaysUntilExpiry: number | null }): string {
     if (org.domainStatus === 'RELEASED') {

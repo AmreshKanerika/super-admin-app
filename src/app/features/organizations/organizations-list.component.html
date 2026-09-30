@@ -4,20 +4,20 @@
 </app-page-header>
 <p class="attention-summary" *ngIf="needsAttention">Each organization appears once. Review the reasons and next steps below; open its name to manage the subscription or domain.</p>
 
-<div class="filterbar">
-  <input class="input search" placeholder="Search by name or domain…" [(ngModel)]="search" />
+<div class="filterbar" role="search" aria-label="Find and filter organizations">
+  <input class="input search" placeholder="Search by name or domain…" type="search" aria-label="Search organizations" [ngModel]="search" (ngModelChange)="onSearchChange($event)" />
 
-  <select class="input select" [(ngModel)]="planStatus" (change)="onFilterChange()">
+  <select class="input select" aria-label="Subscription status" [(ngModel)]="planStatus" (change)="onFilterChange()">
     <option value="">Any status</option>
     <option *ngFor="let s of statusOptions" [value]="s">{{ s }}</option>
   </select>
 
-  <select class="input select" [(ngModel)]="planId" (change)="onFilterChange()">
+  <select class="input select" aria-label="Subscription plan" [(ngModel)]="planId" (change)="onFilterChange()">
     <option value="">Any plan</option>
     <option *ngFor="let p of plans.list()()" [value]="p.planId">{{ p.planName }}</option>
   </select>
 
-  <select class="input select" aria-label="Onboarded" title="Order and range by onboarding date"
+  <select class="input select" aria-label="Sort and onboarding range" title="Order and range by onboarding date"
           [ngModel]="onboardedView()" (ngModelChange)="setOnboardedView($event)">
     <option value="" disabled>Onboarded…</option>
     <option *ngFor="let o of onboardedOptions" [value]="o.value">{{ o.label }}</option>
@@ -59,13 +59,13 @@
 
 <div class="active-filters" *ngIf="planStatus || planId || expiringInDays || paidOnly || hasSubscription === false || createdWithinDays || needsActivation || needsAttention">
   <button type="button" class="chip removable" *ngIf="needsAttention" (click)="clearFilter('needsAttention')">Needs attention ×</button>
-  <span class="chip removable" *ngIf="planStatus" (click)="clearFilter('planStatus')">Status: {{ planStatus }}</span>
-  <span class="chip removable" *ngIf="planId" (click)="clearFilter('planId')">Plan: {{ planName(planId) }}</span>
-  <span class="chip removable" *ngIf="expiringInDays" (click)="clearFilter('expiringInDays')">Expiring in {{ expiringInDays }}d</span>
-  <span class="chip removable" *ngIf="paidOnly" (click)="clearFilter('paidOnly')">Paid organizations</span>
-  <span class="chip removable" *ngIf="hasSubscription === false" (click)="clearFilter('hasSubscription')">No subscription</span>
-  <span class="chip removable" *ngIf="createdWithinDays" (click)="clearFilter('createdWithinDays')">Onboarded in {{ createdWithinDays }}d</span>
-  <span class="chip removable" *ngIf="needsActivation" (click)="clearFilter('needsActivation')">URL needs activation</span>
+  <button type="button" class="chip removable" *ngIf="planStatus" (click)="clearFilter('planStatus')">Status: {{ planStatus }} ×</button>
+  <button type="button" class="chip removable" *ngIf="planId" (click)="clearFilter('planId')">Plan: {{ planName(planId) }} ×</button>
+  <button type="button" class="chip removable" *ngIf="expiringInDays" (click)="clearFilter('expiringInDays')">Expiring in {{ expiringInDays }}d ×</button>
+  <button type="button" class="chip removable" *ngIf="paidOnly" (click)="clearFilter('paidOnly')">Paid organizations ×</button>
+  <button type="button" class="chip removable" *ngIf="hasSubscription === false" (click)="clearFilter('hasSubscription')">No subscription ×</button>
+  <button type="button" class="chip removable" *ngIf="createdWithinDays" (click)="clearFilter('createdWithinDays')">Onboarded in {{ createdWithinDays }}d ×</button>
+  <button type="button" class="chip removable" *ngIf="needsActivation" (click)="clearFilter('needsActivation')">URL needs activation ×</button>
 </div>
 
 <div class="view-bar">
@@ -77,19 +77,17 @@
 
 <!-- ── Card view ─────────────────────────────────────────────────────────── -->
 <div class="view-grid" *ngIf="view() === 'cards' && visibleRows().length">
-  <a
+  <article
     class="entity-card org-card"
     *ngFor="let r of visibleRows(); trackBy: rowKey"
     [attr.data-status]="r.subscription?.planStatus || 'NONE'"
-    [routerLink]="['/organizations', r.org.orgId]"
-    [queryParams]="showBack ? { from: 'overview' } : null"
   >
     <div class="ec-top">
       <div class="oc-id">
         <span class="oc-avatar" aria-hidden="true">{{ r.org.organizationName.charAt(0).toUpperCase() }}</span>
         <span class="oc-name">
-          <span class="ec-title">{{ r.org.organizationName }}</span>
-          <span class="ec-sub mono">{{ r.org.domainName }}</span>
+          <a class="ec-title" [routerLink]="['/organizations', r.org.orgId]">{{ r.org.organizationName }}</a>
+          <ng-container *ngTemplateOutlet="domainLink; context: { $implicit: r }"></ng-container>
         </span>
       </div>
       <app-status-pill
@@ -101,7 +99,7 @@
     </div>
 
     <div class="ec-meta">
-      <span><i class="ti ti-clipboard-list" aria-hidden="true"></i>{{ planName(r.subscription?.planId) }}</span>
+      <ng-container *ngTemplateOutlet="planLinks; context: { $implicit: r }"></ng-container>
       <span><i class="ti" [class.ti-credit-card]="r.org.isPaidOrg" [class.ti-flask]="!r.org.isPaidOrg" aria-hidden="true"></i>{{ r.org.isPaidOrg ? 'Paid' : 'Trial' }}</span>
       <span
         class="domain-flag"
@@ -120,13 +118,14 @@
       </li>
     </ul>
 
+    <small class="onboarded-date">Onboarded {{ formatDate(r.org.createdDate) }}</small>
     <div class="ec-foot">
-      <span>Expires</span>
-      <app-countdown *ngIf="r.subscription" [date]="r.subscription.planEndDate"></app-countdown>
+      <span>End date</span>
+      <span *ngIf="r.subscription">{{ r.subscription.planEndDate ? formatDate(r.subscription.planEndDate) : 'No end date' }}</span>
       <span *ngIf="!r.subscription">—</span>
-      <i class="ti ti-arrow-up-right oc-open" aria-hidden="true"></i>
+      <a class="oc-open" [routerLink]="['/organizations', r.org.orgId]">Open ↗</a>
     </div>
-  </a>
+  </article>
 </div>
 
 <!-- ── List view ─────────────────────────────────────────────────────────── -->
@@ -134,19 +133,19 @@
   <table class="dtable org-table" *ngIf="visibleRows().length; else empty">
     <thead>
       <tr>
-        <th class="sortable" (click)="sortBy('name')">Organization</th>
+        <th><button class="sort-button" (click)="sortBy('name')">Organization ↕</button></th>
         <th>Domain</th>
-        <th>Plan</th>
-        <th>Status</th>
-        <th class="sortable" (click)="sortBy('expiry')">Expires</th>
+        <th>Plans</th>
+        <th>Primary status</th>
+        <th><button class="sort-button" (click)="sortBy('created')">Onboarded ↕</button></th><th><button class="sort-button" (click)="sortBy('expiry')">End date ↕</button></th>
         <th *ngIf="needsAttention">Why attention is needed / Next step</th>
       </tr>
     </thead>
     <tbody>
-      <tr *ngFor="let r of visibleRows(); trackBy: rowKey" [attr.data-status]="r.subscription?.planStatus || 'NONE'">
+      <ng-container *ngFor="let r of visibleRows(); trackBy: rowKey"><tr [attr.data-status]="r.subscription?.planStatus || 'NONE'">
         <td class="strong org-primary"><div class="org-cell"><span class="oc-list-avatar" aria-hidden="true">{{ r.org.organizationName.charAt(0).toUpperCase() }}</span><a class="row-link" [routerLink]="['/organizations', r.org.orgId]" [queryParams]="showBack ? { from: 'overview' } : null">{{ r.org.organizationName }}</a></div></td>
         <td class="org-domain">
-          <span class="domain-value">{{ r.org.domainName }}</span>
+          <ng-container *ngTemplateOutlet="domainLink; context: { $implicit: r }"></ng-container>
           <span
             class="domain-chip"
             *ngIf="r.org.domainStatus && r.org.domainStatus !== 'ACTIVE'"
@@ -155,12 +154,12 @@
             {{ r.org.domainStatus === 'RELEASED' ? 'Released' : 'Not activated' }}
           </span>
         </td>
-        <td><span class="plan-chip">{{ planName(r.subscription?.planId) }}</span></td>
+        <td><ng-container *ngTemplateOutlet="planLinks; context: { $implicit: r }"></ng-container></td>
         <td>
           <app-status-pill *ngIf="r.subscription" [label]="r.subscription.planStatus" [tone]="tone(r.subscription.planStatus)"></app-status-pill>
           <span *ngIf="!r.subscription" class="text-faint">no subscription</span>
         </td>
-        <td><app-countdown *ngIf="r.subscription" [date]="r.subscription.planEndDate"></app-countdown></td>
+        <td class="onboarded-date">{{ formatDate(r.org.createdDate) }}</td><td><span *ngIf="r.subscription">{{ r.subscription.planEndDate ? formatDate(r.subscription.planEndDate) : 'No end date' }}</span></td>
         <td *ngIf="needsAttention">
           <ul class="attention-reasons">
             <li *ngFor="let issue of overview.attentionReasons(r)"><strong>{{ issue.label }}</strong><span>{{ issue.action }}</span></li>
@@ -168,6 +167,10 @@
           <a [routerLink]="['/organizations', r.org.orgId]" [queryParams]="{ from: 'overview' }">Review organization →</a>
         </td>
       </tr>
+      <tr class="plan-detail-row" *ngIf="r.subscriptions.length > 1 && expandedOrganizations().has(r.org.orgId)"><td [attr.colspan]="needsAttention ? 7 : 6">
+        <div class="expanded-plan-header"><i class="ti ti-hierarchy-2" aria-hidden="true"></i><strong>{{ r.org.organizationName }} · Subscription plans</strong><span>Newest plan first</span></div>
+        <ng-container *ngTemplateOutlet="expandedPlans; context: { $implicit: r, orgPlans: subscriptionsByOrg().get(r.org.orgId) }"></ng-container>
+      </td></tr></ng-container>
     </tbody>
   </table>
   <ng-template #empty>
@@ -191,3 +194,37 @@
   <i class="ti ti-chevrons-down" aria-hidden="true"></i>
   Loading more as you scroll
 </p>
+
+<ng-template #domainLink let-r>
+<a *ngIf="domainUrl(r) as url; else inactiveDomain" class="domain-value live-domain" [href]="url" target="_blank" rel="noopener noreferrer" [attr.aria-label]="'Open live workspace for ' + r.org.organizationName">{{ r.org.domainName }} ↗</a>
+<ng-template #inactiveDomain><span class="domain-value">{{ r.org.domainName || 'No URL assigned' }}</span></ng-template>
+</ng-template>
+<ng-template #planLinks let-r>
+  <div class="plan-stack" *ngIf="subscriptionsByOrg().get(r.org.orgId) as orgPlans">
+    <ng-container *ngIf="orgPlans.length > 1; else singlePlan">
+      <button type="button" class="plan-disclosure" (click)="togglePlans(r.org.orgId)"
+        [attr.aria-expanded]="expandedOrganizations().has(r.org.orgId)"
+        [attr.aria-controls]="'plan-tree-' + r.org.orgId"
+        [attr.aria-label]="(expandedOrganizations().has(r.org.orgId) ? 'Collapse' : 'Expand') + ' plans for ' + r.org.organizationName">
+        <span class="plan-group-icon"><i class="ti ti-hierarchy-2" aria-hidden="true"></i></span>
+        <span class="plan-group-title"><strong>{{ orgPlans.length }} subscription plans</strong><small>{{ expandedOrganizations().has(r.org.orgId) ? 'Newest plan first' : 'View plans, status & dates' }}</small></span>
+        <i class="ti" [class.ti-chevron-down]="!expandedOrganizations().has(r.org.orgId)" [class.ti-chevron-up]="expandedOrganizations().has(r.org.orgId)" aria-hidden="true"></i>
+      </button>
+      <ng-container *ngIf="view() === 'cards' && expandedOrganizations().has(r.org.orgId)"><ng-container *ngTemplateOutlet="expandedPlans; context: { $implicit: r, orgPlans: orgPlans }"></ng-container></ng-container>
+    </ng-container>
+    <ng-template #singlePlan>
+      <a class="plan-chip" *ngFor="let sub of orgPlans" [routerLink]="['/plans', sub.planId]" [title]="planName(sub.planId) + ' · ' + sub.planStatus"><span>{{ planName(sub.planId) }}</span><small>{{ sub.planStatus }}</small> ↗</a>
+      <span class="text-faint" *ngIf="!orgPlans.length">No plan assigned</span>
+    </ng-template>
+  </div>
+</ng-template>
+
+<ng-template #expandedPlans let-r let-orgPlans="orgPlans">
+      <ul class="plan-tree" [id]="'plan-tree-' + r.org.orgId">
+        <li *ngFor="let sub of orgPlans"><a [routerLink]="['/plans', sub.planId]" class="plan-node">
+          <span class="plan-node-heading"><strong>{{ planName(sub.planId) }}</strong><i class="ti ti-arrow-up-right" aria-hidden="true"></i></span>
+          <span class="plan-node-status">{{ sub.planStatus }}</span>
+          <small>{{ formatDate(sub.planStartDate) }} — {{ sub.planEndDate ? formatDate(sub.planEndDate) : 'No end date' }}</small>
+        </a></li>
+      </ul>
+</ng-template>

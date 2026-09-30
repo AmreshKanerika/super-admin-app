@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, ElementRef, ViewChild, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -23,7 +23,6 @@ import { DonutChartComponent } from '../../core/charts/donut-chart.component';
 import { LineChartComponent } from '../../core/charts/line-chart.component';
 import { ColumnChartComponent } from '../../core/charts/column-chart.component';
 import { HbarChartComponent } from '../../core/charts/hbar-chart.component';
-import { StatTileComponent } from '../../core/charts/stat-tile.component';
 import { MeterComponent } from '../../core/charts/meter.component';
 import { ScrollSentinelComponent } from '../../core/ui/scroll-sentinel.component';
 import { CountdownComponent } from '../../core/ui/countdown.component';
@@ -60,7 +59,7 @@ interface PresetOption {
     LineChartComponent,
     ColumnChartComponent,
     HbarChartComponent,
-    StatTileComponent,
+
     MeterComponent,
     CountdownComponent
   ],
@@ -87,6 +86,7 @@ export class OverviewComponent {
   // --- slicer --------------------------------------------------------------
 
   readonly presets: PresetOption[] = [
+    { key: '6M', label: 'Last 6 months' },
     { key: 'ALL', label: 'All time' },
     { key: '7D', label: 'Last 7 days' },
     { key: '30D', label: 'Last 30 days' },
@@ -105,6 +105,7 @@ export class OverviewComponent {
 
   setPreset(preset: RangePreset): void {
     this.a.setPreset(preset);
+    this.trendPage.set(0);
     if (preset === 'CUSTOM' && !this.a.customFrom() && !this.a.customTo()) {
       // Seed the custom range with the last 30 days so the two pickers open on
       // something sensible instead of an empty pair that filters nothing.
@@ -134,6 +135,10 @@ export class OverviewComponent {
 
   // --- KPI row -------------------------------------------------------------
 
+  metricLabel(k: KpiDefinition): string {
+    return ({ total: 'Total organizations', paid: 'Paid organizations', trial: 'Trial organizations', subscribed: 'Active subscriptions', nearExpiry: 'Renewing in 30 days', expired: 'Expired', unsubscribed: 'Unsubscribed', reactivated: 'Reactivated' } as Record<string, string>)[k.key] ?? k.label;
+  }
+
   deltaOf(k: KpiDefinition): number | null {
     return k.previous === null ? null : k.value - k.previous;
   }
@@ -142,22 +147,30 @@ export class OverviewComponent {
     return k.filter ? this.a.isSelected(k.filter.dim, k.filter.value) : false;
   }
 
+  @ViewChild('organizationDialog') organizationDialog!: ElementRef<HTMLDialogElement>;
+  readonly selectedMetric = signal<KpiDefinition | null>(null);
+  readonly organizationSearch = signal('');
+  readonly primaryKpis = computed(() => ['total', 'paid', 'trial', 'subscribed', 'nearExpiry', 'expired', 'unsubscribed', 'reactivated'].map(key => this.a.kpis().find(k => k.key === key)!));
+  readonly metricRows = computed(() => {
+    const metric = this.selectedMetric();
+    if (!metric) return this.a.rows();
+    return this.a.organizationsForKpi(metric.key);
+  });
+
   onKpiClick(k: KpiDefinition): void {
-    if (k.filter) this.a.toggle(k.filter.dim, k.filter.value);
+    this.selectedMetric.set(k);
+    this.organizationSearch.set('');
+    this.resetVisibleRows();
+    this.organizationDialog.nativeElement.showModal();
   }
 
-  readonly executiveSignals = computed(() => {
-    const total = this.a.totalOrganizations();
-    const paid = this.a.conversion();
-    const renewals = this.a.renewalHealth();
-    const active = this.a.kpis().find((k) => k.key === 'subscribed')?.value ?? 0;
-    const ratio = (value: number, base: number) => base ? Math.round(value / base * 100) : 0;
-    return [
-      { label: 'Active coverage', value: ratio(active, total), count: `${active} of ${total} organizations`, icon: 'ti-activity', tone: 'blue' },
-      { label: 'Paid share', value: ratio(paid.paid, paid.total), count: `${paid.paid} of ${paid.total} organizations`, icon: 'ti-credit-card', tone: 'violet' },
-      { label: 'Renewal safety', value: ratio(renewals.healthy, renewals.withPlan), count: `${renewals.healthy} of ${renewals.withPlan} with a plan`, icon: 'ti-shield-check', tone: 'green' }
-    ];
-  });
+  closeOrganizations(): void {
+    this.organizationDialog.nativeElement.close();
+    this.selectedMetric.set(null);
+    this.organizationSearch.set('');
+  }
+
+
 
   // --- visuals -------------------------------------------------------------
 
@@ -178,6 +191,15 @@ export class OverviewComponent {
   });
 
   readonly trendPage = signal(0);
+  readonly auditReady = computed(() => !this.a.eventsLoading() && !this.a.eventsFailed());
+  readonly lifecycleSummary = computed(() => {
+    const t = this.a.lifecycleTrend();
+    const sum = (values: number[]) => values.reduce((total, value) => total + value, 0);
+    const added = sum(t.onboarded);
+    const ended = sum(t.churned);
+    const reactivated = this.auditReady() ? sum(t.reactivated) : null;
+    return { added, ended, reactivated, difference: reactivated === null ? null : added + reactivated - ended };
+  });
   readonly trendWindow = computed(() => {
     const total = this.a.lifecycleTrend().buckets.length;
     const page = Math.min(this.trendPage(), Math.max(0, Math.ceil(total / 12) - 1));
@@ -205,14 +227,14 @@ export class OverviewComponent {
     return [
       { key: 'onboarded', label: 'New organizations', color: TREND_COLOR.NEW, values: t.onboarded.slice(start, end) },
       { key: 'churned', label: 'Ended plans', color: TREND_COLOR.CHURNED, values: t.churned.slice(start, end) },
-      { key: 'reactivated', label: 'Reactivated', color: TREND_COLOR.REACTIVATED, values: t.reactivated.slice(start, end) }
+      ...(this.auditReady() ? [{ key: 'reactivated', label: 'Reactivated', color: TREND_COLOR.REACTIVATED, values: t.reactivated.slice(start, end) }] : [])
     ];
   });
   readonly trendTable = computed<TableRow[]>(() => {
     const t = this.a.lifecycleTrend();
     return t.buckets.map((b, i) => ({
       label: b.label,
-      values: [t.onboarded[i], t.churned[i], t.reactivated[i], t.onboarded[i] + t.reactivated[i] - t.churned[i]]
+      values: [t.onboarded[i], t.churned[i], this.auditReady() ? t.reactivated[i] : 'Unavailable', this.auditReady() ? t.onboarded[i] + t.reactivated[i] - t.churned[i] : 'Unavailable']
     }));
   });
 
@@ -220,13 +242,13 @@ export class OverviewComponent {
     const n = this.a.netMovement();
     const { start, end } = this.trendWindow();
     return [
-      { key: 'gained', label: 'New + reactivated', color: VIZ_SLOT.blue, values: n.gained.slice(start, end) },
+      { key: 'gained', label: this.auditReady() ? 'New + reactivated' : 'New organizations only', color: VIZ_SLOT.blue, values: (this.auditReady() ? n.gained : this.a.lifecycleTrend().onboarded).slice(start, end) },
       { key: 'lost', label: 'Ended plans', color: VIZ_SLOT.red, values: n.lost.slice(start, end) }
     ];
   });
   readonly netTable = computed<TableRow[]>(() => {
     const n = this.a.netMovement();
-    return n.buckets.map((b, i) => ({ label: b.label, values: [n.gained[i], n.lost[i], n.gained[i] - n.lost[i]] }));
+    return n.buckets.map((b, i) => ({ label: b.label, values: [this.auditReady() ? n.gained[i] : 'Unavailable', n.lost[i], this.auditReady() ? n.gained[i] - n.lost[i] : 'Unavailable'] }));
   });
 
   readonly runwayItems = computed<BarDatum[]>(() => this.a.expiryRunway());
@@ -247,7 +269,39 @@ export class OverviewComponent {
   readonly semantic = SEMANTIC;
   readonly slot = VIZ_SLOT;
 
-  readonly attentionPreview = computed(() => this.a.attentionRows().slice(0, 6));
+  readonly salesFocus = signal('salesRenewals');
+  readonly salesQueues = computed(() => [
+    { key: 'salesRenewals', label: 'Renewals', icon: 'ti-calendar-due', hint: 'Active plans ending within 30 days', action: 'Discuss renewal', rows: this.a.organizationsForKpi('nearExpiry') },
+    { key: 'salesTrials', label: 'Trial follow-up', icon: 'ti-flask', hint: 'Active trial accounts to qualify for a paid plan', action: 'Review trial & qualify', rows: this.a.organizationsForKpi('salesTrials') },
+    { key: 'salesWinback', label: 'Win-back', icon: 'ti-user-heart', hint: 'Expired, cancelled or unsubscribed accounts', action: 'Discuss reactivation', rows: this.a.organizationsForKpi('salesWinback') }
+  ]);
+  readonly currentQueue = computed(() => this.salesQueues().find(q => q.key === this.salesFocus())!);
+  readonly attentionPreview = computed(() => [...this.currentQueue().rows]
+    .sort((a, b) => this.salesFocus() === 'salesWinback'
+      ? (b.daysToExpiry ?? -999999) - (a.daysToExpiry ?? -999999)
+      : (a.daysToExpiry ?? 999999) - (b.daysToExpiry ?? 999999)).slice(0, 5));
+  readonly paidShare = computed(() => {
+    const data = this.a.conversion();
+    return data.total ? Math.round(data.paid / data.total * 100) : 0;
+  });
+
+  openSalesQueue(): void {
+    const queue = this.currentQueue();
+    this.onKpiClick({ key: queue.key, label: queue.label, icon: queue.icon,
+      hint: queue.hint, value: queue.rows.length, previous: null, trend: [],
+      color: '#7c46a3', upIsGood: true, filter: null });
+  }
+
+  metricContext(k: KpiDefinition): string {
+    if (k.key === 'total') return this.a.windowLabel();
+    if (k.key === 'reactivated') return 'By reactivation date';
+    const total = this.a.totalOrganizations();
+    return total ? Math.round(k.value / total * 100) + '% of filtered organizations' : 'No matching organizations';
+  }
+
+  auditUnavailable(k: KpiDefinition): boolean {
+    return k.key === 'reactivated' && (this.a.eventsLoading() || this.a.eventsFailed());
+  }
 
   priority(row: OrgOverviewRow): number {
     return this.overview.attentionReasons(row)[0]?.priority ?? 5;
@@ -285,7 +339,10 @@ export class OverviewComponent {
   readonly visibleRowCount = signal(OverviewComponent.ROWS_PER_SCROLL_STEP);
 
   readonly sortedRows = computed(() => {
-    const rows = [...this.a.rows()];
+    const query = this.organizationSearch().trim().toLowerCase();
+    const rows = this.metricRows().filter(row => !query ||
+      row.org.organizationName.toLowerCase().includes(query) ||
+      (row.org.domainName ?? '').toLowerCase().includes(query));
     const key = this.sortKey();
     const dir = this.sortAsc() ? 1 : -1;
     rows.sort((x, y) => {

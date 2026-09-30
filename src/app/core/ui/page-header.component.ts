@@ -1,7 +1,7 @@
 import { Component, Input } from '@angular/core';
 import { NgIf } from '@angular/common';
-import { Location } from '@angular/common';
-import { Router } from '@angular/router';
+import { NavigationHistoryService } from '../navigation-history.service';
+
 
 @Component({
   selector: 'app-page-header',
@@ -196,6 +196,8 @@ import { Router } from '@angular/router';
 
       .ph-actions {
         display: flex;
+        flex-wrap: wrap;
+        max-width: 100%;
         gap: 10px;
         align-items: center;
         flex-shrink: 0;
@@ -204,6 +206,11 @@ import { Router } from '@angular/router';
       @media (min-width: 1200px) {
         h1 { font-size: 28px; }
         .back-btn { width: 40px; height: 40px; font-size: 18px; }
+      }
+      @media (max-width: 640px) {
+        .ph.colorful { padding: 20px 18px; gap: 16px; }
+        .ph-actions { width: 100%; gap: 8px; }
+        .ph-actions ::ng-deep .btn { white-space: normal; min-height: 44px; }
       }
     `
   ]
@@ -215,13 +222,9 @@ export class PageHeaderComponent {
   @Input() showBack = false;
   @Input() backUrl: string | null = null;
 
-  constructor(private location: Location, private router: Router) {}
+  constructor(private navigationHistory: NavigationHistoryService) {}
 
   goBack(): void {
-    if (this.backUrl) {
-      this.router.navigateByUrl(this.backUrl);
-    } else {
-      this.location.back();
-    }
+    this.navigationHistory.back(this.backUrl);
   }
 }

@@ -1,4 +1,4 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { AppLimitConfig, BillingMode, SubscriptionPlan } from '../models';
@@ -60,8 +60,10 @@ export class PlansService {
     return planDisplayNameOrFallback(this.byId(planId), planId);
   }
 
+  private readonly byPlanId = computed(() => new Map(this.plans().map(plan => [plan.planId, plan])));
+
   byId(planId: string): SubscriptionPlan | undefined {
-    return this.plans().find((p) => p.planId === planId);
+    return this.byPlanId().get(planId);
   }
 
   defaults(): SubscriptionPlan[] {

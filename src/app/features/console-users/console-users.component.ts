@@ -29,6 +29,43 @@ export class ConsoleUsersComponent {
   firstName = '';
   lastName = '';
   role: ConsoleUserRole = 'SALES';
+  editing = signal<ConsoleUser | null>(null);
+  removing = signal<ConsoleUser | null>(null);
+  editEmail = '';
+  editName = '';
+
+  openEdit(user: ConsoleUser): void {
+    if (user.role !== 'SALES') return;
+    this.editEmail = user.email;
+    this.editName = user.displayName || '';
+    this.editing.set(user);
+  }
+
+  async saveEdit(): Promise<void> {
+    const user = this.editing();
+    if (!user || this.submitting() || !this.editName.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.editEmail.trim())) return;
+    this.submitting.set(true);
+    try {
+      await this.users.update(user.id, { email: this.editEmail.trim(), displayName: this.editName.trim() });
+      this.editing.set(null);
+      this.toast.show('Sales user updated', 'success');
+    } catch (err: unknown) {
+      this.toast.show((err as { error?: { message?: string } })?.error?.message || 'Could not update user', 'critical');
+    } finally { this.submitting.set(false); }
+  }
+
+  async removeUser(): Promise<void> {
+    const user = this.removing();
+    if (!user || user.role !== 'SALES' || this.submitting()) return;
+    this.submitting.set(true);
+    try {
+      await this.users.remove(user.id);
+      this.removing.set(null);
+      this.toast.show('Console access removed', 'success');
+    } catch (err: unknown) {
+      this.toast.show((err as { error?: { message?: string } })?.error?.message || 'Could not remove user', 'critical');
+    } finally { this.submitting.set(false); }
+  }
 
   // Set right after a successful create() that minted a brand-new login — shown once, exactly like
   // the onboarding wizard's one-time credential reveal, then discarded.

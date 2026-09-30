@@ -62,11 +62,11 @@ export class OverviewService {
       if (bucket) bucket.push(sub);
       else byOrg.set(sub.orgId, [sub]);
     }
-    const plans = this.plans.list()();
+    const plans = new Map(this.plans.list()().map(plan => [plan.planId, plan]));
     return this.organizations.list()().map((org) => {
       const subscriptions = byOrg.get(org.orgId) ?? [];
       const subscription = primarySubscription(subscriptions);
-      const plan = subscription ? plans.find((p) => p.planId === subscription.planId) : undefined;
+      const plan = subscription ? plans.get(subscription.planId) : undefined;
       const daysToExpiry = subscription ? daysUntil(subscription.planEndDate) : null;
       return { org, subscriptions, subscription, plan, daysToExpiry };
     });

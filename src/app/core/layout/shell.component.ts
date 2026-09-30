@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, HostListener, computed, inject, signal } from '@angular/core';
 import { NgFor, NgIf } from '@angular/common';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { ToastHostComponent } from '../ui/toast-host.component';
@@ -33,8 +33,7 @@ export class ShellComponent {
     { label: 'Overview', path: '/overview', icon: 'ti-layout-dashboard', section: 'Workspace' },
     { label: 'Organizations', path: '/organizations', icon: 'ti-building' },
     { label: 'Applications', path: '/applications', icon: 'ti-apps', technicalOnly: true },
-    { label: 'Plans', path: '/plans', icon: 'ti-clipboard-list', technicalOnly: true },
-    { label: 'Subscriptions', path: '/subscriptions', icon: 'ti-credit-card' },
+    { label: 'Subscription Plans', path: '/plans', icon: 'ti-clipboard-list', technicalOnly: true },
     { label: 'Notifications', path: '/notifications', icon: 'ti-bell', section: 'Operations' },
     { label: 'Offboarding', path: '/offboarding', icon: 'ti-door-exit', technicalOnly: true },
     { label: 'Audit log', path: '/audit-log', icon: 'ti-history', technicalOnly: true },
@@ -49,6 +48,7 @@ export class ShellComponent {
   // On first visit (no stored preference yet) default to collapsed on narrow viewports, where the
   // sidebar becomes an off-canvas overlay — showing it open by default would cover the whole screen.
   private resolveInitialCollapsed(): boolean {
+    if (window.innerWidth <= 640) return true;
     const stored = localStorage.getItem(COLLAPSE_KEY);
     if (stored !== null) return stored === '1';
     return window.innerWidth < 640;
@@ -66,10 +66,18 @@ export class ShellComponent {
   }
 
   closeOnMobileNav(): void {
-    if (window.innerWidth < 640 && !this.collapsed()) {
+    if (window.innerWidth <= 640 && !this.collapsed()) {
       this.collapsed.set(true);
       localStorage.setItem(COLLAPSE_KEY, '1');
     }
+  }
+
+  private wasMobile = window.innerWidth <= 640;
+  @HostListener('window:resize')
+  onResize(): void {
+    const mobile = window.innerWidth <= 640;
+    if (mobile && !this.wasMobile) { this.collapsed.set(true); this.profileOpen.set(false); }
+    this.wasMobile = mobile;
   }
 
   async signOut(): Promise<void> {

@@ -9,6 +9,17 @@
   margin-bottom: 14px;
 }
 
+.user-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.field { margin-bottom: 16px; min-width: 0; }
+@media (max-width: 640px) {
+  table.dtable { min-width: 0; }
+  table.dtable thead { display: none; }
+  table.dtable, table.dtable tbody, table.dtable tr, table.dtable td { display: block; width: 100%; }
+  table.dtable tr { padding: 14px 0; border-bottom: 1px solid var(--line); }
+  table.dtable td { border: 0; padding: 6px 12px; white-space: normal; overflow-wrap: anywhere; }
+  .user-actions .btn { min-height: 44px; }
+}
+
 .cred-row {
   display: flex;
   justify-content: space-between;

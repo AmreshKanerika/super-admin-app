@@ -1,5 +1,6 @@
 import { TreeBranchComponent } from '../../core/ui/tree-branch.component';
 import { Component, Input, OnChanges, computed, inject, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApplicationsService } from '../../services/applications.service';
@@ -31,7 +32,7 @@ export interface LimitTreeRow extends TreeRow<Application> {
 }
 
 const BLANK_STATE: LimitState = {
-  accessStatus: 'DISABLED',
+  accessStatus: 'HIDDEN',
   designTimeLimit: -1,
   designTimeUsed: 0,
   runtimeLimit: -1,
@@ -41,7 +42,7 @@ const BLANK_STATE: LimitState = {
 @Component({
   selector: 'app-limits-panel',
   standalone: true,
-  imports: [CommonModule, FormsModule, AppDisplayNamePipe, TreeBranchComponent],
+  imports: [CommonModule, FormsModule, RouterLink, AppDisplayNamePipe, TreeBranchComponent],
   templateUrl: './limits-panel.component.html',
   styleUrl: './limits-panel.component.scss'
 })
@@ -69,22 +70,10 @@ export class LimitsPanelComponent implements OnChanges {
   readonly saving = signal(false);
   readonly saveError = signal('');
 
-  // The panel edits ONE organization's limits, and the backend can only update an app that has a
-  // plan_usage_limit_status row for this org - i.e. an app the org's plan actually includes. The
-  // full application catalogue is a superset of that: it also lists apps no subscription of this
-  // org grants. Showing those made them look editable, but saving one hit
-  // "No plan usage record found for this application in this organization" (PlanException) - the
-  // toast in the screenshot. The catalogue is therefore narrowed to the apps the org holds, once
-  // that set has loaded; until then the full list stands in so the tree is not momentarily empty.
-  private readonly catalog = computed<Application[]>(() => {
-    const all = this.applications.list()();
-    const orgId = this.activeOrgId();
-    if (!orgId || this.loadedOrgId() !== orgId) {
-      return all;
-    }
-    const orgAppIds = new Set(this.appUsage.byOrg(orgId).map((usage) => usage.appId));
-    return all.filter((app) => orgAppIds.has(app.appId));
-  });
+  // New catalogue entries are visible to administrators as Hidden, without granting access.
+  private readonly catalog = computed<Application[]>(() => this.applications.list()());
+  readonly assignedAppIds = computed(() => new Set(this.appUsage.byOrg(this.activeOrgId()).map(row => row.appId)));
+  readonly ready = computed(() => this.loadedOrgId() === this.activeOrgId() && !this.loading());
 
   private readonly baseStates = computed<Map<string, LimitState>>(() => {
     const orgId = this.activeOrgId();
@@ -170,7 +159,7 @@ export class LimitsPanelComponent implements OnChanges {
   readonly hasActiveSubscription = computed(() => {
     // Re-run when the org changes.
     this.activeOrgId();
-    return !!this.subscriptions.activeByOrg(this.orgId);
+    return this.subscriptions.byOrg(this.orgId).some(sub => sub.planStatus === 'ACTIVE');
   });
 
   readonly dirtyCount = computed(() => this.overrides().size);
@@ -210,6 +199,7 @@ export class LimitsPanelComponent implements OnChanges {
   }
 
   private mutate(appId: string, change: (state: LimitState) => LimitState): void {
+    if (!this.ready() || !this.assignedAppIds().has(appId)) return;
     const next = new Map(this.overrides());
     const current = next.get(appId) ?? this.baseStates().get(appId) ?? BLANK_STATE;
     next.set(appId, change({ ...current }));
