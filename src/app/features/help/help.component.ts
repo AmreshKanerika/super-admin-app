@@ -29,6 +29,9 @@ export class HelpComponent implements AfterViewInit, OnDestroy {
   activeId = signal(HELP_GUIDES[0].id);
   openFaq = signal<Set<number>>(new Set());
   lightbox = signal<Lightbox | null>(null);
+  /** Remembered per browser, so a reader who prefers the wide view keeps it. */
+  readingMode = signal(readPreference(READING_MODE_KEY));
+  stagesCollapsed = signal(readPreference(STAGES_COLLAPSED_KEY));
 
   private observer?: IntersectionObserver;
 
@@ -130,7 +133,27 @@ export class HelpComponent implements AfterViewInit, OnDestroy {
 
   @HostListener('document:keydown.escape')
   closeImage(): void {
-    this.lightbox.set(null);
+    // Esc closes an enlarged screenshot first; otherwise it leaves reading mode.
+    if (this.lightbox()) {
+      this.lightbox.set(null);
+    } else if (this.readingMode()) {
+      this.toggleReadingMode();
+    }
+  }
+
+  /** Maximise: hide the lifecycle strip and the contents sidebar so the guide uses the full width. */
+  toggleReadingMode(): void {
+    const next = !this.readingMode();
+    this.readingMode.set(next);
+    writePreference(READING_MODE_KEY, next);
+    setTimeout(() => this.observeSections());
+  }
+
+  /** Minimise the lifecycle strip to one slim row of stage chips. */
+  toggleStages(): void {
+    const next = !this.stagesCollapsed();
+    this.stagesCollapsed.set(next);
+    writePreference(STAGES_COLLAPSED_KEY, next);
   }
 
   /** Highlights the guide being read in the table of contents. */
@@ -158,4 +181,23 @@ function guideText(g: HelpGuide): string {
   ]
     .join(' ')
     .toLowerCase();
+}
+
+const READING_MODE_KEY = 'help-reading-mode';
+const STAGES_COLLAPSED_KEY = 'help-stages-collapsed';
+
+function readPreference(key: string): boolean {
+  try {
+    return localStorage.getItem(key) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function writePreference(key: string, value: boolean): void {
+  try {
+    localStorage.setItem(key, value ? '1' : '0');
+  } catch {
+    // Storage can be unavailable (private mode); the toggle still works for this visit.
+  }
 }

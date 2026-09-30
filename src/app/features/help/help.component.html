@@ -13,23 +13,32 @@
   </a>
 </app-page-header>
 
-<!-- Lifecycle at a glance: each stage jumps to its first guide. -->
-<section class="lifecycle" aria-label="Organization lifecycle">
-  <h2 class="section-label">Organization lifecycle</h2>
-  <ol class="stages">
-    @for (stage of stages; track stage.id; let i = $index) {
-      <li>
-        <button type="button" class="stage" [class.current]="activeStage() === stage.id" (click)="goToStage(stage.id)">
-          <span class="stage-icon"><i [class]="'ti ' + stage.icon" aria-hidden="true"></i></span>
-          <span class="stage-num">{{ i + 1 }}</span>
-          <span class="stage-label">{{ stage.label }}</span>
-        </button>
-      </li>
-    }
-  </ol>
-</section>
+<!-- Lifecycle at a glance: each stage jumps to its first guide. Hidden while reading maximised. -->
+@if (!readingMode()) {
+  <section class="lifecycle" [class.collapsed]="stagesCollapsed()" aria-label="Organization lifecycle">
+    <div class="lifecycle-head">
+      <h2 class="section-label">Organization lifecycle</h2>
+      <button type="button" class="icon-tool" (click)="toggleStages()" [attr.aria-expanded]="!stagesCollapsed()"
+              [attr.data-tip]="stagesCollapsed() ? 'Expand stages' : 'Minimise stages'"
+              [attr.aria-label]="stagesCollapsed() ? 'Expand stages' : 'Minimise stages'">
+        <i class="ti" [class.ti-chevron-down]="stagesCollapsed()" [class.ti-chevron-up]="!stagesCollapsed()" aria-hidden="true"></i>
+      </button>
+    </div>
+    <ol class="stages">
+      @for (stage of stages; track stage.id; let i = $index) {
+        <li>
+          <button type="button" class="stage" [class.current]="activeStage() === stage.id" (click)="goToStage(stage.id)">
+            <span class="stage-icon"><i [class]="'ti ' + stage.icon" aria-hidden="true"></i></span>
+            <span class="stage-num">{{ i + 1 }}</span>
+            <span class="stage-label">{{ stage.label }}</span>
+          </button>
+        </li>
+      }
+    </ol>
+  </section>
+}
 
-<div class="help-layout">
+<div class="help-layout" [class.reading]="readingMode()">
   <!-- Table of contents -->
   <aside class="toc" aria-label="Guides">
     <label class="search">
@@ -65,6 +74,15 @@
   </aside>
 
   <div class="content">
+    <!-- Reading-width toggle: stays in the top-right corner of the guide while scrolling. -->
+    <div class="read-toggle">
+      <button type="button" class="icon-tool raised" (click)="toggleReadingMode()" [attr.aria-pressed]="readingMode()"
+              [attr.data-tip]="readingMode() ? 'Minimise (Esc)' : 'Maximise — read at full width'"
+              [attr.aria-label]="readingMode() ? 'Minimise the reading view' : 'Maximise the reading view'">
+        <i class="ti" [class.ti-arrows-maximize]="!readingMode()" [class.ti-arrows-minimize]="readingMode()" aria-hidden="true"></i>
+      </button>
+    </div>
+
     @if (search() && !visibleGuides().length && !faqCount()) {
       <div class="card no-results">
         <i class="ti ti-mood-empty" aria-hidden="true"></i>

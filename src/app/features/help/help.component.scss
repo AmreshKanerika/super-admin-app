@@ -17,6 +17,33 @@
   margin-bottom: 22px;
 }
 
+.lifecycle-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.lifecycle-head .section-label {
+  margin: 0;
+}
+
+/* Minimised strip: one slim row of chips that still jump to their stage. */
+.lifecycle.collapsed { margin-bottom: 16px; }
+.lifecycle.collapsed .stages { display: flex; flex-wrap: wrap; gap: 6px; }
+.lifecycle.collapsed .stages li::before { display: none; }
+.lifecycle.collapsed .stage { flex-direction: row; gap: 6px; width: auto; padding: 5px 11px 5px 6px; border-radius: 999px; }
+.lifecycle.collapsed .stage-icon { width: 22px; height: 22px; border-radius: 50%; font-size: 13px; }
+.lifecycle.collapsed .stage-num { display: none; }
+.lifecycle.collapsed .stage-label { font-size: 12px; }
+
+/* Maximised reading: no contents sidebar, the guide uses the full width. */
+.help-layout.reading { grid-template-columns: minmax(0, 1fr); }
+.help-layout.reading .toc { display: none; }
+.help-layout.reading .content { max-width: 1320px; width: 100%; margin: 0 auto; }
+.help-layout.reading ::ng-deep .shot-btn { max-width: 100%; }
+
 .stages {
   display: grid;
   grid-template-columns: repeat(9, minmax(0, 1fr));
