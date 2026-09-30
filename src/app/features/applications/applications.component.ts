@@ -10,6 +10,9 @@ import { Application, Scope } from '../../models';
 import { displayNameOrFallback } from '../../core/app-name.util';
 import { TreeBranchComponent } from '../../core/ui/tree-branch.component';
 import { allParentIds, buildTreeRows, collectAncestorIds } from '../../core/ui/app-tree.util';
+import { AssignPlansComponent } from './assign-plans.component';
+import { MigrationTypeFormComponent } from './migration-type-form.component';
+import { MigrationTypeSaveResponse } from '../../models';
 
 /** Mirrors com.flip.enums.Scopes. The server rejects anything outside this set. */
 const ALL_SCOPES: Scope[] = ['ALL', 'VIEW', 'ADD', 'EDIT', 'EXECUTE', 'DELETE'];
@@ -50,7 +53,15 @@ function lastRootIndexAtOrBefore(rows: readonly { depth: number }[], index: numb
 @Component({
   selector: 'app-applications',
   standalone: true,
-  imports: [CommonModule, FormsModule, PageHeaderComponent, EmptyStateComponent, TreeBranchComponent],
+  imports: [
+    CommonModule,
+    FormsModule,
+    PageHeaderComponent,
+    EmptyStateComponent,
+    TreeBranchComponent,
+    AssignPlansComponent,
+    MigrationTypeFormComponent
+  ],
   templateUrl: './applications.component.html',
   styleUrl: './applications.component.scss'
 })
@@ -66,6 +77,34 @@ export class ApplicationsComponent {
   readonly justCreatedAppId = signal<string | null>(null);
 
   readonly saving = signal(false);
+
+  // --- follow-up panels ------------------------------------------------------
+  //
+  // Held as ids and resolved against the live catalog, so a panel sees flags the server recomputes
+  // after each write (migrationConfigured, planCount) rather than a stale snapshot.
+  readonly assigningAppId = signal<string | null>(null);
+  readonly migrationAppId = signal<string | null>(null);
+  /** Set while walking the steps that follow creating an application. */
+  readonly setupFlow = signal<{ appId: string; migration: boolean } | null>(null);
+
+  readonly assigningApp = computed(() => {
+    const id = this.assigningAppId();
+    return id ? this.applications.byId(id) ?? null : null;
+  });
+  readonly migrationApp = computed(() => {
+    const id = this.migrationAppId();
+    return id ? this.applications.byId(id) ?? null : null;
+  });
+
+  readonly migrationStepLabel = computed(() => {
+    const flow = this.setupFlow();
+    return flow && flow.appId === this.migrationAppId() ? 'Step 2 of 3 · Migration details' : null;
+  });
+  readonly assignStepLabel = computed(() => {
+    const flow = this.setupFlow();
+    if (!flow || flow.appId !== this.assigningAppId()) return null;
+    return flow.migration ? 'Step 3 of 3 · Subscription plans' : 'Step 2 of 2 · Subscription plans';
+  });
 
   /** null = closed, 'new' = creating, otherwise the appId being edited. */
   readonly editing = signal<string | null>(null);
@@ -142,6 +181,8 @@ export class ApplicationsComponent {
 
   @HostListener('document:keydown.escape')
   closeOnEscape(): void {
+    // The follow-up panels handle their own Escape through app-modal-shell.
+    if (this.assigningAppId() || this.migrationAppId()) return;
     if (this.editing() !== null && !this.saving()) this.cancel();
   }
 
@@ -334,10 +375,8 @@ export class ApplicationsComponent {
       if (this.isCreating()) {
         const created = await this.applications.create(draft);
         this.revealApplication(created);
-        this.toast.show(
-          `'${draft.displayName}' added to the catalog. It is not on any plan yet — assign it to the plans that should include it.`,
-          'success'
-        );
+        this.toast.show(`'${draft.displayName}' added to the catalog.`, 'success');
+        this.startSetupFlow(this.applications.byId(created.appId) ?? created);
       } else {
         const appId = this.editing()!;
         const { appName, ...rest } = draft;
@@ -351,6 +390,47 @@ export class ApplicationsComponent {
     } finally {
       this.saving.set(false);
     }
+  }
+
+  // --- follow-up flows -------------------------------------------------------
+
+  /** After creating: migration details first (migration apps only), then subscription plans. */
+  private startSetupFlow(app: Application): void {
+    this.setupFlow.set({ appId: app.appId, migration: app.migrationApplication });
+    if (app.migrationApplication) this.migrationAppId.set(app.appId);
+    else this.assigningAppId.set(app.appId);
+  }
+
+  openAssignments(app: Application): void {
+    this.setupFlow.set(null);
+    this.assigningAppId.set(app.appId);
+  }
+
+  openMigrationDetails(app: Application): void {
+    if (!app.migrationApplication) return;
+    this.setupFlow.set(null);
+    this.migrationAppId.set(app.appId);
+  }
+
+  onMigrationSaved(response: MigrationTypeSaveResponse): void {
+    const appId = this.migrationAppId();
+    // Saving writes master.migration_types only; organization schemas get their copy when the app is
+    // added to a plan, or when a plan that includes it is assigned to an organization.
+    this.toast.show(`Migration details saved (id ${response.migrationType.id}).`, 'success');
+    this.migrationAppId.set(null);
+    if (appId && this.setupFlow()?.appId === appId) this.assigningAppId.set(appId);
+  }
+
+  onMigrationClosed(): void {
+    const appId = this.migrationAppId();
+    this.migrationAppId.set(null);
+    // Skipping migration details during setup still moves on to choosing plans.
+    if (appId && this.setupFlow()?.appId === appId) this.assigningAppId.set(appId);
+  }
+
+  onAssignmentsClosed(): void {
+    this.assigningAppId.set(null);
+    this.setupFlow.set(null);
   }
 
   private revealApplication(app: Application): void {

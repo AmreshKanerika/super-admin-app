@@ -146,6 +146,8 @@ export class OrganizationsListComponent {
     return sorted;
   });
 
+  readonly directoryTotal = computed(() => this.overview.rows().filter(row => !row.org.isDecommissioned).length);
+
   visibleRows(): OrgOverviewRow[] {
     const rows = this.filtered();
     const signature = this.currentFilterSignature();

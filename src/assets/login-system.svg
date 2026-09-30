@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 500" role="img" aria-label="Organizations, plans, applications and insights connected around FLIP">
+  <defs>
+    <linearGradient id="card" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#8375bd" stop-opacity=".78"/><stop offset="1" stop-color="#564b98" stop-opacity=".72"/></linearGradient>
+    <linearGradient id="core" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#f6c8ff"/><stop offset=".48" stop-color="#a873ff"/><stop offset="1" stop-color="#70d6ff"/></linearGradient>
+    <linearGradient id="line" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#aee7ff" stop-opacity="0"/><stop offset=".5" stop-color="#e7b9ff" stop-opacity=".9"/><stop offset="1" stop-color="#aee7ff" stop-opacity="0"/></linearGradient>
+    <radialGradient id="glow"><stop stop-color="#b071ff" stop-opacity=".55"/><stop offset="1" stop-color="#b071ff" stop-opacity="0"/></radialGradient>
+    <filter id="blur"><feGaussianBlur stdDeviation="23"/></filter>
+    <style>
+      .orbit { transform-origin:360px 250px; animation:turn 46s linear infinite; }
+      .center { transform-origin:360px 250px; animation:breathe 5s ease-in-out infinite; }
+      .float-a { animation:float 5s ease-in-out infinite; }
+      .float-b { animation:float 6.5s ease-in-out -2s infinite; }
+      .float-c { animation:float 5.7s ease-in-out -3s infinite; }
+      .float-d { animation:float 6s ease-in-out -1s infinite; }
+      .signal { stroke-dasharray:9 15; animation:flow 10s linear infinite; }
+      .signal.reverse { animation-direction:reverse; }
+      text { font-family:Arial,sans-serif; fill:white; paint-order:stroke; stroke:#302663; stroke-opacity:.25; stroke-width:1px; }
+      @keyframes turn { to { transform:rotate(360deg); } }
+      @keyframes breathe { 50% { transform:scale(1.035); } }
+      @keyframes float { 50% { transform:translateY(-9px); } }
+      @keyframes flow { to { stroke-dashoffset:-240; } }
+      @media (prefers-reduced-motion:reduce) { .orbit,.center,.float-a,.float-b,.float-c,.float-d,.signal { animation:none; } }
+    </style>
+  </defs>
+  <ellipse cx="360" cy="250" rx="240" ry="170" fill="url(#glow)" filter="url(#blur)"/>
+  <g opacity=".09" stroke="#fff" fill="none"><path d="M0 80H720M0 160H720M0 240H720M0 320H720M0 400H720M80 0V500M160 0V500M240 0V500M320 0V500M400 0V500M480 0V500M560 0V500M640 0V500"/></g>
+  <g class="orbit" fill="none" stroke="#e9ceff"><circle cx="360" cy="250" r="145" opacity=".28" stroke-dasharray="4 14"/><circle cx="360" cy="250" r="104" opacity=".22"/></g>
+  <g fill="none" stroke="url(#line)" stroke-width="2"><path class="signal" d="M360 250C268 240 230 157 178 118"/><path class="signal reverse" d="M360 250C458 235 504 165 542 116"/><path class="signal" d="M360 250C450 277 484 358 541 383"/><path class="signal reverse" d="M360 250C262 287 219 364 176 380"/></g>
+  <g class="center"><circle cx="360" cy="250" r="88" fill="#201b51" fill-opacity=".75" stroke="#d5b3ff" stroke-opacity=".5" stroke-width="2"/><circle cx="360" cy="250" r="71" fill="#6636a1" fill-opacity=".5" stroke="#eacfff" stroke-opacity=".3"/><path d="M360 199l46 26v51l-46 26-46-26v-51z" fill="url(#core)" opacity=".9"/><path d="M360 199v51l46-25M360 250l-46-25M360 250v52" fill="none" stroke="#fff" stroke-opacity=".85" stroke-width="3"/><path d="M338 236l22-13 22 13-22 13z" fill="#fff" fill-opacity=".75"/><text x="360" y="329" text-anchor="middle" font-size="14" font-weight="700" letter-spacing="2">FLIP PLATFORM</text></g>
+  <g class="float-a"><rect x="18" y="34" width="220" height="98" rx="18" fill="url(#card)" stroke="#fff" stroke-opacity=".72"/><circle cx="55" cy="83" r="21" fill="#b98dff" fill-opacity=".48"/><path d="M45 90V77h20v13M50 77v-7h10v7M50 83h2m6 0h2" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round"/><text x="86" y="79" font-size="18" font-weight="700">Organizations</text><text x="86" y="104" font-size="13" opacity=".92">Manage every account</text></g>
+  <g class="float-b"><rect x="482" y="34" width="220" height="98" rx="18" fill="url(#card)" stroke="#fff" stroke-opacity=".72"/><circle cx="519" cy="83" r="21" fill="#ffb8c5" fill-opacity=".4"/><path d="M509 76l10-5 10 5-10 5zM509 84l10 5 10-5M509 91l10 5 10-5" stroke="#fff" stroke-width="2.4" fill="none" stroke-linejoin="round"/><text x="550" y="79" font-size="18" font-weight="700">Plans</text><text x="550" y="104" font-size="13" opacity=".92">Subscriptions in view</text></g>
+  <g class="float-c"><rect x="482" y="368" width="220" height="98" rx="18" fill="url(#card)" stroke="#fff" stroke-opacity=".72"/><circle cx="519" cy="417" r="21" fill="#8ed7ff" fill-opacity=".4"/><path d="M508 425v-9l7-6 6 3 9-12" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/><text x="550" y="413" font-size="18" font-weight="700">Insights</text><text x="550" y="438" font-size="13" opacity=".92">Signals for your team</text></g>
+  <g class="float-d"><rect x="18" y="368" width="220" height="98" rx="18" fill="url(#card)" stroke="#fff" stroke-opacity=".72"/><circle cx="55" cy="417" r="21" fill="#b8f0db" fill-opacity=".4"/><rect x="44" y="406" width="9" height="9" rx="2" fill="none" stroke="#fff" stroke-width="2"/><rect x="57" y="406" width="9" height="9" rx="2" fill="none" stroke="#fff" stroke-width="2"/><rect x="44" y="419" width="9" height="9" rx="2" fill="none" stroke="#fff" stroke-width="2"/><rect x="57" y="419" width="9" height="9" rx="2" fill="none" stroke="#fff" stroke-width="2"/><text x="86" y="413" font-size="18" font-weight="700">Applications</text><text x="86" y="438" font-size="13" opacity=".92">Enable what they need</text></g>
+  <circle cx="360" cy="250" r="4" fill="#fff"/>
+</svg>

@@ -238,22 +238,16 @@
 
     <!-- USERS -->
     <div *ngIf="activeTab() === 'users'">
-      <table class="dtable">
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Email</th>
-            <th>Role</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr *ngFor="let u of users()">
-            <td class="strong">{{ u.name }}</td>
-            <td class="mono">{{ u.email }}</td>
-            <td><app-status-pill [label]="u.role === 'DEVELOPER' ? 'Member' : u.role" tone="accent"></app-status-pill></td>
-          </tr>
-        </tbody>
-      </table>
+      <app-org-users-roles
+        [orgId]="orgId"
+        [orgLabel]="org()?.organizationName || 'this organization'"
+        [canManage]="isSuperAdmin()"
+      ></app-org-users-roles>
+    </div>
+
+    <!-- PROCESSING INSIGHTS -->
+    <div *ngIf="activeTab() === 'processing'">
+      <app-processing-insights [orgId]="orgId" [orgLabel]="org()?.organizationName || 'this organization'"></app-processing-insights>
     </div>
 
     <!-- NOTIFICATIONS -->

@@ -45,11 +45,11 @@ import { NavigationHistoryService } from '../navigation-history.service';
         gap: 28px;
         margin-bottom: 16px;
         padding: 30px 34px;
-        border: 0;
+        border: 1px solid #80679a;
         border-radius: 20px;
         background: var(--ui-header-grad);
         color: #fff;
-        box-shadow: 0 16px 32px rgba(71, 31, 95, 0.16);
+        box-shadow: 0 12px 28px rgba(66, 44, 104, 0.13);
       }
       .ph.colorful::after {
         content: '';
@@ -66,7 +66,7 @@ import { NavigationHistoryService } from '../navigation-history.service';
       .ph.colorful > * { position: relative; z-index: 1; }
       .ph.colorful .eyebrow {
         margin: 0;
-        color: #f1dbff;
+        color: #e2d2f6;
         font-size: 10px;
         letter-spacing: 0.14em;
       }
@@ -80,7 +80,7 @@ import { NavigationHistoryService } from '../navigation-history.service';
         letter-spacing: -0.04em;
         color: #fff;
       }
-      .ph.colorful .sub { margin: 0; font-size: 12.5px; line-height: 1.5; color: #f0dcf4; }
+      .ph.colorful .sub { margin: 0; font-size: 12.5px; line-height: 1.5; color: #f1e9f8; }
       .ph.colorful .back-btn { background: rgba(255, 255, 255, 0.12); border-color: rgba(255, 255, 255, 0.3); color: #fff; }
       .ph.colorful .back-btn:hover { background: rgba(255, 255, 255, 0.22); border-color: rgba(255, 255, 255, 0.55); }
       .ph.colorful .back-btn:focus-visible { outline-color: #fff; }

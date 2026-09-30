@@ -1,7 +1,15 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
-import { Application, ApplicationScopeRow, Scope } from '../models';
+import {
+  AppPlanAssignments,
+  Application,
+  ApplicationScopeRow,
+  MigrationTypeConfig,
+  MigrationTypeSaveResponse,
+  PlanAssignmentResult,
+  Scope
+} from '../models';
 import { ToastService } from '../core/toast.service';
 import { AuditService } from './audit.service';
 import { AuthService } from '../core/auth/auth.service';
@@ -133,5 +141,67 @@ export class ApplicationsService {
   async removeScope(appId: string, appScopeId: string): Promise<void> {
     await firstValueFrom(this.http.delete(`${API_BASE_URL}/platform/applications/${appId}/scopes/${appScopeId}`));
     await this.refresh();
+  }
+
+  // --- plan assignment ------------------------------------------------------
+  //
+  // An application reaches organizations through the plans that include it. Each call answers per
+  // plan (and per subscribed organization), because a batch can partly succeed.
+
+  async listPlanAssignments(appId: string): Promise<AppPlanAssignments> {
+    return firstValueFrom(this.http.get<AppPlanAssignments>(`${API_BASE_URL}/platform/applications/${appId}/plans`));
+  }
+
+  async assignToPlans(appId: string, planIds: string[]): Promise<PlanAssignmentResult[]> {
+    const results = await firstValueFrom(
+      this.http.post<PlanAssignmentResult[]>(`${API_BASE_URL}/platform/applications/${appId}/plans`, {
+        planIds,
+        userId: this.auth.getUserId()
+      })
+    );
+    await this.refresh();
+    this.audit.log('APPLICATION_ADDED_TO_PLANS', 'Application', this.displayNameForAppId(appId), 'SUCCESS', appId);
+    return results;
+  }
+
+  async removeFromPlans(appId: string, planIds: string[]): Promise<PlanAssignmentResult[]> {
+    const results = await firstValueFrom(
+      this.http.post<PlanAssignmentResult[]>(`${API_BASE_URL}/platform/applications/${appId}/plans/remove`, {
+        planIds,
+        userId: this.auth.getUserId()
+      })
+    );
+    await this.refresh();
+    this.audit.log('APPLICATION_REMOVED_FROM_PLANS', 'Application', this.displayNameForAppId(appId), 'SUCCESS', appId);
+    return results;
+  }
+
+  async syncPlanSubscribers(appId: string): Promise<PlanAssignmentResult[]> {
+    return firstValueFrom(this.http.post<PlanAssignmentResult[]>(`${API_BASE_URL}/platform/applications/${appId}/plans/sync`, {}));
+  }
+
+  // --- migration details ----------------------------------------------------
+
+  /** Null when this migration application has no details saved yet. */
+  async getMigrationType(appId: string): Promise<MigrationTypeConfig | null> {
+    try {
+      // 204 (no details yet) arrives as a null body.
+      return (await firstValueFrom(this.http.get<MigrationTypeConfig | null>(`${API_BASE_URL}/platform/applications/${appId}/migration-type`))) ?? null;
+    } catch (error: unknown) {
+      if ((error as { status?: number })?.status === 404) return null;
+      throw error;
+    }
+  }
+
+  async saveMigrationType(appId: string, config: MigrationTypeConfig): Promise<MigrationTypeSaveResponse> {
+    const response = await firstValueFrom(
+      this.http.put<MigrationTypeSaveResponse>(`${API_BASE_URL}/platform/applications/${appId}/migration-type`, {
+        ...config,
+        userId: this.auth.getUserId()
+      })
+    );
+    await this.refresh();
+    this.audit.log('MIGRATION_TYPE_SAVED', 'Application', this.displayNameForAppId(appId), 'SUCCESS', appId);
+    return response;
   }
 }

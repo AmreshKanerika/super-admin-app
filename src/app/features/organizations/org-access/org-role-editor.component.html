@@ -1,0 +1,110 @@
+<app-modal-shell [heading]="isEdit() ? 'Edit role · ' + role!.roleName : 'Create custom role'"
+                 [subtitle]="orgLabel + ' · grants only the app permissions you pick'"
+                 [icon]="isEdit() ? 'ti-shield-cog' : 'ti-shield-plus'" [width]="820" (close)="close()">
+  <form class="modern" (ngSubmit)="save()" autocomplete="off" novalidate>
+
+    <!-- ── Details ─────────────────────────────────────────────────── -->
+    <div class="form-section">
+      <div class="section-head">
+        <h4><span class="step">1</span> Role details</h4>
+        <span>How the role appears when you assign it to people.</span>
+      </div>
+      <div class="two">
+        <div class="m-field">
+          <label for="role-name">Role name</label>
+          <div class="input-wrap" [class.bad]="(tried() || name().length > 0) && !!nameError()">
+            <i class="ti ti-shield" aria-hidden="true"></i>
+            <input id="role-name" name="roleName" maxlength="100" placeholder="e.g. Migration reviewer"
+                   [ngModel]="name()" (ngModelChange)="name.set($event)" [disabled]="saving()" />
+          </div>
+          <span class="m-error" *ngIf="(tried() || name().length > 0) && nameError()">{{ nameError() }}</span>
+        </div>
+        <div class="m-field">
+          <label for="role-desc">Description <span class="optional">optional</span></label>
+          <div class="input-wrap">
+            <i class="ti ti-align-left" aria-hidden="true"></i>
+            <input id="role-desc" name="roleDescription" maxlength="500" placeholder="What people with this role do"
+                   [ngModel]="description()" (ngModelChange)="description.set($event)" [disabled]="saving()" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Permissions ─────────────────────────────────────────────── -->
+    <div class="form-section">
+      <div class="section-head">
+        <h4>
+          <span class="step">2</span> App permissions
+          <span class="count-pill" *ngIf="selectedAppCount()">{{ selectedAppCount() }} app{{ selectedAppCount() === 1 ? '' : 's' }} · {{ selectedScopeCount() }} scope{{ selectedScopeCount() === 1 ? '' : 's' }}</span>
+        </h4>
+        <span>Tick an app to grant all of it, or pick individual scopes. Choosing a sub-app includes its parent.</span>
+      </div>
+
+      <div class="selected-strip" *ngIf="selectedLabels().length">
+        <span class="chip" *ngFor="let l of selectedLabels().slice(0, 6)"><i class="ti ti-check" aria-hidden="true"></i>{{ l }}</span>
+        <span class="chip more" *ngIf="selectedLabels().length > 6">+{{ selectedLabels().length - 6 }} more</span>
+      </div>
+
+      <div class="tools">
+        <div class="input-wrap search">
+          <i class="ti ti-search" aria-hidden="true"></i>
+          <input type="search" name="appSearch" [placeholder]="'Search ' + selectableCount() + ' available apps…'" aria-label="Search apps"
+                 [ngModel]="search()" (ngModelChange)="search.set($event)" />
+        </div>
+        <label class="seg-toggle" [class.on]="onlySelected()">
+          <input type="checkbox" name="onlySelected" [ngModel]="onlySelected()" (ngModelChange)="onlySelected.set($event)" />
+          <i class="ti ti-filter" aria-hidden="true"></i> Selected only
+        </label>
+      </div>
+
+      <div class="loading" *ngIf="loading()">
+        <div class="skeleton-line"></div><div class="skeleton-line"></div><div class="skeleton-line short"></div>
+      </div>
+
+      <ul class="app-list" *ngIf="!loading()" [class.bad]="tried() && !selectedAppCount()">
+        <li *ngFor="let row of rows(); trackBy: trackByApp" class="app"
+            [class.on]="appState(row) !== 'none'" [class.disabled]="!row.app.selectable" [class.child]="row.depth > 0" [style.--depth]="row.depth">
+          <button type="button" class="app-check" [class.all]="appState(row) === 'all'" [class.some]="appState(row) === 'some'"
+                  [disabled]="!row.app.selectable || saving()" (click)="toggleApp(row)"
+                  [attr.aria-pressed]="appState(row) !== 'none'" [attr.aria-label]="'Grant ' + row.label">
+            <i class="ti" [class.ti-check]="appState(row) === 'all'" [class.ti-minus]="appState(row) === 'some'" aria-hidden="true"></i>
+          </button>
+          <div class="app-main">
+            <span class="app-name">
+              <i class="ti ti-corner-down-right sub" *ngIf="row.depth > 0" aria-hidden="true"></i>
+              {{ row.label }}
+            </span>
+            <span class="app-note" *ngIf="!row.app.selectable">
+              <i class="ti ti-lock" aria-hidden="true"></i>
+              {{ row.app.limitMessage || (row.app.limitsExhausted ? 'Plan limit reached' : 'Not on the plan') }}
+            </span>
+          </div>
+          <div class="scopes" *ngIf="row.scopes.length && row.app.selectable">
+            <button type="button" class="scope" *ngFor="let s of row.scopes" [class.on]="isOn(row.app.appId, s.appScopeId)"
+                    [class.all-scope]="s.scopeName === 'ALL'" [disabled]="saving()" (click)="toggleScope(row, s)"
+                    [attr.aria-pressed]="isOn(row.app.appId, s.appScopeId)">
+              {{ s.scopeName === 'ALL' ? 'All' : (s.scopeName | titlecase) }}
+            </button>
+          </div>
+          <span class="no-scopes" *ngIf="!row.scopes.length">No scopes defined</span>
+        </li>
+        <li class="empty" *ngIf="!rows().length">
+          <i class="ti ti-apps" aria-hidden="true"></i>
+          {{ onlySelected() ? 'Nothing selected yet.' : search() ? 'No app matches that search.' : 'This organization has no apps on an active plan yet.' }}
+        </li>
+      </ul>
+      <span class="m-error" *ngIf="tried() && !selectedAppCount()">Grant at least one app.</span>
+    </div>
+
+    <div class="m-footer">
+      <button type="button" class="btn ghost" (click)="close()" [disabled]="saving()">Cancel</button>
+      <div class="spacer"></div>
+      <span class="hint" *ngIf="tried() && saveBlocker() as reason"><i class="ti ti-info-circle" aria-hidden="true"></i> {{ reason }}</span>
+      <button type="submit" class="btn primary cta" [disabled]="saving() || loading()">
+        <i class="ti" [class.ti-loader-2]="saving()" [class.spin]="saving()" [class.ti-device-floppy]="!saving() && isEdit()"
+           [class.ti-shield-plus]="!saving() && !isEdit()" aria-hidden="true"></i>
+        {{ saving() ? 'Saving…' : isEdit() ? 'Save role' : 'Create role' }}
+      </button>
+    </div>
+  </form>
+</app-modal-shell>

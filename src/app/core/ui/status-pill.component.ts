@@ -16,6 +16,8 @@ import { Tone } from '../status.util';
         border-radius: 20px;
         letter-spacing: 0.01em;
         line-height: 1.5;
+        /* A status is one short word; wrapping it ("SUCCES / S") made columns look broken. */
+        white-space: nowrap;
       }
       .success {
         background: var(--success-soft);

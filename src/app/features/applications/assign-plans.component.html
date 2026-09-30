@@ -1,0 +1,157 @@
+<app-modal-shell [heading]="'Subscription plans · ' + appLabel" [width]="760" (close)="close()">
+  <p class="step" *ngIf="stepLabel">{{ stepLabel }}</p>
+  <p class="intro">
+    Add this application to the plans that should include it. Organizations subscribed to those plans are entitled to it<span *ngIf="app.migrationApplication">,
+    and its migration details are inserted into their schemas where missing</span>. New subscriptions get it in their default Admin and Developer roles.
+    <strong>Existing roles and users are not changed</strong> — organization admins grant it to their users through roles.
+  </p>
+  <p class="warn-inline" *ngIf="app.migrationApplication && !app.migrationConfigured">
+    <i class="ti ti-alert-triangle" aria-hidden="true"></i>
+    Migration details aren't saved yet, so nothing is copied into organization schemas until they are.
+  </p>
+
+  <!-- ── Per-plan outcome of the last action; problems first and expanded ── -->
+  <section class="results" *ngIf="results() as list" aria-live="polite">
+    <header>
+      <strong>{{ resultsTitle() }}</strong>
+      <button type="button" class="btn sm ghost" (click)="dismissResults()">Dismiss</button>
+    </header>
+    <ul>
+      <li *ngFor="let r of list; trackBy: trackByPlan" [class.attention]="planNeedsAttention(r)">
+        <button type="button" class="r-head" (click)="toggleResult(r.planId)" [attr.aria-expanded]="expandedResults().has(r.planId)"
+                [disabled]="!r.organizations.length">
+          <i class="ti" [class.ti-chevron-down]="expandedResults().has(r.planId)" [class.ti-chevron-right]="!expandedResults().has(r.planId)"
+             [class.invisible]="!r.organizations.length" aria-hidden="true"></i>
+          <span class="r-main">
+            <span class="r-name">{{ r.planName || r.planId }}</span>
+            <span class="r-msg" *ngIf="r.message">{{ r.message }}<ng-container *ngIf="r.rolesUpdated"> · {{ r.rolesUpdated }} role{{ r.rolesUpdated === 1 ? '' : 's' }} updated</ng-container></span>
+          </span>
+          <app-status-pill [label]="planActionLabel(r)" [tone]="planActionTone(r)"></app-status-pill>
+        </button>
+        <ul class="r-orgs" *ngIf="expandedResults().has(r.planId) && r.organizations.length">
+          <li *ngFor="let o of r.organizations; trackBy: trackByOrg" [class.attention]="orgNeedsAttention(o)">
+            <span class="r-main">
+              <span class="r-org">{{ o.organizationName }}</span>
+              <span class="r-msg" *ngIf="o.message">{{ o.message }}</span>
+            </span>
+            <span class="r-pills">
+              <app-status-pill [label]="accessLabel(o)" [tone]="accessTone(o)"></app-status-pill>
+              <app-status-pill *ngIf="o.migrationSync" [label]="syncLabel(o.migrationSync)" [tone]="syncTone(o.migrationSync)"></app-status-pill>
+            </span>
+          </li>
+        </ul>
+      </li>
+    </ul>
+  </section>
+
+  <nav class="tabbar" role="tablist">
+    <button type="button" role="tab" [class.active]="tab() === 'assigned'" [attr.aria-selected]="tab() === 'assigned'" (click)="setTab('assigned')">
+      On plans ({{ assigned().length }})
+    </button>
+    <button type="button" role="tab" [class.active]="tab() === 'add'" [attr.aria-selected]="tab() === 'add'" (click)="setTab('add')">
+      Add to plans ({{ available().length }})
+    </button>
+  </nav>
+
+  <div class="loading" *ngIf="loading()">
+    <div class="skeleton-line"></div><div class="skeleton-line"></div><div class="skeleton-line short"></div>
+  </div>
+
+  <ng-container *ngIf="!loading()">
+    <div class="pane-bar" *ngIf="(tab() === 'assigned' ? assigned() : available()).length">
+      <label class="search">
+        <i class="ti ti-search" aria-hidden="true"></i>
+        <input type="search" placeholder="Search plans or organizations…" aria-label="Search plans"
+               [ngModel]="search()" (ngModelChange)="search.set($event)" />
+      </label>
+      <button type="button" class="btn sm ghost" *ngIf="tab() === 'add'" (click)="toggleAll('add')" [disabled]="!visibleAvailable().length">
+        {{ allAvailableSelected() ? 'Clear shown' : 'Select all shown' }}
+      </button>
+      <button type="button" class="btn sm ghost" *ngIf="tab() === 'assigned'" (click)="toggleAll('remove')" [disabled]="!visibleAssigned().length">
+        {{ allRemovableSelected() ? 'Clear selection' : 'Select all' }}
+      </button>
+    </div>
+
+    <!-- ── On plans ─────────────────────────────────────────────────── -->
+    <section class="pane" *ngIf="tab() === 'assigned'">
+      <ul class="plan-list" *ngIf="assigned().length; else noneAssigned">
+        <li *ngFor="let plan of visibleAssigned(); trackBy: trackByPlan">
+          <label class="plan-row" [class.checked]="toRemove().has(plan.planId)" [class.locked]="plan.primaryApplication">
+            <input type="checkbox" [checked]="toRemove().has(plan.planId)" (change)="toggle('remove', plan.planId)"
+                   [disabled]="busy() || plan.primaryApplication" />
+            <span class="plan-text">
+              <span class="plan-name">
+                {{ planLabel(plan) }}
+                <span class="tag" *ngIf="plan.planType">{{ plan.planType }}</span>
+                <span class="tag lock" *ngIf="plan.primaryApplication" title="Choose another primary application under Plans to remove it">
+                  <i class="ti ti-lock" aria-hidden="true"></i> Primary app
+                </span>
+              </span>
+              <span class="plan-meta">
+                Design-time {{ limitLabel(plan.designTimeLimit) }} · Runtime {{ limitLabel(plan.runtimeLimit) }}
+                <ng-container *ngIf="plan.accessStatus && plan.accessStatus !== 'ENABLED'"> · {{ plan.accessStatus | titlecase }}</ng-container>
+              </span>
+              <span class="plan-orgs" [title]="orgPreview(plan)">
+                <i class="ti ti-building" aria-hidden="true"></i>
+                <strong>{{ plan.organizations.length }}</strong>&nbsp;organization{{ plan.organizations.length === 1 ? '' : 's' }}
+                <span *ngIf="plan.organizations.length">· {{ orgPreview(plan) }}</span>
+              </span>
+            </span>
+          </label>
+        </li>
+        <li class="empty" *ngIf="!visibleAssigned().length">No plan matches that search.</li>
+      </ul>
+      <ng-template #noneAssigned>
+        <div class="empty-pane">
+          <i class="ti ti-clipboard-list" aria-hidden="true"></i>
+          <p>Not on any subscription plan yet, so no organization has it.</p>
+          <button type="button" class="btn sm" (click)="setTab('add')">Add to plans</button>
+        </div>
+      </ng-template>
+    </section>
+
+    <!-- ── Add to plans ─────────────────────────────────────────────── -->
+    <section class="pane" *ngIf="tab() === 'add'">
+      <ul class="plan-list">
+        <li *ngFor="let plan of visibleAvailable(); trackBy: trackByPlan">
+          <label class="plan-row" [class.checked]="toAdd().has(plan.planId)">
+            <input type="checkbox" [checked]="toAdd().has(plan.planId)" (change)="toggle('add', plan.planId)" [disabled]="busy()" />
+            <span class="plan-text">
+              <span class="plan-name">
+                {{ planLabel(plan) }}
+                <span class="tag" *ngIf="plan.planType">{{ plan.planType }}</span>
+              </span>
+              <span class="plan-orgs" [title]="orgPreview(plan)">
+                <i class="ti ti-building" aria-hidden="true"></i>
+                <strong>{{ plan.organizations.length }}</strong>&nbsp;organization{{ plan.organizations.length === 1 ? '' : 's' }}
+                <span *ngIf="plan.organizations.length">· {{ orgPreview(plan) }}</span>
+              </span>
+            </span>
+          </label>
+        </li>
+        <li class="empty" *ngIf="!visibleAvailable().length">
+          {{ search() ? 'No plan matches that search.' : 'This application is already on every plan.' }}
+        </li>
+      </ul>
+      <p class="hint" *ngIf="available().length">Added with unlimited design-time and runtime limits — adjust them under Plans.</p>
+    </section>
+  </ng-container>
+
+  <div class="wizard-actions">
+    <button type="button" class="btn ghost" (click)="close()" [disabled]="busy()">{{ stepLabel ? 'Skip for now' : 'Close' }}</button>
+    <button type="button" class="btn sm ghost" *ngIf="app.migrationConfigured && assigned().length" (click)="resync()" [disabled]="busy()"
+            title="Copy the saved migration details into every subscribed organization's schema, updating copies that are already there">
+      <i class="ti ti-refresh" aria-hidden="true"></i> Re-sync schemas
+    </button>
+    <div class="spacer"></div>
+    <span class="reach" *ngIf="tab() === 'add' && toAdd().size">Reaches {{ addReach() }} organization{{ addReach() === 1 ? '' : 's' }}</span>
+    <span class="reach" *ngIf="tab() === 'assigned' && toRemove().size">Affects {{ removeReach() }} organization{{ removeReach() === 1 ? '' : 's' }}</span>
+    <button type="button" class="btn danger" *ngIf="tab() === 'assigned'" [disabled]="!toRemove().size || busy()" (click)="removeSelected()">
+      <i class="ti ti-minus" aria-hidden="true"></i>
+      {{ busy() ? 'Removing…' : 'Remove from ' + toRemove().size + ' plan' + (toRemove().size === 1 ? '' : 's') }}
+    </button>
+    <button type="button" class="btn primary" *ngIf="tab() === 'add'" [disabled]="!toAdd().size || busy()" (click)="addSelected()">
+      {{ busy() ? 'Adding…' : 'Add to ' + toAdd().size + ' plan' + (toAdd().size === 1 ? '' : 's') }}
+    </button>
+  </div>
+</app-modal-shell>

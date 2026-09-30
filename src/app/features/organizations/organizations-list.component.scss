@@ -357,7 +357,7 @@ table.dtable.org-table .row-link { color: #27334b; font-size: 13px; font-weight:
 
 .plan-stack { display:flex; flex-direction:column; gap:6px; min-width:150px; width:100%; }
 .plan-chip { align-items:center; gap:8px; text-decoration:none; white-space:normal; }
-.plan-chip small { font-size:9px; margin-left:auto; color:#67788d; }
+.plan-chip small { font-size:9px; margin-left:auto; color:#67788d; white-space:nowrap; flex-shrink:0; }
 .plan-chip:hover { border-color:#a795cc; background:#f5f0fb; }
 .org-card .ec-meta .plan-chip span { border:0; background:transparent; padding:0; }
 .domain-value { overflow-wrap:anywhere; white-space:normal; font-size:12px; }

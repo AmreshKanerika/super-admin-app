@@ -9,7 +9,7 @@ import { AuthService } from '../../core/auth/auth.service';
   standalone: true,
   imports: [FormsModule, NgIf],
   templateUrl: './login.component.html',
-  styleUrl: './login.component.scss'
+  styleUrls: ['./login.component.scss', './login-responsive.scss']
 })
 export class LoginComponent {
   private auth = inject(AuthService);
@@ -19,7 +19,6 @@ export class LoginComponent {
   username = '';
   password = '';
   showPassword = signal(false);
-  motionPaused = signal(false);
   submitting = signal(false);
   error = signal(
     this.route.snapshot.queryParamMap.get('denied') ? "Your account isn't set up for this console yet. Ask a super admin to add you." : ''

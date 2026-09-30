@@ -1,4 +1,4 @@
-<app-page-header [eyebrow]="needsAttention ? 'Action queue' : 'All tenants'" [title]="needsAttention ? 'Organizations needing attention' : 'Organizations'" [subtitle]="filtered().length + ' of ' + overview.metrics().total + ' organizations'" [showBack]="showBack" [backUrl]="backUrl">
+<app-page-header [eyebrow]="needsAttention ? 'Action queue' : 'All tenants'" [title]="needsAttention ? 'Organizations needing attention' : 'Organizations'" [subtitle]="filtered().length + ' of ' + directoryTotal() + ' organizations'" [showBack]="showBack" [backUrl]="backUrl">
   <button type="button" class="btn ghost" (click)="exportCsv()">Export CSV</button>
   <a class="btn primary" *ngIf="isSuperAdmin()" routerLink="/onboarding/new">Onboard organization</a>
 </app-page-header>

@@ -1,0 +1,370 @@
+<!-- ── Toolbar ─────────────────────────────────────────────────────────── -->
+<div class="bar">
+  <div class="segmented" role="tablist">
+    <button type="button" role="tab" [class.active]="view() === 'users'" [attr.aria-selected]="view() === 'users'" (click)="setView('users')">
+      <i class="ti ti-users" aria-hidden="true"></i> Users <span class="n">{{ users().length }}</span>
+    </button>
+    <button type="button" role="tab" [class.active]="view() === 'roles'" [attr.aria-selected]="view() === 'roles'" (click)="setView('roles')">
+      <i class="ti ti-shield-lock" aria-hidden="true"></i> Roles <span class="n">{{ roles().length }}</span>
+    </button>
+  </div>
+  <label class="search">
+    <i class="ti ti-search" aria-hidden="true"></i>
+    <input type="search" [placeholder]="view() === 'users' ? 'Search name, email or role…' : 'Search roles…'" aria-label="Search"
+           [ngModel]="search()" (ngModelChange)="search.set($event)" />
+  </label>
+  <div class="spacer"></div>
+  <span class="readonly" *ngIf="!canManage"><i class="ti ti-eye" aria-hidden="true"></i> View only</span>
+  <ng-container *ngIf="canManage">
+    <button type="button" class="btn primary sm" *ngIf="view() === 'users'" (click)="openAdd()" [disabled]="loading() || !!loadError() || !roles().length"
+            [title]="!roles().length && !loading() ? 'This organization has no roles yet' : ''">
+      <i class="ti ti-user-plus" aria-hidden="true"></i> Add user
+    </button>
+    <button type="button" class="btn primary sm" *ngIf="view() === 'roles'" (click)="openRoleEditor(null)" [disabled]="loading() || !!loadError()">
+      <i class="ti ti-plus" aria-hidden="true"></i> Create role
+    </button>
+  </ng-container>
+</div>
+
+<div class="loading" *ngIf="loading()">
+  <div class="skeleton-line"></div><div class="skeleton-line"></div><div class="skeleton-line short"></div>
+</div>
+
+<div class="load-error" *ngIf="!loading() && loadError()">
+  <i class="ti ti-alert-triangle" aria-hidden="true"></i>
+  <span>{{ loadError() }}</span>
+  <button type="button" class="btn sm ghost" (click)="load()">Retry</button>
+</div>
+
+<ng-container *ngIf="!loading() && !loadError()">
+  <p class="note" *ngIf="!roles().length">
+    <i class="ti ti-info-circle" aria-hidden="true"></i>
+    This organization has no active subscription with roles yet, so users can't be given access. Assign a plan first.
+  </p>
+
+  <!-- ── Users ─────────────────────────────────────────────────────────── -->
+  <ng-container *ngIf="view() === 'users'">
+    <div class="card-table">
+      <table class="dtable" *ngIf="visibleUsers().length; else noUsers">
+        <thead>
+          <tr>
+            <th>User</th>
+            <th>Roles</th>
+            <th>Access</th>
+            <th class="col-actions" *ngIf="canManage">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let u of visibleUsers(); trackBy: trackByUser">
+            <td>
+              <div class="person">
+                <span class="avatar" aria-hidden="true">{{ initials(u) }}</span>
+                <span class="person-text">
+                  <span class="who">
+                    {{ fullName(u) || '—' }}
+                    <span class="badge primary" *ngIf="u.primaryAdmin" title="The first Admin, created at onboarding">
+                      <i class="ti ti-crown" aria-hidden="true"></i> Original admin
+                    </span>
+                  </span>
+                  <span class="mono email">{{ u.username }}</span>
+                </span>
+              </div>
+            </td>
+            <td>
+              <div class="pills">
+                <app-status-pill *ngFor="let r of u.roles" [label]="rolePillLabel(r)" [tone]="roleTone(r)"></app-status-pill>
+                <span class="text-faint" *ngIf="!u.roles.length">No roles</span>
+              </div>
+            </td>
+            <td class="muted">{{ u.homeOrganization ? 'Home organization' : 'Additional access' }}</td>
+            <td class="col-actions" *ngIf="canManage">
+              <div class="row-actions">
+                <button type="button" class="btn sm" (click)="openEdit(u)" [disabled]="busy()" [attr.aria-label]="'Edit ' + u.username">
+                  <i class="ti ti-pencil" aria-hidden="true"></i> Edit
+                </button>
+                <button type="button" class="btn sm danger" (click)="removeUser(u)" [disabled]="busy() || !!removeLockReason(u)"
+                        [title]="removeLockReason(u) || 'Remove from this organization'" [attr.aria-label]="'Remove ' + u.username">
+                  <i class="ti" [class.ti-lock]="!!removeLockReason(u)" [class.ti-user-minus]="!removeLockReason(u)" aria-hidden="true"></i> Remove
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <ng-template #noUsers>
+        <div class="empty">
+          <i class="ti ti-users" aria-hidden="true"></i>
+          <p>{{ search() ? 'No user matches that search.' : 'No users in this organization yet.' }}</p>
+        </div>
+      </ng-template>
+    </div>
+
+    <section class="invites" *ngIf="invites().length">
+      <h4>Pending invitations <span class="n">{{ invites().length }}</span></h4>
+      <ul>
+        <li *ngFor="let i of invites(); trackBy: trackByInvite">
+          <span class="mono">{{ i.username }}</span>
+          <span class="pills">
+            <app-status-pill *ngFor="let r of i.roles" [label]="rolePillLabel(r)" [tone]="roleTone(r)"></app-status-pill>
+          </span>
+          <span class="muted">Expires {{ formatDate(i.expiresAt) }}</span>
+          <button type="button" class="btn sm ghost" *ngIf="canManage" (click)="cancelInvite(i)">Cancel</button>
+        </li>
+      </ul>
+    </section>
+  </ng-container>
+
+  <!-- ── Roles ─────────────────────────────────────────────────────────── -->
+  <ng-container *ngIf="view() === 'roles'">
+    <div class="role-grid" *ngIf="visibleRoles().length; else noRoles">
+      <article class="role-card" *ngFor="let r of visibleRoles(); trackBy: trackByRole" [class.default]="isDefault(r)">
+        <header>
+          <span class="role-icon" [class.admin]="r.roleType === 'ADMIN'" aria-hidden="true">
+            <i class="ti" [class.ti-shield-star]="r.roleType === 'ADMIN'" [class.ti-code]="r.roleType === 'DEVELOPER'" [class.ti-shield-check]="r.roleType === 'CUSTOM'"></i>
+          </span>
+          <div class="role-title">
+            <h5>{{ roleLabel(r) }}</h5>
+            <span class="role-plan" *ngIf="rolePlan(r) as plan"><i class="ti ti-clipboard-list" aria-hidden="true"></i> {{ plan }}</span>
+            <span class="badge" [class.builtin]="isDefault(r)">{{ isDefault(r) ? 'Built-in' : 'Custom' }}</span>
+          </div>
+          <div class="role-actions" *ngIf="canManage && !isDefault(r)">
+            <button type="button" class="icon-btn" (click)="openRoleEditor(r)" title="Edit role" [attr.aria-label]="'Edit ' + r.roleName">
+              <i class="ti ti-pencil" aria-hidden="true"></i>
+            </button>
+            <button type="button" class="icon-btn danger" (click)="deleteRole(r)" title="Delete role" [attr.aria-label]="'Delete ' + r.roleName">
+              <i class="ti ti-trash" aria-hidden="true"></i>
+            </button>
+          </div>
+          <span class="lock" *ngIf="isDefault(r)" title="Created at onboarding. It can be given to users but not modified or deleted.">
+            <i class="ti ti-lock" aria-hidden="true"></i>
+          </span>
+        </header>
+        <p class="role-desc">{{ roleDescription(r) }}</p>
+        <div class="chips" *ngIf="!isDefault(r) && appNames(r).length">
+          <span class="chip" *ngFor="let name of appNames(r).slice(0, 4)">{{ name }}</span>
+          <span class="chip more" *ngIf="appNames(r).length > 4">+{{ appNames(r).length - 4 }}</span>
+        </div>
+        <footer>
+          <span><i class="ti ti-users" aria-hidden="true"></i> {{ holders().get(r.roleId) ?? 0 }} user{{ (holders().get(r.roleId) ?? 0) === 1 ? '' : 's' }}</span>
+          <span *ngIf="!isDefault(r)"><i class="ti ti-apps" aria-hidden="true"></i> {{ appCount(r) }} app{{ appCount(r) === 1 ? '' : 's' }} · {{ scopeCount(r) }} scope{{ scopeCount(r) === 1 ? '' : 's' }}</span>
+        </footer>
+      </article>
+    </div>
+    <ng-template #noRoles>
+      <div class="empty">
+        <i class="ti ti-shield-lock" aria-hidden="true"></i>
+        <p>{{ search() ? 'No role matches that search.' : 'No roles yet.' }}</p>
+      </div>
+    </ng-template>
+  </ng-container>
+</ng-container>
+
+<!-- ── Shared role picker ─────────────────────────────────────────────── -->
+<ng-template #rolePicker let-selected="selected" let-mode="mode">
+  <div class="role-pick" role="group" aria-label="Roles">
+    <button type="button" class="pick" *ngFor="let r of pickableRoles(); trackBy: trackByRole"
+            [class.on]="selected.has(r.roleId)" [class.locked]="mode === 'edit' && isLockedForEdit(r)"
+            [attr.aria-pressed]="selected.has(r.roleId)" [disabled]="busy()" (click)="toggleRole(mode, r)"
+            [title]="mode === 'edit' && isLockedForEdit(r) ? 'The original admin always keeps the Admin role' : ''">
+      <span class="pick-icon" [class.admin]="r.roleType === 'ADMIN'" [class.custom]="r.roleType === 'CUSTOM'" aria-hidden="true">
+        <i class="ti" [class.ti-shield-star]="r.roleType === 'ADMIN'" [class.ti-code]="r.roleType === 'DEVELOPER'" [class.ti-shield-check]="r.roleType === 'CUSTOM'"></i>
+      </span>
+      <span class="pick-text">
+        <span class="pick-name">{{ roleLabel(r) }}</span>
+        <span class="pick-plan" *ngIf="rolePlan(r) as plan"><i class="ti ti-clipboard-list" aria-hidden="true"></i> {{ plan }}</span>
+        <span class="pick-desc">{{ roleDescription(r) }}</span>
+        <span class="pick-tag">{{ isDefault(r) ? 'Built-in' : 'Custom' }}</span>
+      </span>
+      <span class="pick-check" aria-hidden="true">
+        <i class="ti" [class.ti-check]="selected.has(r.roleId) && !(mode === 'edit' && isLockedForEdit(r))" [class.ti-lock]="mode === 'edit' && isLockedForEdit(r)"></i>
+      </span>
+    </button>
+    <button type="button" class="pick create-role" *ngIf="canManage" [disabled]="busy()" (click)="createRoleFrom(mode)">
+      <span class="pick-icon create" aria-hidden="true"><i class="ti ti-plus"></i></span>
+      <span class="pick-text">
+        <span class="pick-name">Create a new role</span>
+        <span class="pick-desc">Choose its apps without leaving this form. It is selected here as soon as you save it.</span>
+      </span>
+    </button>
+  </div>
+</ng-template>
+
+<!-- ── Add user ────────────────────────────────────────────────────────── -->
+<app-modal-shell *ngIf="addOpen()" heading="Add user" [subtitle]="orgLabel + ' · creates their login and grants the roles you pick'"
+                 icon="ti-user-plus" [width]="640" (close)="closeAdd()">
+  <form class="modern" (ngSubmit)="addTried.set(true); addUser()" autocomplete="off" novalidate>
+    <div class="form-section">
+      <div class="section-head">
+        <h4><span class="step">1</span> Person</h4>
+        <span>Their email is also their username.</span>
+      </div>
+      <div class="m-field">
+        <label for="new-email">Email address</label>
+        <div class="input-wrap" [class.bad]="addTried() && !emailValid(newEmail())">
+          <i class="ti ti-mail" aria-hidden="true"></i>
+          <input id="new-email" name="email" type="email" placeholder="name@company.com" autocomplete="off"
+                 [ngModel]="newEmail()" (ngModelChange)="newEmail.set($event)" [disabled]="busy()" />
+        </div>
+        <span class="m-error" *ngIf="addTried() && !emailValid(newEmail())">Enter a valid email address.</span>
+      </div>
+      <div class="two">
+        <div class="m-field">
+          <label for="new-first">First name</label>
+          <div class="input-wrap" [class.bad]="addTried() && !newFirst().trim()">
+            <i class="ti ti-user" aria-hidden="true"></i>
+            <input id="new-first" name="first" placeholder="Jordan" [ngModel]="newFirst()" (ngModelChange)="newFirst.set($event)" [disabled]="busy()" />
+          </div>
+          <span class="m-error" *ngIf="addTried() && !newFirst().trim()">Required.</span>
+        </div>
+        <div class="m-field">
+          <label for="new-last">Last name</label>
+          <div class="input-wrap" [class.bad]="addTried() && !newLast().trim()">
+            <i class="ti ti-user" aria-hidden="true"></i>
+            <input id="new-last" name="last" placeholder="Ellis" [ngModel]="newLast()" (ngModelChange)="newLast.set($event)" [disabled]="busy()" />
+          </div>
+          <span class="m-error" *ngIf="addTried() && !newLast().trim()">Required.</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="section-head">
+        <h4><span class="step">2</span> Roles <span class="count-pill" *ngIf="newRoles().size">{{ newRoles().size }} selected</span></h4>
+        <span>What they can open and do in {{ orgLabel }}.</span>
+      </div>
+      <ng-container *ngTemplateOutlet="rolePicker; context: { selected: newRoles(), mode: 'new' }"></ng-container>
+      <span class="m-error" *ngIf="addTried() && !newRoles().size">Choose at least one role.</span>
+    </div>
+
+    <label class="toggle-card" [class.on]="newSendEmail()">
+      <span class="toggle-icon" aria-hidden="true"><i class="ti ti-mail-forward"></i></span>
+      <span class="toggle-text">
+        <strong>Email the sign-in details</strong>
+        <span>Sends the username and temporary password to {{ newEmail().trim() || 'the user' }}. You can also copy them afterwards.</span>
+      </span>
+      <input type="checkbox" name="sendEmail" [ngModel]="newSendEmail()" (ngModelChange)="newSendEmail.set($event)" [disabled]="busy()" />
+      <span class="switch" aria-hidden="true"></span>
+    </label>
+
+    <div class="m-footer">
+      <button type="button" class="btn ghost" (click)="closeAdd()" [disabled]="busy()">Cancel</button>
+      <div class="spacer"></div>
+      <button type="submit" class="btn primary cta" [disabled]="busy()">
+        <i class="ti" [class.ti-loader-2]="busy()" [class.spin]="busy()" [class.ti-user-plus]="!busy()" aria-hidden="true"></i>
+        {{ busy() ? 'Creating user…' : 'Create user' }}
+      </button>
+    </div>
+  </form>
+</app-modal-shell>
+
+<!-- ── Edit user ───────────────────────────────────────────────────────── -->
+<app-modal-shell *ngIf="editingUser() as u" [heading]="'Edit ' + (fullName(u) || u.username)" [subtitle]="orgLabel + ' · update their name and roles'"
+                 icon="ti-user-edit" [width]="640" (close)="closeEdit()">
+  <form class="modern" (ngSubmit)="editTried.set(true); saveEdit()" autocomplete="off" novalidate>
+    <div class="profile-card">
+      <span class="avatar lg" aria-hidden="true">{{ initials(u) }}</span>
+      <div class="profile-text">
+        <span class="profile-name">{{ fullName(u) || '—' }}</span>
+        <span class="mono profile-email">{{ u.username }}</span>
+        <span class="profile-badges">
+          <span class="badge primary" *ngIf="u.primaryAdmin"><i class="ti ti-crown" aria-hidden="true"></i> Original admin</span>
+          <span class="badge">{{ u.homeOrganization ? 'Home organization' : 'Additional access' }}</span>
+        </span>
+      </div>
+    </div>
+    <div class="identity" *ngIf="u.primaryAdmin">
+      <i class="ti ti-shield-lock" aria-hidden="true"></i>
+      <span>Created at onboarding — they always keep the <strong>Admin</strong> role and can't be removed.</span>
+    </div>
+
+    <div class="form-section">
+      <div class="section-head">
+        <h4><span class="step">1</span> Person</h4>
+        <span>Their name is updated here and on their sign-in account.</span>
+      </div>
+      <div class="two">
+        <div class="m-field">
+          <label for="edit-first">First name</label>
+          <div class="input-wrap" [class.bad]="editTried() && !editFirst().trim()">
+            <i class="ti ti-user" aria-hidden="true"></i>
+            <input id="edit-first" name="first" [ngModel]="editFirst()" (ngModelChange)="editFirst.set($event)" [disabled]="busy()" />
+          </div>
+          <span class="m-error" *ngIf="editTried() && !editFirst().trim()">Required.</span>
+        </div>
+        <div class="m-field">
+          <label for="edit-last">Last name</label>
+          <div class="input-wrap" [class.bad]="editTried() && !editLast().trim()">
+            <i class="ti ti-user" aria-hidden="true"></i>
+            <input id="edit-last" name="last" [ngModel]="editLast()" (ngModelChange)="editLast.set($event)" [disabled]="busy()" />
+          </div>
+          <span class="m-error" *ngIf="editTried() && !editLast().trim()">Required.</span>
+        </div>
+      </div>
+      <div class="m-field">
+        <label for="edit-email">Email address</label>
+        <div class="input-wrap locked" title="The email is their username, so it can't be changed">
+          <i class="ti ti-mail" aria-hidden="true"></i>
+          <input id="edit-email" name="email" [value]="u.username" readonly tabindex="-1" />
+          <i class="ti ti-lock" aria-hidden="true"></i>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="section-head">
+        <h4>
+          <span class="step">2</span> Roles
+          <span class="count-pill" *ngIf="editRoles().size">{{ editRoles().size }} selected</span>
+        </h4>
+        <span>What they can open and do in {{ orgLabel }}.</span>
+      </div>
+      <div class="changes" *ngIf="roleChanges().added.length || roleChanges().removed.length">
+        <span class="change add" *ngFor="let n of roleChanges().added"><i class="ti ti-plus" aria-hidden="true"></i>{{ n }}</span>
+        <span class="change remove" *ngFor="let n of roleChanges().removed"><i class="ti ti-minus" aria-hidden="true"></i>{{ n }}</span>
+      </div>
+      <ng-container *ngTemplateOutlet="rolePicker; context: { selected: editRoles(), mode: 'edit' }"></ng-container>
+      <span class="m-error" *ngIf="(editTried() || editRolesTouched()) && !editRoles().size">Keep at least one role — to take all access away, remove the user instead.</span>
+    </div>
+
+    <div class="m-footer">
+      <button type="button" class="btn ghost" (click)="closeEdit()" [disabled]="busy()">Cancel</button>
+      <div class="spacer"></div>
+      <span class="footer-hint" *ngIf="!editChanged()"><i class="ti ti-info-circle" aria-hidden="true"></i> No changes yet</span>
+      <button type="submit" class="btn primary cta" [disabled]="!editChanged() || busy()">
+        <i class="ti" [class.ti-loader-2]="busy()" [class.spin]="busy()" [class.ti-device-floppy]="!busy()" aria-hidden="true"></i>
+        {{ busy() ? 'Saving…' : 'Save changes' }}
+      </button>
+    </div>
+  </form>
+</app-modal-shell>
+
+<!-- ── One-time credentials ────────────────────────────────────────────── -->
+<app-modal-shell *ngIf="created() as c" heading="User created" [subtitle]="orgLabel" icon="ti-circle-check" [width]="540" (close)="closeCreated()">
+  <p class="hint top">Save these now — the password won't be shown again. It's temporary: {{ fullName(c.user) || c.user.username }} chooses their own at first sign-in.</p>
+  <div class="cred-box">
+    <div class="cred-row"><span class="k">Organization</span><span class="v">{{ orgLabel }}</span></div>
+    <div class="cred-row" *ngIf="c.signInUrl"><span class="k">Sign in at</span><span class="v mono">{{ c.signInUrl }}</span></div>
+    <div class="cred-row"><span class="k">Username</span><span class="v mono">{{ c.user.username }}</span></div>
+    <div class="cred-row"><span class="k">Temporary password</span><span class="v mono">{{ c.temporaryPassword }}</span></div>
+    <div class="cred-row"><span class="k">Roles</span><span class="v">{{ createdRoleNames(c) }}</span></div>
+  </div>
+  <p class="sent" *ngIf="c.emailSent"><i class="ti ti-mail-check" aria-hidden="true"></i> Emailed to {{ c.user.username }}</p>
+  <div class="wizard-actions">
+    <button type="button" class="btn ghost" (click)="copyCredentials()"><i class="ti ti-copy" aria-hidden="true"></i> Copy</button>
+    <button type="button" class="btn ghost" *ngIf="!c.emailSent" (click)="emailCredentials()" [disabled]="busy()">
+      <i class="ti ti-mail" aria-hidden="true"></i> {{ busy() ? 'Sending…' : 'Send by email' }}
+    </button>
+    <div class="spacer"></div>
+    <button type="button" class="btn primary" (click)="closeCreated()">Done</button>
+  </div>
+</app-modal-shell>
+
+<app-org-role-editor
+  *ngIf="roleEditorOpen()"
+  [orgId]="orgId"
+  [orgLabel]="orgLabel"
+  [role]="editingRole()"
+  [takenNames]="takenRoleNames()"
+  (saved)="onRoleSaved($event)"
+  (closed)="closeRoleEditor()"
+></app-org-role-editor>

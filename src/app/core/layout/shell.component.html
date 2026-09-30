@@ -2,7 +2,7 @@
   <div class="sidebar-backdrop" (click)="toggleCollapsed()"></div>
   <aside class="sidebar">
     <div class="brand-strip">
-      <button type="button" class="toggle-btn" (click)="toggleCollapsed()" [title]="collapsed() ? 'Expand sidebar' : 'Collapse sidebar'">
+      <button type="button" class="toggle-btn" (click)="toggleCollapsed()" [title]="collapsed() ? 'Expand sidebar' : 'Collapse sidebar'" [attr.aria-label]="collapsed() ? 'Expand sidebar' : 'Collapse sidebar'">
         <i class="ti ti-menu-2"></i>
       </button>
       <a routerLink="/overview" *ngIf="!collapsed()"><img src="assets/logos/flip-product-logo.svg" alt="FLIP" class="brand-lockup" /></a>
@@ -10,6 +10,7 @@
     <a routerLink="/overview" *ngIf="collapsed()" class="collapsed-brand"><img src="assets/logos/flip-product-logo.svg" alt="FLIP" class="brand-mark-only" /></a>
     <div class="product-tag" *ngIf="!collapsed()">
       <span>Platform console</span>
+      <span class="env-badge" *ngIf="envName !== 'PROD'" [title]="'You are in the ' + envName + ' environment'">{{ envName }}</span>
     </div>
 
     <nav aria-label="Main navigation">
@@ -21,6 +22,7 @@
         ariaCurrentWhenActive="page"
         [routerLinkActiveOptions]="{ exact: false }"
         [title]="collapsed() ? item.label : ''"
+        [attr.aria-label]="collapsed() ? item.label : null"
         (click)="closeOnMobileNav()"
       >
         <i class="ti" [class]="item.icon"></i>
@@ -53,7 +55,7 @@
   </aside>
 
   <div class="mobile-topbar">
-    <button type="button" class="toggle-btn" (click)="toggleCollapsed()" title="Open menu">
+    <button type="button" class="toggle-btn" (click)="toggleCollapsed()" title="Open menu" aria-label="Open menu">
       <i class="ti ti-menu-2"></i>
     </button>
     <img src="assets/logos/flip-product-logo.svg" alt="FLIP" class="mobile-mark" />

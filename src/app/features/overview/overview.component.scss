@@ -1,6 +1,6 @@
 :host { display: block; }
 .dash { max-width: 1400px; margin: 0 auto; color: #263044; font-family: var(--k-font-body); padding-bottom: 24px; }
-.page-heading { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin: 0 0 18px; padding: 24px 28px; border-radius: 16px; color: white; background: linear-gradient(115deg,#583588,#814897 65%,#aa567d); box-shadow: 0 8px 24px #633a871a; }
+.page-heading { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin: 0 0 18px; padding: 24px 28px; border: 1px solid #80679a; border-radius: 16px; color: white; background: var(--ui-header-grad); box-shadow: 0 10px 25px #54418520; }
 .eyebrow { font-size: 10px; font-weight: 650; letter-spacing: .12em; color: #858b9b; margin-bottom: 8px; }
 h1 { display: flex; align-items: center; gap: 12px; font: 650 28px/1.3 var(--k-font-display); letter-spacing: -.035em; }
 .page-heading .eyebrow { color: #dfcdec; } .heading-dot { display: none; }

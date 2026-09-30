@@ -1,0 +1,214 @@
+<app-page-header
+  eyebrow="User guide"
+  title="Help"
+  subtitle="Every console flow, step by step — from onboarding an organization to offboarding it — with screenshots and answers to common questions."
+>
+  <a
+    class="btn primary"
+    [href]="pdfUrl"
+    download="FLIP-Platform-Console-User-Guide.pdf"
+    title="The whole guide and FAQ as one PDF"
+  >
+    <i class="ti ti-file-download" aria-hidden="true"></i> Download PDF
+  </a>
+</app-page-header>
+
+<!-- Lifecycle at a glance: each stage jumps to its first guide. -->
+<section class="lifecycle" aria-label="Organization lifecycle">
+  <h2 class="section-label">Organization lifecycle</h2>
+  <ol class="stages">
+    @for (stage of stages; track stage.id; let i = $index) {
+      <li>
+        <button type="button" class="stage" [class.current]="activeStage() === stage.id" (click)="goToStage(stage.id)">
+          <span class="stage-icon"><i [class]="'ti ' + stage.icon" aria-hidden="true"></i></span>
+          <span class="stage-num">{{ i + 1 }}</span>
+          <span class="stage-label">{{ stage.label }}</span>
+        </button>
+      </li>
+    }
+  </ol>
+</section>
+
+<div class="help-layout">
+  <!-- Table of contents -->
+  <aside class="toc" aria-label="Guides">
+    <label class="search">
+      <i class="ti ti-search" aria-hidden="true"></i>
+      <input
+        type="search"
+        class="input"
+        placeholder="Search the guide…"
+        aria-label="Search the guide"
+        [ngModel]="search()"
+        (ngModelChange)="onSearch($event)"
+      />
+    </label>
+
+    <nav>
+      @for (entry of toc(); track entry.stage.id) {
+        <p class="toc-stage">{{ stageNumber(entry.stage.id) }} · {{ entry.stage.label }}</p>
+        @for (g of entry.guides; track g.id) {
+          <a class="toc-link" [class.active]="activeId() === g.id" [href]="'#' + g.id" (click)="$event.preventDefault(); scrollTo(g.id)">
+            <i [class]="'ti ' + g.icon" aria-hidden="true"></i>
+            <span>{{ g.title }}</span>
+          </a>
+        }
+      }
+      @if (faqCount()) {
+        <p class="toc-stage">Questions</p>
+        <a class="toc-link" href="#faq" (click)="$event.preventDefault(); scrollTo('faq')">
+          <i class="ti ti-help-circle" aria-hidden="true"></i>
+          <span>FAQ <span class="count">{{ faqCount() }}</span></span>
+        </a>
+      }
+    </nav>
+  </aside>
+
+  <div class="content">
+    @if (search() && !visibleGuides().length && !faqCount()) {
+      <div class="card no-results">
+        <i class="ti ti-mood-empty" aria-hidden="true"></i>
+        <p>Nothing in the guide matches “{{ search() }}”.</p>
+        <button type="button" class="btn ghost sm" (click)="onSearch('')">Clear search</button>
+      </div>
+    }
+
+    @for (g of visibleGuides(); track g.id) {
+      <article class="guide card" [id]="g.id">
+        <header class="guide-head">
+          <span class="guide-icon"><i [class]="'ti ' + g.icon" aria-hidden="true"></i></span>
+          <div class="guide-titles">
+            <p class="guide-stage">Stage {{ stageNumber(g.stage) }} · {{ stageLabel(g.stage) }}</p>
+            <h2>{{ g.title }}</h2>
+            <p class="guide-summary">{{ g.summary }}</p>
+            <div class="guide-meta">
+              <a class="meta where" [routerLink]="g.where.path">
+                <i class="ti ti-map-pin" aria-hidden="true"></i> {{ g.where.label }}
+                <i class="ti ti-arrow-up-right" aria-hidden="true"></i>
+              </a>
+              <span class="meta audience"><i class="ti ti-user-shield" aria-hidden="true"></i> {{ g.audience }}</span>
+              <span class="meta"><i class="ti ti-list-numbers" aria-hidden="true"></i> {{ g.steps.length }} step{{ g.steps.length === 1 ? '' : 's' }}</span>
+            </div>
+          </div>
+        </header>
+
+        <ol class="steps">
+          @for (step of g.steps; track step.title; let i = $index) {
+            <li class="step" [class.has-image]="!!step.image">
+              <div class="step-text">
+                <h3><span class="step-num">{{ i + 1 }}</span>{{ step.title }}</h3>
+                <p>{{ step.text }}</p>
+                @if (step.actions?.length) {
+                  <div class="block">
+                    <p class="block-label"><i class="ti ti-hand-click" aria-hidden="true"></i> Do this</p>
+                    <ol class="actions">
+                      @for (a of step.actions; track $index) {
+                        <li>{{ a }}</li>
+                      }
+                    </ol>
+                  </div>
+                }
+                @if (step.fields?.length) {
+                  <div class="block">
+                    <p class="block-label"><i class="ti ti-forms" aria-hidden="true"></i> What to fill in</p>
+                    <dl class="fields">
+                      @for (f of step.fields; track f.name) {
+                        <div class="field-row">
+                          <dt>{{ f.name }}</dt>
+                          <dd>{{ f.hint }}</dd>
+                        </div>
+                      }
+                    </dl>
+                  </div>
+                }
+                @if (step.result) {
+                  <p class="result"><i class="ti ti-circle-check" aria-hidden="true"></i><span><strong>What you'll see:</strong> {{ step.result }}</span></p>
+                }
+              </div>
+              @if (step.image) {
+                <figure class="shot">
+                  <button type="button" class="shot-btn" (click)="openImage(g, step)" [attr.aria-label]="'Enlarge screenshot: ' + step.title">
+                    <img [src]="step.image" [alt]="step.caption || step.title" loading="lazy" width="1440" height="900" />
+                    <span class="zoom"><i class="ti ti-zoom-in" aria-hidden="true"></i></span>
+                  </button>
+                  @if (step.caption) {
+                    <figcaption>{{ step.caption }}</figcaption>
+                  }
+                </figure>
+              }
+            </li>
+          }
+        </ol>
+
+        @if (g.notes?.length) {
+          <div class="notes">
+            @for (n of g.notes; track n.text) {
+              <p [class]="'note ' + n.tone">
+                <i
+                  class="ti"
+                  [class.ti-bulb]="n.tone === 'tip'"
+                  [class.ti-alert-triangle]="n.tone === 'warning'"
+                  [class.ti-info-circle]="n.tone === 'info'"
+                  aria-hidden="true"
+                ></i>
+                <span>{{ n.text }}</span>
+              </p>
+            }
+          </div>
+        }
+      </article>
+    }
+
+    @if (faqCount()) {
+      <section class="faq card" id="faq">
+        <header class="faq-head">
+          <div>
+            <p class="guide-stage">Questions</p>
+            <h2>Frequently asked questions</h2>
+          </div>
+          <div class="faq-tools">
+            <button type="button" class="btn ghost sm" (click)="expandAllFaq(true)">Expand all</button>
+            <button type="button" class="btn ghost sm" (click)="expandAllFaq(false)">Collapse all</button>
+          </div>
+        </header>
+
+        @for (group of faq(); track group.name) {
+          <h3 class="faq-group">{{ group.name }}</h3>
+          @for (item of group.items; track item.index) {
+            <div class="qa" [class.open]="openFaq().has(item.index)">
+              <button type="button" class="q" (click)="toggleFaq(item.index)" [attr.aria-expanded]="openFaq().has(item.index)">
+                <span>{{ item.q }}</span>
+                <i class="ti ti-chevron-down" aria-hidden="true"></i>
+              </button>
+              @if (openFaq().has(item.index)) {
+                <div class="a">
+                  <p>{{ item.a }}</p>
+                  @if (item.guide) {
+                    <a class="see" [href]="'#' + item.guide" (click)="$event.preventDefault(); onSearch(''); scrollTo(item.guide)">
+                      <i class="ti ti-book" aria-hidden="true"></i> See: {{ guideTitle(item.guide) }}
+                    </a>
+                  }
+                </div>
+              }
+            </div>
+          }
+        }
+      </section>
+    }
+  </div>
+</div>
+
+@if (lightbox(); as lb) {
+  <div class="lightbox" (click)="closeImage()" role="dialog" aria-modal="true" [attr.aria-label]="lb.title">
+    <div class="lb-panel" (click)="$event.stopPropagation()">
+      <div class="lb-head">
+        <p>{{ lb.title }}</p>
+        <button type="button" class="lb-x" (click)="closeImage()" aria-label="Close"><i class="ti ti-x" aria-hidden="true"></i></button>
+      </div>
+      <img [src]="lb.src" [alt]="lb.caption || lb.title" />
+      @if (lb.caption) {
+        <p class="lb-caption">{{ lb.caption }}</p>
+      }
+    </div>
+  </div>
+}

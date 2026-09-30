@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 420" fill="none" role="img" aria-label="Animated connected FLIP platform">
+<defs>
+  <linearGradient id="surface" x1="330" y1="100" x2="570" y2="340" gradientUnits="userSpaceOnUse"><stop stop-color="#fff"/><stop offset=".55" stop-color="#f9f1ff"/><stop offset="1" stop-color="#dcc4ef"/></linearGradient>
+  <linearGradient id="edge" x1="340" y1="250" x2="570" y2="320" gradientUnits="userSpaceOnUse"><stop stop-color="#d6b7e9"/><stop offset=".5" stop-color="#b683d5"/><stop offset="1" stop-color="#e8cbdf"/></linearGradient>
+  <linearGradient id="ribbon" x1="170" y1="150" x2="740" y2="300" gradientUnits="userSpaceOnUse"><stop stop-color="#d5b3e9" stop-opacity=".25"/><stop offset=".4" stop-color="#b189d0" stop-opacity=".75"/><stop offset=".7" stop-color="#e2b0c2"/><stop offset="1" stop-color="#e9cbb9" stop-opacity=".3"/></linearGradient>
+  <radialGradient id="halo"><stop stop-color="#d3afea" stop-opacity=".6"/><stop offset="1" stop-color="#dabded" stop-opacity="0"/></radialGradient>
+  <filter id="shadow" x="-50%" y="-50%" width="200%" height="220%"><feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#9363b4" flood-opacity=".16"/></filter>
+  <filter id="light"><feGaussianBlur stdDeviation="4"/></filter>
+  <style>
+    .platform { animation:float 7s ease-in-out infinite; transform-origin:450px 210px; }
+    .ring { transform-origin:450px 220px; animation:orbit 32s linear infinite; }
+    .track { stroke-dasharray:3 13; animation:track 12s linear infinite; }
+    .satellite { animation:float 6s ease-in-out infinite; }.delayed { animation-delay:-3s; }
+    .pulse { transform-origin:450px 220px; animation:pulse 5s ease-in-out infinite; }
+    @keyframes float { 50% { transform:translateY(-10px); } }
+    @keyframes orbit { to { transform:rotate(360deg); } }
+    @keyframes track { to { stroke-dashoffset:-192; } }
+    @keyframes pulse { 50% { transform:scale(1.08); opacity:.5; } }
+    @media(prefers-reduced-motion:reduce) { .platform,.ring,.track,.satellite,.pulse { animation:none; }.packet { display:none; } }
+  </style>
+</defs>
+<ellipse class="pulse" cx="450" cy="240" rx="265" ry="175" fill="url(#halo)"/>
+<ellipse cx="450" cy="342" rx="134" ry="19" fill="#b497cb" opacity=".12" filter="url(#light)"/>
+<g stroke="#c8aedc" stroke-width="1.5" opacity=".65">
+  <path d="M150 120C275 120 265 210 388 215M745 140C630 140 638 209 510 215M188 340C275 340 280 252 392 242M735 342C628 342 626 250 510 242"/>
+</g>
+<g class="track" stroke="#a677c2" stroke-width="2" opacity=".7"><path d="M150 120C275 120 265 210 388 215M745 140C630 140 638 209 510 215M188 340C275 340 280 252 392 242M735 342C628 342 626 250 510 242"/></g>
+<ellipse cx="450" cy="228" rx="263" ry="94" transform="rotate(-16 450 228)" stroke="url(#ribbon)" stroke-width="14" opacity=".6"/>
+<ellipse cx="450" cy="228" rx="274" ry="106" transform="rotate(-16 450 228)" stroke="#fff" stroke-width="1.5" opacity=".8"/>
+<g class="ring" stroke="#bea0d3" opacity=".35"><circle cx="450" cy="220" r="172" stroke-dasharray="1 15"/><circle cx="450" cy="48" r="5" fill="#d1b5e4" stroke="#fff"/></g>
+<g class="platform" filter="url(#shadow)">
+  <path d="M450 170L574 241V275L450 346L326 275V241Z" fill="url(#edge)" opacity=".5"/>
+  <path d="M450 165L574 237L450 309L326 237Z" fill="#f9f1ff" stroke="#fff" stroke-width="1.5"/>
+  <path d="M450 129L562 194V245L450 310L338 245V194Z" fill="url(#edge)"/>
+  <path d="M450 129L562 194L450 259L338 194Z" fill="url(#surface)" stroke="#fff" stroke-width="2"/>
+  <path d="M450 259V310M338 194L450 259L562 194" stroke="#fff" stroke-opacity=".7" stroke-width="1.5"/>
+  <rect x="372" y="140" width="156" height="110" rx="25" fill="url(#surface)" stroke="#fff" stroke-width="2"/>
+  <image x="393" y="160" width="114" height="49" href="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTEyIiBoZWlnaHQ9IjQ4IiB2aWV3Qm94PSIwIDAgMTEyIDQ4IiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgo8ZyBjbGlwLXBhdGg9InVybCgjY2xpcDBfNjUxMV8xMjM1MikiPgo8cGF0aCBkPSJNNjguMDcwNyAxMS45MTQxVjE1LjgxNkg1Ny44NTE1VjIxLjk5MTdINjUuNjgxOVYyNS44MTk2SDU3Ljg1MTVWMzUuOTk4Mkg1Mi45MzdWMTEuOTE0MUg2OC4wNzA3WiIgZmlsbD0iIzUzMTY5QyIvPgo8cGF0aCBkPSJNNzYuMDU4NSAzMi4xNzAzSDg0LjEzNTNWMzUuOTk4Mkg3MS4xNDRWMTEuOTE0MUg3Ni4wNTg1VjMyLjE3MDNaIiBmaWxsPSIjNTMxNjlDIi8+CjxwYXRoIGQ9Ik05MS4zMzU5IDExLjkxNDFWMzUuOTk4Mkg4Ni40MjE0VjExLjkxNDFIOTEuMzM1OVoiIGZpbGw9IiM1MzE2OUMiLz4KPHBhdGggZD0iTTExMS4wNjkgMjIuOTk0MUMxMTAuNDQ2IDI0LjEyNDMgMTA5LjQ3NCAyNS4wMzI1IDEwOC4xNTMgMjUuNzE4N0MxMDYuODMyIDI2LjQxMTYgMTA1LjE2MiAyNi43NTQ3IDEwMy4xNSAyNi43NTQ3SDk5LjA0MjlWMzYuMDA0OUg5NC4xMjg0VjExLjkxNDFIMTAzLjE1QzEwNS4wNDYgMTEuOTE0MSAxMDYuNjYxIDEyLjIzNyAxMDcuOTk2IDEyLjg4MjhDMTA5LjMzMSAxMy41Mjg2IDExMC4zMyAxNC40MDk5IDExMS4wMDEgMTUuNTQwMUMxMTEuNjY1IDE2LjY3MDMgMTEyIDE3Ljk0MTggMTEyIDE5LjM2OEMxMTIgMjAuNjU5NyAxMTEuNjkyIDIxLjg2MzkgMTExLjA2OSAyMi45OTQxWk0xMDUuOTYzIDIxLjkzNzlDMTA2LjYyIDIxLjMyNTcgMTA2Ljk0OSAyMC40NzEzIDEwNi45NDkgMTkuMzY4QzEwNi45NDkgMTcuMDIwMiAxMDUuNjE0IDE1Ljg0OTYgMTAyLjk0NCAxNS44NDk2SDk5LjA0OThWMjIuODUyOEgxMDIuOTQ0QzEwNC4zIDIyLjg1MjggMTA1LjMwNiAyMi41NTAxIDEwNS45NjMgMjEuOTM3OVoiIGZpbGw9IiM1MzE2OUMiLz4KPHBhdGggZD0iTTAgMzUuOTk4M1YxMi4wMDE3TDIxLjE1MDIgMEw0Mi4zMDAzIDEyLjAwMTdWMzYuMDA1MUwyMS4xNTAyIDQ4LjAwNjdMMCAzNS45OTgzWiIgZmlsbD0idXJsKCNwYWludDBfbGluZWFyXzY1MTFfMTIzNTIpIi8+CjxwYXRoIGQ9Ik0yMS40NzE3IDcuMTMwODZMNi42MTE4MiAxNS41NjdWMzIuNDM5M0wyMS40NzE3IDQwLjg3NTVMMzYuMzMxNSAzMi40MzkzVjE1LjU2N0wyMS40NzE3IDcuMTMwODZaTTMyLjE2MzEgMTcuNTc4NUwyMS43NjYgMjMuMDI3N0wxMS4xMTU2IDE3LjQxMDNMMjEuNDg1NCAxMS41MTcxTDMyLjE2MzEgMTcuNTcxOFYxNy41Nzg1Wk0yMS40NzE3IDM2LjQ5NkwxMC40NzIyIDMwLjI0NjJWMjEuMzY2TDIxLjc0NTUgMjcuMzA2M0wzMi40NzggMjEuNjg5VjMwLjIzOTVMMjEuNDc4NSAzNi40ODkyTDIxLjQ3MTcgMzYuNDk2WiIgZmlsbD0id2hpdGUiLz4KPHBhdGggZD0iTTI1LjA2NTMgMjguMDg1OVYzMS42NjQ5TDIxLjc1OTMgMzMuNDA3M0wxNy44OTg5IDMxLjM3NTZWMjcuNzgzMkwyMS43NTkzIDI5LjgxNDlMMjUuMDY1MyAyOC4wODU5WiIgZmlsbD0id2hpdGUiLz4KPC9nPgo8ZGVmcz4KPGxpbmVhckdyYWRpZW50IGlkPSJwYWludDBfbGluZWFyXzY1MTFfMTIzNTIiIHgxPSItMy4zNjA3NSIgeTE9IjEwLjk3OTEiIHgyPSI0OC4wMDQyIiB5Mj0iMzkuMjIzNiIgZ3JhZGllbnRVbml0cz0idXNlclNwYWNlT25Vc2UiPgo8c3RvcCBzdG9wLWNvbG9yPSIjRkY1RjNEIi8+CjxzdG9wIG9mZnNldD0iMC41NSIgc3RvcC1jb2xvcj0iIzUzMTY5QyIvPgo8c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMxNjY0REYiLz4KPC9saW5lYXJHcmFkaWVudD4KPGNsaXBQYXRoIGlkPSJjbGlwMF82NTExXzEyMzUyIj4KPHJlY3Qgd2lkdGg9IjExMiIgaGVpZ2h0PSI0OCIgZmlsbD0id2hpdGUiLz4KPC9jbGlwUGF0aD4KPC9kZWZzPgo8L3N2Zz4K"/>
+  <g fill="#bba0ca"><circle cx="438" cy="226" r="2"/><circle cx="450" cy="226" r="2"/><circle cx="462" cy="226" r="2"/></g>
+</g>
+<g class="satellite" filter="url(#shadow)"><rect x="212" y="59" width="49" height="49" rx="13" transform="rotate(-15 236 83)" fill="#f8f0fd" stroke="#fff"/><path d="M225 87V77h22v10M230 77v-7h12v7M230 82h3m6 0h3" stroke="#b48acf" stroke-width="2" stroke-linecap="round"/></g>
+<g class="satellite delayed" filter="url(#shadow)"><rect x="650" y="262" width="51" height="51" rx="14" transform="rotate(15 675 287)" fill="#faedf0" stroke="#fff"/><path d="M664 286l8-6 7 4 10-11M664 295v-15" stroke="#cb98b0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></g>
+<circle cx="636" cy="86" r="10" fill="#e9c6c3" stroke="#fff" stroke-width="2"/>
+<circle cx="300" cy="325" r="6" fill="#d8bee9" stroke="#fff" stroke-width="2"/>
+<circle class="packet" r="4" fill="#ad7bc8"><animateMotion dur="5s" repeatCount="indefinite" path="M150 120C275 120 265 210 388 215"/></circle>
+<circle class="packet" r="4" fill="#cb97b8"><animateMotion dur="6s" repeatCount="indefinite" path="M510 215C638 209 630 140 745 140"/></circle>
+<circle class="packet" r="4" fill="#ad7bc8"><animateMotion dur="7s" repeatCount="indefinite" path="M188 340C275 340 280 252 392 242"/></circle>
+<circle class="packet" r="4" fill="#cb97b8"><animateMotion dur="5.5s" repeatCount="indefinite" path="M510 242C626 250 628 342 735 342"/></circle>
+</svg>

@@ -12,10 +12,11 @@
 </app-page-header>
 
 <p class="lede">
-  This is the catalog of applications the platform knows about — nothing more. Adding one here does
-  <strong>not</strong> put it on any plan: assign it to each plan that should include it under
-  <strong>Plans</strong>, which is where its design-time and runtime limits are set too. The scopes
-  you give it here are the permissions those plans' roles can then grant.
+  This is the catalog of applications the platform knows about. An application reaches organizations
+  through the <strong>subscription plans</strong> that include it — use
+  <i class="ti ti-clipboard-list" aria-label="Subscription plans"></i> on a row to add it to plans or remove it,
+  and set its design-time and runtime limits under <strong>Plans</strong>. The scopes you give it here
+  are the permissions those plans' roles grant.
   Once an organization is using an application it is locked: its scopes are what live users' permissions
   are computed from, so editing and deleting are both disabled until it is removed from their plans.
 </p>
@@ -118,6 +119,26 @@
               <button
                 type="button"
                 class="icon-btn"
+                (click)="openAssignments(row.app)"
+                title="Subscription plans — add to or remove from plans"
+                [attr.aria-label]="'Choose subscription plans for ' + row.label"
+              >
+                <i class="ti ti-clipboard-list" aria-hidden="true"></i>
+              </button>
+              <button
+                type="button"
+                class="icon-btn migration-btn"
+                *ngIf="row.app.migrationApplication"
+                [class.needs-setup]="!row.app.migrationConfigured"
+                (click)="openMigrationDetails(row.app)"
+                [title]="row.app.migrationConfigured ? 'Migration details' : 'Migration details not set up yet'"
+                [attr.aria-label]="(row.app.migrationConfigured ? 'Edit migration details for ' : 'Set up migration details for ') + row.label"
+              >
+                <i class="ti ti-arrows-exchange" aria-hidden="true"></i>
+              </button>
+              <button
+                type="button"
+                class="icon-btn"
                 (click)="startEdit(row.app)"
                 [disabled]="!canEdit(row.app)"
                 [title]="canEdit(row.app) ? 'Edit' : editLock(row.app)"
@@ -161,6 +182,21 @@
 
   <!-- ── Editor ─────────────────────────────────────────────────────────── -->
 </div>
+
+<app-migration-type-form
+  *ngIf="migrationApp() as app"
+  [app]="app"
+  [stepLabel]="migrationStepLabel()"
+  (saved)="onMigrationSaved($event)"
+  (closed)="onMigrationClosed()"
+></app-migration-type-form>
+
+<app-assign-plans
+  *ngIf="assigningApp() as app"
+  [app]="app"
+  [stepLabel]="assignStepLabel()"
+  (closed)="onAssignmentsClosed()"
+></app-assign-plans>
 
 <div class="backdrop" *ngIf="editing() !== null" (click)="closeIfBackdropClicked($event)">
   <aside

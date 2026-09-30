@@ -34,7 +34,7 @@
   // The Overview's own header band and panel accents, shared so other pages can reuse them.
   // The rose end is deepened from the original #d96188: white small text over that stop measured
   // 2.71:1, which fails AA for anything that reaches the right of a wide band.
-  --ui-header-grad: linear-gradient(115deg, #7040a5, #8a49a0 58%, #aa5078);
+  --ui-header-grad: radial-gradient(circle at 76% 22%, #a887c866, transparent 46%), linear-gradient(115deg, #544185, #705194 60%, #865c8e);
   --ui-violet: #7c46a3;
   --ui-violet-soft: #eadcf5;
   --ui-violet-wash: #faf5ff;

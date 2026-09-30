@@ -230,6 +230,10 @@ export class PlanBuilderComponent implements OnInit {
       if (ancestors.has(candidate.app.appId)) candidate.accessStatus = 'ENABLED';
     }
     this.rows.set([...this.rows()]);
+    // Keep the primary application valid as access changes. This used to happen inside
+    // canGoNext(), which the template calls during change detection - mutating state there threw
+    // ExpressionChangedAfterItHasBeenCheckedError (NG0100) whenever the first app was enabled.
+    this.ensurePrimaryAppSelected();
   }
 
   // Opting an application into a limit. Same model as the per-organization Limits screen so both
@@ -334,8 +338,7 @@ export class PlanBuilderComponent implements OnInit {
       if (!this.enabledRows().length) {
         return false;
       }
-      this.ensurePrimaryAppSelected();
-      return !!this.primaryAppId;
+      return this.primaryAppOptions().some((row) => row.app.appId === this.primaryAppId);
     }
     return true;
   }
@@ -368,6 +371,7 @@ export class PlanBuilderComponent implements OnInit {
   next(): void {
     if (!this.canGoNext()) return;
     this.step.set(Math.min(this.step() + 1, this.stepLabels.length - 1));
+    if (this.step() === 1) this.ensurePrimaryAppSelected();
   }
 
   back(): void {

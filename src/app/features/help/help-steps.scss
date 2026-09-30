@@ -1,0 +1,162 @@
+/* Step content ("Do this", "What to fill in", results) and the screenshot lightbox. Kept apart from
+   the page layout so each stylesheet stays inside the component style budget. */
+
+.block {
+  margin-top: 12px;
+}
+
+.block-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 6px !important;
+  font-size: 11px !important;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ui-eyebrow) !important;
+}
+
+.actions {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.actions li {
+  padding: 2px 0 2px 4px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--ink-soft);
+}
+
+.actions li::marker {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.fields {
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.field-row {
+  display: grid;
+  grid-template-columns: minmax(150px, 30%) 1fr;
+}
+
+.field-row + .field-row {
+  border-top: 1px solid var(--line);
+}
+
+.field-row dt {
+  padding: 9px 12px;
+  background: var(--paper-sunken);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.field-row dd {
+  margin: 0;
+  padding: 9px 12px;
+  color: var(--ink-soft);
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+
+.result {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px !important;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--success-soft);
+  color: #1f6a3a !important;
+  font-size: 13.5px !important;
+}
+
+.result .ti {
+  margin-top: 2px;
+  flex-shrink: 0;
+  font-size: 16px;
+}
+
+// --- lightbox ----------------------------------------------------------------
+
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(20, 16, 30, 0.72);
+  backdrop-filter: blur(3px);
+  cursor: zoom-out;
+}
+
+.lb-panel {
+  display: flex;
+  flex-direction: column;
+  max-width: min(1440px, 100%);
+  max-height: 100%;
+  border-radius: 12px;
+  background: var(--paper-raised);
+  overflow: hidden;
+  cursor: default;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+}
+
+.lb-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px 10px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.lb-head p {
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.lb-x {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--paper-sunken);
+  color: var(--ink-soft);
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.lb-x:hover {
+  background: var(--line);
+  color: var(--ink);
+}
+
+.lightbox img {
+  display: block;
+  min-height: 0;
+  max-width: 100%;
+  max-height: calc(100vh - 140px);
+  object-fit: contain;
+}
+
+.lb-caption {
+  margin: 0;
+  padding: 8px 16px 12px;
+  font-size: 12.5px;
+  color: var(--ink-faint);
+}
+

@@ -157,6 +157,17 @@
   margin-bottom: 6px;
 }
 
+.env-badge {
+  padding: 2px 8px;
+  border: 1px solid #f3c98f;
+  border-radius: 999px;
+  background: #fff4e2;
+  color: #9a5b0d;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
 // ---------------------------------------------------------------------------
 // Nav
 // ---------------------------------------------------------------------------
@@ -407,6 +418,7 @@ nav a:focus-visible, .toggle-btn:focus-visible, .profile-trigger:focus-visible, 
   /* Long domain names and machine keys must not widen the page. */
   overflow-wrap: anywhere;
 }
+
 
 .content > * {
   max-width: 1320px;

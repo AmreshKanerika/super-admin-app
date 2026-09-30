@@ -9,7 +9,7 @@ import { ModalShellComponent } from './modal-shell.component';
   imports: [FormsModule, ModalShellComponent],
   template: `
     @if (confirm.active(); as req) {
-      <app-modal-shell [title]="req.title" [width]="520" (close)="cancel()">
+      <app-modal-shell [heading]="req.title" [width]="520" (close)="cancel()">
         @if (req.message) {
           <p class="msg">{{ req.message }}</p>
         }

@@ -34,6 +34,103 @@ export interface Application {
   editLockReason: string | null;
   /** Why deleting is blocked. Null when deletable. */
   deleteLockReason: string | null;
+  /** Nested directly under Migration, so it carries migration details copied to assigned orgs. */
+  migrationApplication: boolean;
+  /** A migration application whose migration details have been saved. */
+  migrationConfigured: boolean;
+}
+
+/** Mirrors com.flip.enums.MigrationSyncStatus. */
+export type MigrationSyncStatus =
+  | 'SYNCED'
+  | 'REMOVED'
+  | 'NOT_PRESENT'
+  | 'SKIPPED_NO_SCHEMA'
+  | 'SKIPPED_NO_TABLE'
+  | 'CONFLICT'
+  | 'FAILED';
+
+export interface PlanOrganization {
+  orgId: string;
+  organizationName: string;
+  domainPrefix: string | null;
+}
+
+/** A subscription plan seen from one application. */
+export interface AppPlanOption {
+  planId: string;
+  planName: string;
+  displayName: string | null;
+  planType: string | null;
+  billingMode: string | null;
+  /** The app is this plan's primary application, so it can't be removed from here. */
+  primaryApplication: boolean;
+  /** Set only for plans that include the app. */
+  accessStatus: string | null;
+  designTimeLimit: number | null;
+  runtimeLimit: number | null;
+  /** Organizations with an ACTIVE subscription to the plan. */
+  organizations: PlanOrganization[];
+}
+
+export interface AppPlanAssignments {
+  /** Plans that already include the app. */
+  assigned: AppPlanOption[];
+  /** Plans it can still be added to — an app is on a plan at most once. */
+  available: AppPlanOption[];
+}
+
+/** What an assign / remove / sync did for one organization subscribed to the plan. */
+export interface OrgAccessResult {
+  orgId: string;
+  organizationName: string;
+  access: 'GRANTED' | 'REVOKED' | 'KEPT_BY_OTHER_PLAN' | 'SYNCED';
+  /** Null when the application has no migration details to copy. */
+  migrationSync: MigrationSyncStatus | null;
+  message: string | null;
+}
+
+export interface PlanAssignmentResult {
+  planId: string;
+  planName: string | null;
+  action: 'ADDED' | 'ALREADY_ON_PLAN' | 'REMOVED' | 'NOT_ON_PLAN' | 'SYNCED' | 'BLOCKED' | 'NOT_FOUND';
+  message: string | null;
+  rolesUpdated: number;
+  organizations: OrgAccessResult[];
+}
+
+/** A JSON value stored as jsonb and copied verbatim into each assigned org's migration_types. */
+export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
+
+export interface MigrationTypeConfig {
+  /** Assigned by the server on first save; absent before that. */
+  id?: number;
+  appId?: string;
+  name: string;
+  description: string | null;
+  sourceFileImage: string | null;
+  targetFileImage: string | null;
+  migrationTypeUrl: string | null;
+  migrationAdditionalFormAttributes: JsonValue;
+  migrationFormAttributes: JsonValue;
+  targetMigrationDetails: JsonValue;
+  migrationAttributes: JsonValue;
+  migrationSourceForm: JsonValue;
+  migrationTargetForm: JsonValue;
+  healthCheckApiUrl: string | null;
+  migrationBlobFolder: string | null;
+  processingType: string | null;
+  migrationEncryptionConfig: JsonValue;
+  preMigrationInfo: JsonValue;
+  inventorySupported: boolean;
+  encryptionApiUrl: string | null;
+  createdDate?: string | null;
+  modifiedDate?: string | null;
+}
+
+export interface MigrationTypeSaveResponse {
+  migrationType: MigrationTypeConfig;
+  syncResults: OrgAccessResult[];
 }
 
 export interface ApplicationScopeRow {
@@ -370,4 +467,118 @@ export interface ResetOrgUsageResult {
     previousUsedLimit: number | null;
   }[];
   message: string;
+}
+
+// --- Organization users & roles (platform console) -------------------------------------------
+
+/** A role as the console shows it: the custom-role bundle id for custom roles, the subscription role id otherwise. */
+export interface OrgUserRoleRef {
+  roleId: string;
+  roleName: string;
+  roleType: 'ADMIN' | 'DEVELOPER' | 'CUSTOM' | string | null;
+}
+
+export interface OrgUser {
+  userId: string;
+  username: string;
+  firstName: string | null;
+  lastName: string | null;
+  /** This org is the user's home organization rather than an additional membership. */
+  homeOrganization: boolean;
+  /** The org's original Admin (first Admin, at onboarding): can't be removed or lose Admin. */
+  primaryAdmin: boolean;
+  createdDate: string | null;
+  roles: OrgUserRoleRef[];
+}
+
+export interface OrgPendingInvite {
+  inviteId: number;
+  username: string;
+  expiresAt: string | null;
+  roles: OrgUserRoleRef[];
+}
+
+export interface OrgUsersResponse {
+  users: OrgUser[];
+  pendingInvites: OrgPendingInvite[];
+}
+
+export interface CreateOrgUserResult {
+  user: OrgUser;
+  /** Shown once. Null when the person already had a login for this org and keeps their password. */
+  temporaryPassword: string | null;
+  signInUrl: string | null;
+  emailSent: boolean;
+  emailError: string | null;
+  message: string | null;
+}
+
+export interface OrgRbacScope {
+  appScopeId: string;
+  scopeName: string;
+}
+
+export interface OrgRoleApp {
+  appId: string;
+  appName: string;
+  accessStatus: string | null;
+  scopes: OrgRbacScope[];
+}
+
+export interface OrgRole {
+  /** Bundle id for custom roles, subscription role id for Admin/Developer. */
+  roleId: string;
+  roleName: string;
+  roleType: 'ADMIN' | 'DEVELOPER' | 'CUSTOM';
+  roleDescription: string | null;
+  customRoleBundleId: string | null;
+  subscriptionRoleIds: string[];
+  orgSubscribedPlanId: string | null;
+  planId: string | null;
+  editable: boolean;
+  apps: OrgRoleApp[];
+}
+
+/** An app on the org's active plans, with the scopes a custom role can grant. */
+export interface OrgRoleAppOption {
+  appId: string;
+  appName: string;
+  parentAppId: string | null;
+  accessStatus: string | null;
+  limitsExhausted: boolean;
+  limitMessage: string | null;
+  selectable: boolean;
+  scopes: OrgRbacScope[];
+}
+
+export interface OrgRoleUpsert {
+  roleName: string;
+  roleDescription: string | null;
+  appsEnabled: { appId: string; scopeIds: string[] }[];
+}
+
+// --- Organization file-processing insights (read from the organization's own schema) ---
+
+export interface ProcessingTotals {
+  filesProcessed: number;
+  pagesProcessed: number;
+  manualReview: number;
+}
+
+/** One source file type (PDF, XLSX, XLS, CSV or ZIP). */
+export interface ProcessingFileTypeRow {
+  fileType: string;
+  filesProcessed: number;
+  manualReview: number;
+}
+
+export interface ProcessingInsights {
+  from: string;
+  to: string;
+  availableMonths: string[];
+  schema: string;
+  sharedWithOrganizations: number;
+  missingTables: string[];
+  totals: ProcessingTotals;
+  byFileType: ProcessingFileTypeRow[];
 }

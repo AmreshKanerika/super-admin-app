@@ -1,3 +1,5 @@
+import { OrgUsersRolesComponent } from './org-access/org-users-roles.component';
+import { ProcessingInsightsComponent } from './processing-insights/processing-insights.component';
 import { Component, HostListener, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -20,12 +22,23 @@ import { OrgSubscribedPlan, OrganizationDomain, PlanChangeEffective, PlanUsageSu
 import { OrganizationOnboardingService } from '../../services/organization-onboarding.service';
 import { SubscriptionLifecycleService } from '../../services/subscription-lifecycle.service';
 
-type Tab = 'overview' | 'subscriptions' | 'usage' | 'limits' | 'users' | 'notifications' | 'activity';
+type Tab = 'overview' | 'subscriptions' | 'usage' | 'limits' | 'users' | 'processing' | 'notifications' | 'activity';
 
 @Component({
   selector: 'app-organization-detail',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, PageHeaderComponent, StatusPillComponent, CountdownComponent, LimitsPanelComponent, UsageLimitsComponent],
+  imports: [
+    CommonModule,
+    FormsModule,
+    RouterLink,
+    PageHeaderComponent,
+    StatusPillComponent,
+    CountdownComponent,
+    LimitsPanelComponent,
+    UsageLimitsComponent,
+    OrgUsersRolesComponent,
+    ProcessingInsightsComponent
+  ],
   templateUrl: './organization-detail.component.html',
   styleUrl: './organization-detail.component.scss'
 })
@@ -242,7 +255,7 @@ export class OrganizationDetailComponent {
   showBack = false;
   backUrl: string | null = null;
 
-  private static readonly TABS: Tab[] = ['overview', 'subscriptions', 'usage', 'limits', 'users', 'notifications', 'activity'];
+  private static readonly TABS: Tab[] = ['overview', 'subscriptions', 'usage', 'limits', 'users', 'processing', 'notifications', 'activity'];
 
   isSuperAdmin = computed(() => this.auth.role() === 'SUPER_ADMIN');
   // Assigning an additional plan is shared with SALES; see AuthService.canAssignPlan.
@@ -288,16 +301,6 @@ export class OrganizationDetailComponent {
     return this.plans.displayNameForPlanId(planId);
   }
 
-  users = computed(() => {
-    const org = this.org();
-    if (!org) return [];
-    const [first] = org.adminName.split(' ');
-    return [
-      { name: org.adminName, email: org.adminEmail, role: 'ADMIN' },
-      { name: `${first} (dev seat)`, email: org.adminEmail.replace('@', '+dev@'), role: 'DEVELOPER' }
-    ];
-  });
-
   activity = computed(() => {
     const org = this.org();
     if (!org) return [];
@@ -324,6 +327,8 @@ export class OrganizationDetailComponent {
     { key: 'usage', label: 'Usage & resets' },
     { key: 'limits', label: 'Apps & limits' },
     { key: 'users', label: 'Users & roles' },
+    // Read-only file-processing numbers from the organization's own schema; open to Sales as well.
+    { key: 'processing', label: 'Processing insights' },
     { key: 'notifications', label: 'Notifications' },
     { key: 'activity', label: 'Activity' }
   ];

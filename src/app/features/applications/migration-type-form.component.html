@@ -1,0 +1,148 @@
+<app-modal-shell [heading]="'Migration details · ' + appLabel" [width]="820" (close)="close()">
+  <p class="step" *ngIf="stepLabel">{{ stepLabel }}</p>
+  <p class="intro">
+    What this migration needs to run. Saving writes <code>master.migration_types</code> only. An organization's
+    <code>migration_types</code> table gets its copy when this application is added to a plan it subscribes to, or when a
+    plan that includes it is assigned to the organization.
+  </p>
+
+  <div class="loading" *ngIf="loading()">
+    <div class="skeleton-line"></div><div class="skeleton-line"></div><div class="skeleton-line short"></div>
+  </div>
+
+  <form *ngIf="!loading()" (ngSubmit)="save()" autocomplete="off">
+    <div class="meta-bar">
+      <span class="id-chip" *ngIf="existingId() !== null; else newId">
+        <i class="ti ti-hash" aria-hidden="true"></i> Migration type id <strong>{{ existingId() }}</strong>
+      </span>
+      <ng-template #newId>
+        <span class="id-chip muted"><i class="ti ti-hash" aria-hidden="true"></i> Id is assigned automatically on save</span>
+      </ng-template>
+      <div class="spacer"></div>
+      <button type="button" class="btn sm ghost" (click)="importOpen.set(!importOpen())">
+        <i class="ti ti-file-import" aria-hidden="true"></i> Fill from SQL INSERT
+      </button>
+    </div>
+
+    <section class="import" *ngIf="importOpen()">
+      <label for="mt-import">Paste an <code>INSERT INTO … migration_types (…) VALUES (…);</code> statement</label>
+      <textarea id="mt-import" name="importText" class="input mono" rows="6" spellcheck="false"
+                [ngModel]="importText()" (ngModelChange)="importText.set($event); importError.set(null)"></textarea>
+      <span class="hint">Every column it contains fills the matching field below. Its <code>id</code> is ignored — a new one is assigned when you save.</span>
+      <span class="error-text" *ngIf="importError()">{{ importError() }}</span>
+      <div class="import-actions">
+        <button type="button" class="btn sm ghost" (click)="importOpen.set(false)">Cancel</button>
+        <button type="button" class="btn sm primary" [disabled]="!importText().trim()" (click)="applyImport()">Fill form</button>
+      </div>
+    </section>
+
+    <!-- ── Basics ─────────────────────────────────────────────────── -->
+    <h4 class="section-title">Basics</h4>
+    <div class="grid">
+      <div class="field span-2">
+        <label for="mt-name">Name</label>
+        <input id="mt-name" name="name" class="input" [ngModel]="name()" (ngModelChange)="name.set($event)" maxlength="255" [class.invalid]="!name().trim()" />
+        <span class="error-text" *ngIf="!name().trim()">Name is required.</span>
+      </div>
+      <div class="field span-2">
+        <label for="mt-desc">Description</label>
+        <textarea id="mt-desc" name="description" class="input" rows="4" [ngModel]="description()" (ngModelChange)="description.set($event)"
+                  placeholder="What this migration moves, and what it produces on the target."></textarea>
+      </div>
+      <div class="field">
+        <label for="mt-processing">Processing type</label>
+        <select id="mt-processing" name="processingType" class="input" [ngModel]="processingType()" (ngModelChange)="processingType.set($event)">
+          <option value="">Not set</option>
+          <option *ngFor="let p of processingTypes" [value]="p">{{ p }}</option>
+          <option *ngIf="processingType() && !processingTypes.includes(processingType())" [value]="processingType()">{{ processingType() }}</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Inventory</label>
+        <label class="check">
+          <input type="checkbox" name="inventorySupported" [ngModel]="inventorySupported()" (ngModelChange)="inventorySupported.set($event)" />
+          <span>Supports inventory</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- ── Images ─────────────────────────────────────────────────── -->
+    <h4 class="section-title">Images</h4>
+    <div class="grid">
+      <div class="field" *ngFor="let which of ['source', 'target']">
+        <label>{{ which === 'source' ? 'Source' : 'Target' }} image</label>
+        <div class="image-box">
+          <ng-container *ngIf="(which === 'source' ? sourceFileImage() : targetFileImage()) as image; else noImage">
+            <img [src]="image" [alt]="(which === 'source' ? 'Source' : 'Target') + ' image'" />
+            <div class="image-actions">
+              <label class="btn sm ghost file-btn">Replace<input type="file" accept="image/*" (change)="onImagePicked($any(which), $event)" /></label>
+              <button type="button" class="btn sm ghost" (click)="clearImage($any(which))">Remove</button>
+            </div>
+          </ng-container>
+          <ng-template #noImage>
+            <label class="upload">
+              <i class="ti ti-photo-up" aria-hidden="true"></i>
+              <span>Upload image</span>
+              <small>PNG, JPG or SVG · under 1.4 MB</small>
+              <input type="file" accept="image/*" (change)="onImagePicked($any(which), $event)" />
+            </label>
+          </ng-template>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Endpoints ──────────────────────────────────────────────── -->
+    <h4 class="section-title">Endpoints &amp; storage</h4>
+    <div class="grid">
+      <div class="field span-2">
+        <label for="mt-url">Migration type URL <span class="optional-tag">· optional</span></label>
+        <input id="mt-url" name="migrationTypeUrl" class="input mono" [ngModel]="migrationTypeUrl()" (ngModelChange)="migrationTypeUrl.set($event)"
+               placeholder="https://…/api/InvokeMigration" [class.invalid]="urlErrors().migrationTypeUrl" />
+        <span class="error-text" *ngIf="urlErrors().migrationTypeUrl">{{ urlErrors().migrationTypeUrl }}</span>
+      </div>
+      <div class="field">
+        <label for="mt-health">Health check API URL</label>
+        <input id="mt-health" name="healthCheckApiUrl" class="input mono" [ngModel]="healthCheckApiUrl()" (ngModelChange)="healthCheckApiUrl.set($event)"
+               placeholder="https://…/api/health" [class.invalid]="urlErrors().healthCheckApiUrl" />
+        <span class="error-text" *ngIf="urlErrors().healthCheckApiUrl">{{ urlErrors().healthCheckApiUrl }}</span>
+      </div>
+      <div class="field">
+        <label for="mt-enc">Encryption API URL <span class="optional-tag">· optional</span></label>
+        <input id="mt-enc" name="encryptionApiUrl" class="input mono" [ngModel]="encryptionApiUrl()" (ngModelChange)="encryptionApiUrl.set($event)"
+               placeholder="https://…/api/getEncryptionKey" [class.invalid]="urlErrors().encryptionApiUrl" />
+        <span class="error-text" *ngIf="urlErrors().encryptionApiUrl">{{ urlErrors().encryptionApiUrl }}</span>
+      </div>
+      <div class="field span-2">
+        <label for="mt-blob">Blob folder</label>
+        <input id="mt-blob" name="migrationBlobFolder" class="input mono" [ngModel]="migrationBlobFolder()" (ngModelChange)="migrationBlobFolder.set($event)"
+               placeholder="sql-server-to-fabric/input-dir" />
+      </div>
+    </div>
+
+    <!-- ── JSON configuration ─────────────────────────────────────── -->
+    <h4 class="section-title">Configuration <span class="optional-tag">· JSON, leave blank for none</span></h4>
+    <div class="json-field" *ngFor="let f of jsonFields">
+      <div class="json-head">
+        <label [for]="'mt-' + f.key">{{ f.label }} <code class="col">{{ f.column }}</code></label>
+        <button type="button" class="btn sm ghost" (click)="formatJson(f.key)" [disabled]="!jsonText()[f.key].trim() || !!jsonErrors()[f.key]">Format</button>
+      </div>
+      <span class="hint">{{ f.hint }}</span>
+      <span class="sensitive" *ngIf="f.sensitive">
+        <i class="ti ti-lock" aria-hidden="true"></i>
+        Holds storage credentials. They are copied to every assigned organization's schema, and anyone with console access can read them here.
+      </span>
+      <textarea [id]="'mt-' + f.key" [name]="f.key" class="input mono json" rows="5" spellcheck="false"
+                [placeholder]="f.placeholder" [ngModel]="jsonText()[f.key]" (ngModelChange)="setJson(f.key, $event)"
+                [class.invalid]="!!jsonErrors()[f.key]"></textarea>
+      <span class="error-text" *ngIf="jsonErrors()[f.key]">{{ jsonErrors()[f.key] }}</span>
+    </div>
+
+    <div class="wizard-actions">
+      <button type="button" class="btn ghost" (click)="close()" [disabled]="saving()">{{ stepLabel ? 'Skip for now' : 'Cancel' }}</button>
+      <div class="spacer"></div>
+      <button type="submit" class="btn primary" [disabled]="!canSave()">
+        {{ saving() ? 'Saving…' : stepLabel ? 'Save and continue' : 'Save migration details' }}
+      </button>
+    </div>
+  </form>
+</app-modal-shell>

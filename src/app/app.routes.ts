@@ -96,7 +96,8 @@ export const routes: Routes = [
         path: 'console-users',
         canActivate: [roleGuard(['SUPER_ADMIN'])],
         loadComponent: () => import('./features/console-users/console-users.component').then((m) => m.ConsoleUsersComponent)
-      }
+      },
+      { path: 'help', loadComponent: () => import('./features/help/help.component').then((m) => m.HelpComponent) }
     ]
   },
   { path: '**', redirectTo: 'overview' }

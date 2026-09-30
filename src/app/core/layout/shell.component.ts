@@ -1,9 +1,10 @@
-import { Component, HostListener, computed, inject, signal } from '@angular/core';
+import { Component, ElementRef, HostListener, computed, inject, signal } from '@angular/core';
 import { NgFor, NgIf } from '@angular/common';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { ToastHostComponent } from '../ui/toast-host.component';
 import { ConfirmHostComponent } from '../ui/confirm-host.component';
 import { AuthService } from '../auth/auth.service';
+import { ENV_NAME } from '../api-config';
 
 interface NavItem {
   label: string;
@@ -24,6 +25,9 @@ const COLLAPSE_KEY = 'sa-sidebar-collapsed';
 })
 export class ShellComponent {
   auth = inject(AuthService);
+  private host = inject<ElementRef<HTMLElement>>(ElementRef);
+  /** Shown beside the product name everywhere except production. */
+  readonly envName = ENV_NAME;
   roleLabel = computed(() => this.auth.role() === 'SUPER_ADMIN' ? 'Super Admin' : this.auth.role() === 'SALES' ? 'Sales' : 'Console user');
 
   // technicalOnly items are hidden from the SALES role entirely — the routes behind them are also
@@ -37,7 +41,8 @@ export class ShellComponent {
     { label: 'Notifications', path: '/notifications', icon: 'ti-bell', section: 'Operations' },
     { label: 'Offboarding', path: '/offboarding', icon: 'ti-door-exit', technicalOnly: true },
     { label: 'Audit log', path: '/audit-log', icon: 'ti-history', technicalOnly: true },
-    { label: 'Console users', path: '/console-users', icon: 'ti-users-group', technicalOnly: true }
+    { label: 'Console users', path: '/console-users', icon: 'ti-users-group', technicalOnly: true },
+    { label: 'Help', path: '/help', icon: 'ti-help-circle', section: 'Support' }
   ];
 
   navItems = computed(() => (this.auth.role() === 'SUPER_ADMIN' ? this.allNavItems : this.allNavItems.filter((item) => !item.technicalOnly)));
@@ -63,6 +68,21 @@ export class ShellComponent {
 
   toggleProfile(): void {
     this.profileOpen.set(!this.profileOpen());
+  }
+
+  // The profile menu closes on any click outside it (including the page behind it) and on Escape.
+  @HostListener('document:click', ['$event'])
+  closeProfileOnOutsideClick(event: MouseEvent): void {
+    if (!this.profileOpen()) return;
+    const target = event.target as Node | null;
+    const block = this.host.nativeElement.querySelector('.profile-block');
+    if (target && block?.contains(target)) return;
+    this.profileOpen.set(false);
+  }
+
+  @HostListener('document:keydown.escape')
+  closeProfileOnEscape(): void {
+    this.profileOpen.set(false);
   }
 
   closeOnMobileNav(): void {

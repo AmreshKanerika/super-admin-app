@@ -8,6 +8,17 @@ import { ConsoleUsersService } from '../../services/console-users.service';
 import { ToastService } from '../../core/toast.service';
 import { ConsoleUser, ConsoleUserRole } from '../../models';
 import { Tone } from '../../core/status.util';
+import { HttpErrorResponse } from '@angular/common/http';
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// Both backend error shapes (the controller's Message and GlobalExceptionHandler's ErrorResponse)
+// carry a `message`; status 0 means the request never reached the server at all.
+function errorMessage(err: unknown, fallback: string): string {
+  const http = err as HttpErrorResponse;
+  if (http?.status === 0) return 'Could not reach the server. Check your connection and try again.';
+  return http?.error?.message || fallback;
+}
 
 @Component({
   selector: 'app-console-users',
@@ -41,17 +52,44 @@ export class ConsoleUsersComponent {
     this.editing.set(user);
   }
 
+  closeEdit(): void {
+    if (!this.submitting()) this.editing.set(null);
+  }
+
+  editEmailValid(): boolean {
+    return EMAIL_PATTERN.test(this.editEmail.trim());
+  }
+
+  editChanged(): boolean {
+    const user = this.editing();
+    if (!user) return false;
+    return this.editEmail.trim().toLowerCase() !== user.email.toLowerCase()
+      || this.editName.trim() !== (user.displayName || '');
+  }
+
+  canSaveEdit(): boolean {
+    return !this.submitting() && !!this.editName.trim() && this.editEmailValid() && this.editChanged();
+  }
+
   async saveEdit(): Promise<void> {
     const user = this.editing();
-    if (!user || this.submitting() || !this.editName.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.editEmail.trim())) return;
+    if (!user || !this.canSaveEdit()) return;
     this.submitting.set(true);
     try {
       await this.users.update(user.id, { email: this.editEmail.trim(), displayName: this.editName.trim() });
       this.editing.set(null);
       this.toast.show('Sales user updated', 'success');
     } catch (err: unknown) {
-      this.toast.show((err as { error?: { message?: string } })?.error?.message || 'Could not update user', 'critical');
+      this.toast.show(errorMessage(err, 'Could not update user'), 'critical');
     } finally { this.submitting.set(false); }
+  }
+
+  openRemove(user: ConsoleUser): void {
+    if (user.role === 'SALES') this.removing.set(user);
+  }
+
+  closeRemove(): void {
+    if (!this.submitting()) this.removing.set(null);
   }
 
   async removeUser(): Promise<void> {
@@ -61,9 +99,14 @@ export class ConsoleUsersComponent {
     try {
       await this.users.remove(user.id);
       this.removing.set(null);
-      this.toast.show('Console access removed', 'success');
+      this.toast.show(`Console access removed for ${user.email}`, 'success');
     } catch (err: unknown) {
-      this.toast.show((err as { error?: { message?: string } })?.error?.message || 'Could not remove user', 'critical');
+      if ((err as HttpErrorResponse)?.status === 404) {
+        // Already gone (removed in another tab) — resync rather than leave a ghost row behind.
+        this.removing.set(null);
+        await this.users.refresh();
+      }
+      this.toast.show(errorMessage(err, 'Could not remove user'), 'critical');
     } finally { this.submitting.set(false); }
   }
 
@@ -108,8 +151,7 @@ export class ConsoleUsersComponent {
         this.toast.show(`${created.email} already had a login — granted ${this.roleLabel(this.role)} access`, 'success');
       }
     } catch (err: unknown) {
-      const message = (err as { error?: { message?: string } })?.error?.message;
-      this.toast.show(message || 'Failed to add console user', 'critical');
+      this.toast.show(errorMessage(err, 'Failed to add console user'), 'critical');
     } finally {
       this.submitting.set(false);
     }

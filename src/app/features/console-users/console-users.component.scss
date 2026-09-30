@@ -9,15 +9,76 @@
   margin-bottom: 14px;
 }
 
-.user-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .field { margin-bottom: 16px; min-width: 0; }
+.field .field-error { margin: 0; font-size: 11.5px; color: var(--critical); }
+
+// Two-up name fields in the Add modal. Global .row only sets display:flex, so without this the
+// first/last name inputs collapse to their content width.
+.field-row > .field { flex: 1 1 0; }
+
+// Row actions: a compact, consistent pair (neutral Edit, destructive Remove) that never wraps
+// mid-row on desktop and stays pinned to the right edge of the table.
+table.dtable th.col-actions,
+table.dtable td.col-actions { text-align: right; width: 1%; white-space: nowrap; }
+.user-actions { display: inline-flex; align-items: center; justify-content: flex-end; gap: 8px; }
+.user-actions .btn i { font-size: 14px; line-height: 1; }
+
+.protected-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--ink-faint);
+  cursor: default;
+}
+
+// Modal footers. The other pages each scope their own copy of this; this component had only the
+// mobile override, so Cancel/Save sat unaligned with no separation from the form.
+.wizard-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.info-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--paper-sunken);
+  border-radius: var(--radius-sm);
+  font-size: 12.5px;
+}
+.info-row .k { color: var(--ink-faint); font-weight: 600; }
+
+.remove-summary {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--critical-soft);
+  border: 1px solid var(--critical);
+  border-radius: var(--radius-sm);
+  margin-bottom: 14px;
+}
+.remove-summary > i { color: var(--critical); font-size: 18px; line-height: 1.2; }
+.remove-summary .who { color: var(--ink); font-weight: 600; font-size: 13.5px; }
+.remove-summary .email { color: var(--ink-soft); font-size: 12px; margin-top: 2px; overflow-wrap: anywhere; }
+.confirm-copy { margin: 0; font-size: 13px; line-height: 1.5; color: var(--ink-soft); }
 @media (max-width: 640px) {
   table.dtable { min-width: 0; }
   table.dtable thead { display: none; }
   table.dtable, table.dtable tbody, table.dtable tr, table.dtable td { display: block; width: 100%; }
   table.dtable tr { padding: 14px 0; border-bottom: 1px solid var(--line); }
   table.dtable td { border: 0; padding: 6px 12px; white-space: normal; overflow-wrap: anywhere; }
-  .user-actions .btn { min-height: 44px; }
+  table.dtable td.col-actions { text-align: left; width: 100%; }
+  .user-actions { display: flex; justify-content: flex-start; }
+  .user-actions .btn { min-height: 44px; flex: 1 1 0; }
 }
 
 .cred-row {

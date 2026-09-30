@@ -14,13 +14,13 @@ describe('Organization directory', () => {
   let filter: jasmine.Spy;
   beforeEach(() => {
     const rows = signal([
-      { org: { orgId: 'offboarded', organizationName: 'Offboarded', isDecommissioned: true }, subscriptions: [], daysToExpiry: null },
+      { org: { orgId: 'offboarded', organizationName: 'Offboarded', domainName: '', domainStatus: 'INACTIVE', createdDate: '2026-01-01', isDecommissioned: true }, subscriptions: [], daysToExpiry: null },
       { org: { orgId: 'old', organizationName: 'Older', domainName: 'old.example', domainStatus: 'INACTIVE', createdDate: '2025-01-01' }, subscriptions: [], daysToExpiry: null },
       { org: { orgId: 'new', organizationName: 'Newest', domainName: 'https://new.example', domainStatus: 'ACTIVE', createdDate: '2026-09-01' }, subscriptions: [
         { planId: 'p1', planStatus: 'ACTIVE', planStartDate: '2026-01-01' },
         { planId: 'p2', planStatus: 'UPCOMING', planStartDate: '2026-10-01' }
       ], daysToExpiry: null }
-    ] as OrgOverviewRow[]);
+    ] as unknown as OrgOverviewRow[]);
     filter = jasmine.createSpy('filter').and.callFake((items: OrgOverviewRow[], f: { search: string }) => items.filter(r => r.org.organizationName.toLowerCase().includes(f.search.toLowerCase())));
     TestBed.configureTestingModule({ imports: [OrganizationsListComponent], providers: [provideRouter([]),
       { provide: OverviewService, useValue: { rows, filter, metrics: () => ({ total: 2 }), attentionReasons: () => [] } },

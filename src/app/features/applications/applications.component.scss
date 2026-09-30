@@ -246,6 +246,23 @@ tbody tr.selected {
   color: var(--ink-faint);
 }
 
+/* A migration app without saved details carries a dot, so the gap is visible from the list. */
+.icon-btn.migration-btn {
+  position: relative;
+}
+
+.icon-btn.migration-btn.needs-setup::after {
+  content: '';
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--warning);
+  box-shadow: 0 0 0 2px var(--paper-raised);
+}
+
 /* ── Editor ────────────────────────────────────────────────────────────── */
 
 /* Capped to the viewport and scrolled internally. Sticky alone was not enough: the

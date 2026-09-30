@@ -1,0 +1,121 @@
+<section class="insights">
+  <header class="head">
+    <div>
+      <p class="eyebrow">File processing</p>
+      <h2>Processing insights</h2>
+      <p class="sub">
+        Files {{ orgLabel }} processed{{ data() ? ' in ' + rangeLabel() : '' }}, by source file type. Skipped jobs are not counted.
+      </p>
+    </div>
+
+    <!-- The one place to choose the period -->
+    <div class="toolbar" role="group" aria-label="Period">
+      <label class="period">
+        <i class="ti ti-calendar" aria-hidden="true"></i>
+        <span class="sr-only">Period</span>
+        <select class="period-select" [ngModel]="selection()" (ngModelChange)="onSelect($event)" [disabled]="loading()">
+          @for (p of periods; track p.key) {
+            <option [value]="p.key">{{ p.key === 'latest' ? latestLabel() : p.label }}</option>
+          }
+          @if (data()?.availableMonths?.length) {
+            <optgroup label="Months with activity">
+              @for (m of data()!.availableMonths; track m) {
+                <option [value]="'m:' + m">{{ monthLabel(m) }}</option>
+              }
+            </optgroup>
+          }
+        </select>
+        <i class="ti ti-chevron-down caret" aria-hidden="true"></i>
+      </label>
+      @if (period() === 'custom') {
+        <span class="custom">
+          <input class="input" type="month" aria-label="From month" [ngModel]="customFrom()" (ngModelChange)="customFrom.set($event)" />
+          <span class="to">to</span>
+          <input class="input" type="month" aria-label="To month" [ngModel]="customTo()" (ngModelChange)="customTo.set($event)" />
+          <button type="button" class="btn primary sm" (click)="applyCustom()" [disabled]="loading()">Apply</button>
+        </span>
+      }
+      <button type="button" class="icon-refresh" (click)="load()" [disabled]="loading()" title="Refresh" aria-label="Refresh">
+        <i class="ti ti-refresh" [class.spin]="loading()" aria-hidden="true"></i>
+      </button>
+    </div>
+  </header>
+
+  @if (error()) {
+    <p class="error" role="alert"><i class="ti ti-alert-circle" aria-hidden="true"></i> {{ error() }}</p>
+  }
+
+  @if (loading() && !data()) {
+    <div class="tiles three">
+      @for (i of [1, 2, 3]; track i) {
+        <div class="tile skeleton"></div>
+      }
+    </div>
+  }
+
+  @if (data(); as d) {
+    <div class="state" [class.dim]="loading()">
+      @if (d.sharedWithOrganizations > 0) {
+        <p class="note warn">
+          <i class="ti ti-alert-triangle" aria-hidden="true"></i>
+          <span>Schema <code>{{ d.schema }}</code> is shared with {{ d.sharedWithOrganizations }} other {{ d.sharedWithOrganizations === 1 ? 'organization' : 'organizations' }}, so these numbers include their files too.</span>
+        </p>
+      }
+      @if (d.missingTables.length) {
+        <p class="note info">
+          <i class="ti ti-info-circle" aria-hidden="true"></i>
+          <span>Not in schema <code>{{ d.schema }}</code> yet: {{ d.missingTables.join(', ') }}. Numbers that depend on it show as 0.</span>
+        </p>
+      }
+
+      <!-- Headline numbers -->
+      <div class="tiles three">
+        <div class="tile accent">
+          <span class="tile-icon"><i class="ti ti-file-check" aria-hidden="true"></i></span>
+          <span class="label">Files processed</span>
+          <strong>{{ d.totals.filesProcessed | number }}</strong>
+          <span class="hint">PDF, XLSX, XLS, CSV and ZIP · status completed</span>
+        </div>
+        <div class="tile">
+          <span class="tile-icon pdf"><i class="ti ti-file-type-pdf" aria-hidden="true"></i></span>
+          <span class="label">PDF pages processed</span>
+          <strong>{{ d.totals.pagesProcessed | number }}</strong>
+          <span class="hint">Total pages extracted from PDFs</span>
+        </div>
+        <div class="tile warn">
+          <span class="tile-icon"><i class="ti ti-eye-check" aria-hidden="true"></i></span>
+          <span class="label">Manual review required</span>
+          <strong>{{ d.totals.manualReview | number }}</strong>
+          <span class="hint">Files waiting for a person</span>
+        </div>
+      </div>
+
+      <!-- One big number per source file type -->
+      <h3 class="group-title">Files processed by source type</h3>
+      <div class="tiles five">
+        @for (row of d.byFileType; track row.fileType) {
+          <div class="tile type" [class.zero]="!row.filesProcessed">
+            <span class="type-head">
+              <span class="tile-icon" [class.pdf]="row.fileType === 'PDF'"><i [class]="'ti ' + (typeMeta[row.fileType]?.icon || 'ti-file')" aria-hidden="true"></i></span>
+              <span class="badge" [class.pdf]="row.fileType === 'PDF'">{{ row.fileType }}</span>
+            </span>
+            <strong>{{ row.filesProcessed | number }}</strong>
+            <span class="hint">{{ typeMeta[row.fileType]?.label || row.fileType }}</span>
+            @if (row.manualReview) {
+              <span class="review">{{ row.manualReview | number }} in manual review</span>
+            }
+          </div>
+        }
+      </div>
+
+      @if (!d.totals.filesProcessed && !d.totals.manualReview) {
+        <p class="empty">
+          No PDF, XLSX, XLS, CSV or ZIP files were processed in {{ rangeLabel() }}.
+          @if (d.availableMonths.length && d.availableMonths[0] !== d.to) {
+            <button type="button" class="link" (click)="pickMonth(d.availableMonths[0])">Show {{ monthLabel(d.availableMonths[0]) }}</button>
+          }
+        </p>
+      }
+    </div>
+  }
+</section>

@@ -14,7 +14,7 @@
         <th>Name</th>
         <th>Role</th>
         <th>Status</th>
-        <th>Actions</th>
+        <th class="col-actions">Actions</th>
       </tr>
     </thead>
     <tbody>
@@ -28,12 +28,20 @@
             [tone]="u.keycloakSubjectId ? 'success' : 'warning'"
           ></app-status-pill>
         </td>
-        <td>
+        <td class="col-actions">
           <div class="user-actions" *ngIf="u.role === 'SALES'; else protectedAdmin">
-            <button class="btn ghost" type="button" (click)="openEdit(u)">Edit</button>
-            <button class="btn ghost" type="button" (click)="removing.set(u)">Remove access</button>
+            <button class="btn sm" type="button" (click)="openEdit(u)" [attr.aria-label]="'Edit ' + u.email">
+              <i class="ti ti-pencil" aria-hidden="true"></i><span>Edit</span>
+            </button>
+            <button class="btn sm danger" type="button" (click)="openRemove(u)" [attr.aria-label]="'Remove console access for ' + u.email">
+              <i class="ti ti-user-minus" aria-hidden="true"></i><span>Remove access</span>
+            </button>
           </div>
-          <ng-template #protectedAdmin><span class="text-muted">Protected account</span></ng-template>
+          <ng-template #protectedAdmin>
+            <span class="protected-tag" title="Super admin accounts can't be edited or removed here">
+              <i class="ti ti-lock" aria-hidden="true"></i>Protected
+            </span>
+          </ng-template>
         </td>
       </tr>
     </tbody>
@@ -45,21 +53,46 @@
   </ng-template>
 </div>
 
-<app-modal-shell *ngIf="editing()" heading="Edit sales user" [width]="480" (close)="!submitting() && editing.set(null)">
-  <div class="field"><label for="sales-name">Name</label><input id="sales-name" class="input" [(ngModel)]="editName" [disabled]="submitting()" /></div>
-  <div class="field"><label for="sales-email">Email</label><input id="sales-email" class="input" type="email" [(ngModel)]="editEmail" [disabled]="submitting()" /></div>
-  <p class="hint">Existing login username stays the same. Console role remains Sales.</p>
-  <div class="wizard-actions">
-    <button class="btn ghost" [disabled]="submitting()" (click)="editing.set(null)">Cancel</button>
-    <button class="btn primary" [disabled]="submitting() || !editName.trim() || !editEmail.trim()" (click)="saveEdit()">{{ submitting() ? 'Saving…' : 'Save changes' }}</button>
-  </div>
+<app-modal-shell *ngIf="editing() as user" heading="Edit sales user" [width]="480" (close)="closeEdit()">
+  <form (ngSubmit)="saveEdit()">
+    <div class="field">
+      <label for="sales-name">Name</label>
+      <input id="sales-name" name="editName" class="input" [(ngModel)]="editName" [disabled]="submitting()" autocomplete="off" />
+      <p class="field-error" *ngIf="!editName.trim()">Name is required.</p>
+    </div>
+    <div class="field">
+      <label for="sales-email">Email</label>
+      <input id="sales-email" name="editEmail" class="input mono" type="email" [(ngModel)]="editEmail" [disabled]="submitting()" autocomplete="off" />
+      <p class="field-error" *ngIf="editEmail.trim() && !editEmailValid()">Enter a valid email address.</p>
+      <p class="hint" *ngIf="!editEmail.trim() || editEmailValid()">Their sign-in username stays the same. Changing the email also updates their login.</p>
+    </div>
+    <div class="info-row">
+      <span class="k">Role</span>
+      <app-status-pill label="Sales" [tone]="roleTone(user.role)"></app-status-pill>
+    </div>
+    <div class="wizard-actions">
+      <button type="button" class="btn ghost" [disabled]="submitting()" (click)="closeEdit()">Cancel</button>
+      <div class="spacer"></div>
+      <button type="submit" class="btn primary" [disabled]="!canSaveEdit()">{{ submitting() ? 'Saving…' : 'Save changes' }}</button>
+    </div>
+  </form>
 </app-modal-shell>
 
-<app-modal-shell *ngIf="removing() as user" heading="Remove console access?" [width]="480" (close)="!submitting() && removing.set(null)">
-  <p><strong>{{ user.displayName || user.email }}</strong> will lose access to this console. Their login for other applications will remain available.</p>
+<app-modal-shell *ngIf="removing() as user" heading="Remove console access?" [width]="480" (close)="closeRemove()">
+  <div class="remove-summary">
+    <i class="ti ti-alert-triangle" aria-hidden="true"></i>
+    <div>
+      <div class="who">{{ user.displayName || user.email }}</div>
+      <div class="mono email" *ngIf="user.displayName">{{ user.email }}</div>
+    </div>
+  </div>
+  <p class="confirm-copy">
+    They will no longer be able to sign into this console. Their Kanerika login is kept, so any other applications they use are unaffected. You can add them back at any time.
+  </p>
   <div class="wizard-actions">
-    <button class="btn ghost" [disabled]="submitting()" (click)="removing.set(null)">Cancel</button>
-    <button class="btn primary" [disabled]="submitting()" (click)="removeUser()">{{ submitting() ? 'Removing…' : 'Remove access' }}</button>
+    <button type="button" class="btn ghost" [disabled]="submitting()" (click)="closeRemove()">Cancel</button>
+    <div class="spacer"></div>
+    <button type="button" class="btn danger solid" [disabled]="submitting()" (click)="removeUser()">{{ submitting() ? 'Removing…' : 'Remove access' }}</button>
   </div>
 </app-modal-shell>
 
@@ -82,7 +115,7 @@
   <div class="field">
     <label>Role</label>
     <select class="input" [(ngModel)]="role" [disabled]="submitting()">
-      <option value="SALES">Sales — organizations, subscriptions, notifications, and the business dashboard</option>
+      <option value="SALES">Sales — organizations, subscriptions, notifications and Customer Insights</option>
       <option value="SUPER_ADMIN">Super admin — full technical access, including plans, limits, and provisioning</option>
     </select>
   </div>
