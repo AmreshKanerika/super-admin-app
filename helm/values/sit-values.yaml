@@ -1,0 +1,33 @@
+# -----------------------------------------------------------------------------
+# SIT overrides — layered on top of helm/flip-super-admin-app/values.yaml via
+# `helm -f`.
+#
+# Target: namespace `flip-sit` on cluster `aks-flip-dev-sit` (FLIP subscription),
+# pinned to the `flipsit` node pool (label env=sit, taint env=sit:NoSchedule).
+#
+# No pipeline promotes this image yet (manual deploy) — build & push it to
+# acrflipdevsit yourself, then pass the real tag:
+#   az acr login --name acrflipdevsit
+#   docker build --build-arg NPM_BUILD_SCRIPT=build:sit \
+#     -t acrflipdevsit.azurecr.io/flip-super-admin-app:<tag> .
+#   docker push acrflipdevsit.azurecr.io/flip-super-admin-app:<tag>
+#   helm upgrade --install flip-super-admin-app ./helm/flip-super-admin-app \
+#     -f ./helm/values/sit-values.yaml \
+#     --set image.tag=<tag> \
+#     --namespace flip-sit
+# -----------------------------------------------------------------------------
+namespace: flip-sit
+
+image:
+  repository: acrflipdevsit.azurecr.io/flip-super-admin-app
+  tag: latest
+
+# Pin SIT pods to the flipsit node pool and tolerate its taint.
+nodeSelector:
+  env: sit
+
+tolerations:
+  - key: env
+    operator: Equal
+    value: sit
+    effect: NoSchedule

@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "flip-super-admin-app.fullname" . }}
+  namespace: {{ .Values.namespace }}
+
+spec:
+  type: {{ .Values.service.type }}
+
+  selector:
+    app: {{ include "flip-super-admin-app.name" . }}
+
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: {{ .Values.containerPort }}
