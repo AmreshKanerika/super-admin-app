@@ -1,0 +1,30 @@
+# -----------------------------------------------------------------------------
+# SIT overrides — layered on top of helm/flip-super-admin-app/values.yaml via `helm -f`.
+#
+# Target: namespace `flip-sit` on cluster `aks-flip-dev-sit`, pinned to the `flipsit`
+# node pool (label env=sit, taint env=sit:NoSchedule) — same as flip-ui.
+#
+# image.repository is set by the pipeline (--set image.repository via IMAGE_REPO).
+# The bundle is built with `npm run build:sit`, so it already calls
+# https://sit.flipnow.cloud/flip-admin (gateway) and signs in against
+# https://sit-auth-admin.flipnow.cloud (realm flip-super-admin) — no env needed.
+# -----------------------------------------------------------------------------
+namespace: flip-sit
+
+nodeSelector:
+  env: sit
+
+tolerations:
+  - key: env
+    operator: Equal
+    value: sit
+    effect: NoSchedule
+
+# https://superadmin.sit.flipnow.cloud — served by the cluster's nginx-public controller.
+# DNS already resolves through the *.sit.flipnow.cloud wildcard, and the wildcard
+# certificate below (already in flip-sit) covers this host.
+ingress:
+  enabled: true
+  className: nginx-public
+  host: superadmin.sit.flipnow.cloud
+  tlsSecretName: wildcard-sit-flipnow-cloud-tls

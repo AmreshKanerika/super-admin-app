@@ -111,6 +111,15 @@ The image includes:
 
 Deploy the image behind the environment's ingress with TLS for its console host, route `/` to container port 80, and use `/healthz` for liveness and readiness. Set `FLIP_*` variables in the deployment only when a value differs from the build.
 
+`azure-pipelines.yml`, `pipeline/*.sh` and `helm/` follow the same layout as flip-ui:
+
+| Branch | Build | Namespace | Host |
+| --- | --- | --- | --- |
+| `development` | `npm run build:dev` | `flip-dev` | Ingress off until a DEV host is agreed (`helm/values/dev-values.yaml`) |
+| `sit` | `npm run build:sit` | `flip-sit` (approval on the `aks-sit` environment) | `superadmin.sit.flipnow.cloud`, own Ingress on `nginx-public` with the `wildcard-sit-flipnow-cloud-tls` certificate |
+
+Images go to `acrflipdevsit.azurecr.io/flip-super-admin-app` and deploy to `aks-flip-dev-sit` through the `flip-aks-sit` service connection. The console's Ingress names only its own host, so it takes precedence over the shared `*.sit.flipnow.cloud` rule without changing it.
+
 ### Static hosting (without Docker)
 
 `npm run build:<env>` writes the site to `dist/super-admin/browser/`. Serve it from any static host with an `index.html` fallback for unknown paths. To override values without rebuilding, edit `env.js` in the output folder, for example:
@@ -155,12 +164,13 @@ These live outside this repository. Check them once per environment.
 
 **flip-admin-app**
 
-- `CONSOLE_KEYCLOAK_REALM=flip-super-admin`. It is used when console users are added from the console; the default (`kanerika-local`) is only correct for local development.
+- `CONSOLE_KEYCLOAK_REALM=flip-super-admin`. It is used when console users are added from the console; the default (`kanerika-local`) is only correct for local development. On SIT it comes from `console.keycloak_realm` in flip-admin-app's `helm/values/sit-values.yaml`.
 - `KEYCLOAK_AUTH_BASE_URL` points at the Keycloak that holds `flip-super-admin` for that environment.
 
 **DNS / ingress (DevOps)**
 
 - `superadmin.dev.flipnow.cloud`, `superadmin.sit.flipnow.cloud` and `superadmin.flipnow.cloud` resolve to the console deployment and serve HTTPS.
+- DNS is in Cloudflare and has no `*.sit` wildcard: each host (for example `kspl.sit`) is its own record. Add `superadmin.sit` the same way as `kspl.sit`.
 
 ## Release checklist
 

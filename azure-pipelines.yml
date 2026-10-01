@@ -1,0 +1,327 @@
+# Branch-per-environment: pushes to `development` deploy DEV only; pushes to
+# `sit` deploy SIT only. Each branch builds its own Angular config and pushes
+# directly to its own ACR — no cross-subscription image promotion needed.
+trigger:
+  branches:
+    include:
+      - development
+      - sit
+
+pr: none
+
+variables:
+  - group: artifacts
+
+  # ---- shared (same across environments) ----
+  - name: IMAGE_NAME
+    value: flip-super-admin-app
+  - name: CACHE_TAG
+    value: buildcache
+  - name: DOCKERFILE_PATH
+    value: Dockerfile
+  - name: VM_IMAGE
+    value: ubuntu-latest
+  - name: DEPLOYMENT_NAME
+    value: flip-super-admin-app
+  - name: ROLLOUT_TIMEOUT
+    value: 10m
+
+  # ---- environment-specific (selected by branch) ----
+  # sit branch -> new subscription (FLIP), shared ACR, aks-flip-dev-sit / flip-sit
+  - ${{ if eq(variables['Build.SourceBranch'], 'refs/heads/sit') }}:
+    - name: ACR_NAME
+      value: acrflipdevsit
+    - name: ACR_LOGIN_SERVER
+      value: acrflipdevsit.azurecr.io
+    - name: AKS_CLUSTER
+      value: aks-flip-dev-sit
+    - name: AKS_RG
+      value: rg-flip-dev-sit
+    - name: NAMESPACE
+      value: flip-sit
+    - name: AZURE_SUBSCRIPTION
+      value: flip-aks-sit
+    - name: KEY_VAULT_NAME
+      value: kv-flip-sit
+  # development -> NEW cluster (aks-flip-dev-sit / flip-dev, FLIP sub, shared ACR)
+  - ${{ else }}:
+    - name: ACR_NAME
+      value: acrflipdevsit
+    - name: ACR_LOGIN_SERVER
+      value: acrflipdevsit.azurecr.io
+    - name: AKS_CLUSTER
+      value: aks-flip-dev-sit
+    - name: AKS_RG
+      value: rg-flip-dev-sit
+    - name: NAMESPACE
+      value: flip-dev
+    - name: AZURE_SUBSCRIPTION
+      value: flip-aks-sit
+    - name: KEY_VAULT_NAME
+      value: flip-keyvault-dev
+
+
+stages:
+
+# Resolve semantic IMAGE_VERSION from commit prefixes (major:/feat:/fix:).
+- stage: Prepare
+  displayName: Prepare
+  jobs:
+  - job: ResolveVersion
+    displayName: Resolve Build Identity
+    pool:
+      vmImage: $(VM_IMAGE)
+    steps:
+    - checkout: self
+      fetchDepth: '0'
+      fetchTags: 'true'
+
+    - bash: bash pipeline/resolve-version.sh
+      name: setVersion
+      displayName: Resolve Build Identity
+
+
+# Build the docker image with Buildx + ACR layer cache and push to ACR.
+# On sit branch: builds npm run build:sit and pushes to acrflipdevsit directly.
+# On development: builds npm run build:dev and pushes to acrflipdevsit (flip-dev namespace).
+- stage: Build
+  displayName: Build
+  dependsOn: Prepare
+  variables:
+    IMAGE_VERSION: $[ stageDependencies.Prepare.ResolveVersion.outputs['setVersion.IMAGE_VERSION'] ]
+    GIT_SHA_SHORT: $[ stageDependencies.Prepare.ResolveVersion.outputs['setVersion.GIT_SHA_SHORT'] ]
+  jobs:
+  - job: BuildImage
+    displayName: Build Docker Image
+    pool:
+      vmImage: $(VM_IMAGE)
+    steps:
+    - checkout: self
+      fetchDepth: '1'
+
+    - bash: bash pipeline/free-disk.sh
+      displayName: Free Disk Space
+
+    - task: AzureCLI@2
+      displayName: Login to ACR
+      inputs:
+        azureSubscription: $(AZURE_SUBSCRIPTION)
+        scriptType: bash
+        scriptLocation: inlineScript
+        inlineScript: az acr login --name $(ACR_NAME)
+
+    - bash: bash pipeline/build-image.sh
+      displayName: Build & Push Image
+
+
+# Verify the pushed image digest and publish the helm chart as an artifact.
+- stage: Publish
+  displayName: Publish
+  dependsOn:
+    - Prepare
+    - Build
+  variables:
+    IMAGE_VERSION: $[ stageDependencies.Prepare.ResolveVersion.outputs['setVersion.IMAGE_VERSION'] ]
+  jobs:
+  - job: PublishArtifacts
+    displayName: Verify & Publish
+    pool:
+      vmImage: $(VM_IMAGE)
+    steps:
+    - checkout: self
+      fetchDepth: '1'
+
+    - task: AzureCLI@2
+      displayName: Verify Pushed Image Digest
+      inputs:
+        azureSubscription: $(AZURE_SUBSCRIPTION)
+        scriptType: bash
+        scriptLocation: scriptPath
+        scriptPath: pipeline/verify-digest.sh
+
+    - publish: helm
+      artifact: helm-chart
+      displayName: Publish Helm Chart Artifact
+
+
+# =============================================================================
+# DEV deploy — compiled ONLY on non-sit branches (development). Unchanged behavior.
+# Plain job: (no Environment) so it stays exactly as before.
+# =============================================================================
+- ${{ if ne(variables['Build.SourceBranch'], 'refs/heads/sit') }}:
+  - stage: Deploy
+    displayName: Deploy (DEV)
+    dependsOn:
+      - Prepare
+      - Publish
+    condition: succeeded()
+    variables:
+      IMAGE_VERSION: $[ stageDependencies.Prepare.ResolveVersion.outputs['setVersion.IMAGE_VERSION'] ]
+      GIT_SHA_SHORT: $[ stageDependencies.Prepare.ResolveVersion.outputs['setVersion.GIT_SHA_SHORT'] ]
+      HELM_CHART_DIR: $(Pipeline.Workspace)/helm-chart/flip-super-admin-app
+      ENVIRONMENT: dev
+    jobs:
+    - job: DeployToAKSDev
+      displayName: Deploy (DEV)
+      # CANARY: self-hosted KEDA-scaled agent pool (see ci-agents/). az, kubectl,
+      # helm are pre-baked in the agent image — no HelmInstaller@1 needed.
+      pool:
+        name: flip-ci-linux
+      steps:
+      - checkout: self
+        fetchDepth: '1'
+
+      - download: current
+        artifact: helm-chart
+        displayName: Download Helm Chart Artifact
+
+      - task: AzureCLI@2
+        displayName: Get AKS Credentials & Resolve Portal URLs
+        inputs:
+          azureSubscription: $(AZURE_SUBSCRIPTION)
+          scriptType: bash
+          scriptLocation: scriptPath
+          scriptPath: pipeline/get-aks-creds.sh
+
+      - bash: bash pipeline/helm-upgrade.sh
+        displayName: Helm Upgrade
+        env:
+          VALUES_FILE: $(Pipeline.Workspace)/helm-chart/values/dev-values.yaml
+          IMAGE_REPO: $(ACR_LOGIN_SERVER)/$(IMAGE_NAME)
+
+      - bash: bash pipeline/wait-rollout.sh
+        displayName: Wait for Rollout
+
+      - bash: bash pipeline/post-deploy-summary.sh
+        displayName: Post-Deploy Summary
+        condition: succeeded()
+
+      - bash: bash pipeline/capture-diagnostics.sh
+        displayName: Capture Failure Diagnostics
+        condition: failed()
+        env:
+          OUT_DIR: $(Build.ArtifactStagingDirectory)/pod-diagnostics
+
+      - publish: $(Build.ArtifactStagingDirectory)/pod-diagnostics
+        artifact: pod-diagnostics
+        displayName: Publish Diagnostics Artifact
+        condition: failed()
+
+      - bash: |
+          if [ "$(Agent.JobStatus)" = "Succeeded" ]; then
+            export STATUS_TEXT="Succeeded"
+          else
+            export STATUS_TEXT="Failed"
+          fi
+          export SUMMARY_PATH="$(Build.ArtifactStagingDirectory)/deploy-summary.md"
+          bash pipeline/run-summary.sh
+        displayName: Publish Run Summary
+        condition: always()
+
+      - bash: |
+          if [ "$(Agent.JobStatus)" = "Succeeded" ]; then
+            export STATUS_TEXT="Succeeded"
+          else
+            export STATUS_TEXT="Failed"
+          fi
+          bash pipeline/notify-teams.sh
+        displayName: Notify Teams
+        condition: always()
+        env:
+          TEAMS_WEBHOOK_URL: $(TEAMS_WEBHOOK_URL)
+
+
+# =============================================================================
+# SIT deploy — compiled ONLY on the sit branch (compile-time guard so the
+# flip-aks-sit service connection is never referenced/validated off-branch).
+# Image is built directly to acrflipdevsit above — no promote step needed.
+# `deployment:` job bound to the `aks-sit` Environment => approval-gated.
+# =============================================================================
+- ${{ if eq(variables['Build.SourceBranch'], 'refs/heads/sit') }}:
+  - stage: Deploy_SIT
+    displayName: Deploy (SIT)
+    dependsOn:
+      - Prepare
+      - Publish
+    condition: succeeded()
+    variables:
+      IMAGE_VERSION: $[ stageDependencies.Prepare.ResolveVersion.outputs['setVersion.IMAGE_VERSION'] ]
+      GIT_SHA_SHORT: $[ stageDependencies.Prepare.ResolveVersion.outputs['setVersion.GIT_SHA_SHORT'] ]
+      HELM_CHART_DIR: $(Pipeline.Workspace)/helm-chart/flip-super-admin-app
+      ENVIRONMENT: sit
+    jobs:
+    - deployment: DeployToAKSSit
+      displayName: Deploy (SIT)
+      environment: aks-sit          # approval gate lives on this Environment
+      pool:
+        vmImage: $(VM_IMAGE)
+      strategy:
+        runOnce:
+          deploy:
+            steps:
+            - checkout: self
+              fetchDepth: '1'
+
+            - download: current
+              artifact: helm-chart
+              displayName: Download Helm Chart Artifact
+
+            - task: AzureCLI@2
+              displayName: Get AKS Credentials & Resolve Portal URLs
+              inputs:
+                azureSubscription: $(AZURE_SUBSCRIPTION)
+                scriptType: bash
+                scriptLocation: scriptPath
+                scriptPath: pipeline/get-aks-creds.sh
+
+            - task: HelmInstaller@1
+              displayName: Install Helm
+              inputs:
+                helmVersionToInstall: latest
+
+            - bash: bash pipeline/helm-upgrade.sh
+              displayName: Helm Upgrade
+              env:
+                VALUES_FILE: $(Pipeline.Workspace)/helm-chart/values/sit-values.yaml
+                IMAGE_REPO: $(ACR_LOGIN_SERVER)/$(IMAGE_NAME)
+
+            - bash: bash pipeline/wait-rollout.sh
+              displayName: Wait for Rollout
+
+            - bash: bash pipeline/post-deploy-summary.sh
+              displayName: Post-Deploy Summary
+              condition: succeeded()
+
+            - bash: bash pipeline/capture-diagnostics.sh
+              displayName: Capture Failure Diagnostics
+              condition: failed()
+              env:
+                OUT_DIR: $(Build.ArtifactStagingDirectory)/pod-diagnostics
+
+            - publish: $(Build.ArtifactStagingDirectory)/pod-diagnostics
+              artifact: pod-diagnostics
+              displayName: Publish Diagnostics Artifact
+              condition: failed()
+
+            - bash: |
+                if [ "$(Agent.JobStatus)" = "Succeeded" ]; then
+                  export STATUS_TEXT="Succeeded"
+                else
+                  export STATUS_TEXT="Failed"
+                fi
+                export SUMMARY_PATH="$(Build.ArtifactStagingDirectory)/deploy-summary.md"
+                bash pipeline/run-summary.sh
+              displayName: Publish Run Summary
+              condition: always()
+
+            - bash: |
+                if [ "$(Agent.JobStatus)" = "Succeeded" ]; then
+                  export STATUS_TEXT="Succeeded"
+                else
+                  export STATUS_TEXT="Failed"
+                fi
+                bash pipeline/notify-teams.sh
+              displayName: Notify Teams
+              condition: always()
+              env:
+                TEAMS_WEBHOOK_URL: $(TEAMS_WEBHOOK_URL)

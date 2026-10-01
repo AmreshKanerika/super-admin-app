@@ -1,0 +1,37 @@
+{{- /*
+  Own Ingress for the console host. A host rule here is more specific than the shared
+  `*.sit.flipnow.cloud` wildcard (which sends everything else to flip-ui), so only this host
+  moves to the console — the shared ingress is not touched.
+*/ -}}
+{{- if .Values.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "flip-super-admin-app.fullname" . }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ include "flip-super-admin-app.name" . }}
+  {{- with .Values.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- if .Values.ingress.tlsSecretName }}
+  tls:
+    - hosts:
+        - {{ .Values.ingress.host }}
+      secretName: {{ .Values.ingress.tlsSecretName }}
+  {{- end }}
+  rules:
+    - host: {{ .Values.ingress.host }}
+      http:
+        paths:
+          - path: {{ .Values.ingress.path }}
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "flip-super-admin-app.fullname" . }}
+                port:
+                  number: {{ .Values.service.port }}
+{{- end }}

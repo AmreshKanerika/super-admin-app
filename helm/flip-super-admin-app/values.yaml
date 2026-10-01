@@ -1,0 +1,53 @@
+namespace: flip-dev
+
+replicaCount: 1
+
+image:
+  repository: acrflipdevsit.azurecr.io/flip-super-admin-app
+  tag: latest-release
+  pullPolicy: Always
+
+service:
+  type: ClusterIP
+  port: 80
+
+containerPort: 80
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 250m
+    memory: 256Mi
+
+readinessProbe:
+  path: /healthz
+  initialDelaySeconds: 5
+  periodSeconds: 10
+
+livenessProbe:
+  path: /healthz
+  initialDelaySeconds: 15
+  periodSeconds: 20
+
+# Runtime overrides for env.js. Leave empty to use what `npm run build:<env>` baked in
+# (src/environments/environment.<env>.ts). Set one only to retarget without a rebuild.
+env:
+  FLIP_ENV_NAME: ""
+  FLIP_API_BASE_URL: ""
+  FLIP_KEYCLOAK_BASE_URL: ""
+  FLIP_KEYCLOAK_REALM: ""
+  FLIP_KEYCLOAK_CLIENT_ID: ""
+
+ingress:
+  enabled: false
+  className: nginx-public
+  host: superadmin.dev.flipnow.cloud
+  path: /
+  tlsSecretName: ""
+  annotations:
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/hsts: "true"
+    nginx.ingress.kubernetes.io/hsts-max-age: "31536000"
