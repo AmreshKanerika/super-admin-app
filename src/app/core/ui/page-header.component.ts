@@ -41,7 +41,8 @@ import { NavigationHistoryService } from '../navigation-history.service';
       }
       .ph.colorful {
         position: relative;
-        overflow: hidden;
+        /* Not overflow: hidden - that clipped menus opened from header buttons (e.g. More actions). */
+        overflow: visible;
         gap: 28px;
         margin-bottom: 16px;
         padding: 30px 34px;
@@ -51,16 +52,20 @@ import { NavigationHistoryService } from '../navigation-history.service';
         color: #fff;
         box-shadow: 0 12px 28px rgba(66, 44, 104, 0.13);
       }
+      /* The decorative rings, drawn inside the header's own box so nothing sticks out of it. */
       .ph.colorful::after {
         content: '';
         position: absolute;
-        right: -45px;
-        bottom: -102px;
-        width: 280px;
-        height: 280px;
-        border: 1px solid rgba(255, 255, 255, 0.15);
-        border-radius: 50%;
-        box-shadow: 0 0 0 50px rgba(255, 255, 255, 0.035), 0 0 0 100px rgba(255, 255, 255, 0.025);
+        inset: 0;
+        border-radius: inherit;
+        background: radial-gradient(
+          circle at calc(100% - 95px) calc(100% - 38px),
+          transparent 139px,
+          rgba(255, 255, 255, 0.15) 139px 140px,
+          rgba(255, 255, 255, 0.035) 140px 190px,
+          rgba(255, 255, 255, 0.025) 190px 240px,
+          transparent 240px
+        );
         pointer-events: none;
       }
       .ph.colorful > * { position: relative; z-index: 1; }
@@ -98,7 +103,17 @@ import { NavigationHistoryService } from '../navigation-history.service';
 
       @media (max-width: 640px) {
         .ph.colorful { padding: 22px 18px; }
-        .ph.colorful::after { right: -120px; opacity: 0.5; }
+        .ph.colorful::after {
+          opacity: 0.5;
+          background: radial-gradient(
+            circle at calc(100% - 20px) calc(100% - 38px),
+            transparent 139px,
+            rgba(255, 255, 255, 0.15) 139px 140px,
+            rgba(255, 255, 255, 0.035) 140px 190px,
+            rgba(255, 255, 255, 0.025) 190px 240px,
+            transparent 240px
+          );
+        }
         .ph-text {
           flex-basis: 100%;
         }

@@ -13,7 +13,12 @@
         <p class="story-description">Your organizations, applications and insights.<br />Beautifully connected in one workspace.</p>
       </div>
       <div class="hero-art" aria-label="Organizations, plans, applications and insights connected through FLIP">
-        <img class="platform-animation" src="assets/login-platform-animated.svg" alt="" fetchpriority="high" />
+        <svg class="connection-map" viewBox="0 0 1000 280" preserveAspectRatio="none" aria-hidden="true">
+          <defs><path id="console-left-top" d="M310 70H355Q390 70 390 105V110Q390 140 420 140H500"/><path id="console-left-bottom" d="M310 210H355Q390 210 390 175V170Q390 140 420 140H500"/><path id="console-right-top" d="M500 140H580Q610 140 610 110V105Q610 70 645 70H690"/><path id="console-right-bottom" d="M500 140H580Q610 140 610 170V175Q610 210 645 210H690"/></defs>
+          <g class="connection-base"><use href="#console-left-top"/><use href="#console-left-bottom"/><use href="#console-right-top"/><use href="#console-right-bottom"/></g>
+          <g class="connection-flow"><use href="#console-left-top"/><use href="#console-left-bottom"/><use href="#console-right-top"/><use href="#console-right-bottom"/></g>
+        </svg>
+        <div class="platform-hub"><img src="assets/logos/flip-product-logo.svg" alt="FLIP" /><span>PLATFORM CONSOLE</span></div>
         <span class="feature-tag tag-organizations"><i class="ti ti-building" aria-hidden="true"></i> Organizations</span>
         <span class="feature-tag tag-plans"><i class="ti ti-stack-2" aria-hidden="true"></i> Subscription plans</span>
         <span class="feature-tag tag-applications"><i class="ti ti-apps" aria-hidden="true"></i> Applications</span>
@@ -22,18 +27,23 @@
     </section>
     <section class="access-panel" aria-label="Sign in">
       <div class="card-accent" aria-hidden="true"></div>
-      <div class="access-symbol" aria-hidden="true"><i class="ti ti-login"></i></div>
-      <span class="access-eyebrow">YOUR WORKSPACE AWAITS</span>
-      <h2>Sign in to FLIP<span>.</span></h2>
-      <p class="access-description">Welcome back. Pick up where you left off.</p>
+      <div class="access-heading">
+        <div class="access-symbol" aria-hidden="true"><i class="ti ti-layout-dashboard"></i></div>
+        <h2><span>Sign in to</span>Platform Console</h2>
+      </div>
+      <p class="access-description">Manage your organizations, applications and subscription plans in one place.</p>
       <form class="login-form" (ngSubmit)="submit()" autocomplete="on" novalidate>
         <div class="field">
           <label for="username">Username or email</label>
-          <input id="username" name="username" type="text" placeholder="name@company.com" autocomplete="username" autocapitalize="none" spellcheck="false" [(ngModel)]="username" (ngModelChange)="error.set('')" [disabled]="submitting()" [attr.aria-invalid]="error() ? 'true' : null" [attr.aria-describedby]="error() ? 'login-error' : null" />
+          <div class="input-wrap">
+            <i class="ti ti-user field-icon" aria-hidden="true"></i>
+            <input id="username" name="username" type="text" placeholder="Enter your username or email" autocomplete="username" autocapitalize="none" spellcheck="false" [(ngModel)]="username" (ngModelChange)="error.set('')" [disabled]="submitting()" [attr.aria-invalid]="error() ? 'true' : null" [attr.aria-describedby]="error() ? 'login-error' : null" />
+          </div>
         </div>
         <div class="field">
           <label for="password">Password</label>
-          <div class="password-field">
+          <div class="password-field input-wrap">
+            <i class="ti ti-lock field-icon" aria-hidden="true"></i>
             <input id="password" name="password" [type]="showPassword() ? 'text' : 'password'" placeholder="Enter your password" autocomplete="current-password" [(ngModel)]="password" (ngModelChange)="error.set('')" [disabled]="submitting()" [attr.aria-invalid]="error() ? 'true' : null" [attr.aria-describedby]="error() ? 'login-error' : null" />
             <button type="button" class="password-toggle" (click)="togglePassword()" [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'" [attr.aria-pressed]="showPassword()"><i class="ti" [class.ti-eye]="!showPassword()" [class.ti-eye-off]="showPassword()" aria-hidden="true"></i></button>
           </div>
@@ -41,11 +51,11 @@
         <p id="login-error" class="error-text" *ngIf="error()" role="alert">{{ error() }}</p>
         <button type="submit" class="sign-in-btn" [disabled]="submitting()">
           <img src="assets/logos/flip-loader.svg" alt="" *ngIf="submitting()" />
-          <span>{{ submitting() ? 'Signing in…' : 'Sign in' }}</span>
+          <span>{{ submitting() ? 'Signing in…' : 'Sign in to console' }}</span>
           <i class="ti ti-arrow-right" *ngIf="!submitting()" aria-hidden="true"></i>
         </button>
       </form>
-      <p class="access-note"><i class="ti ti-lock" aria-hidden="true"></i> Secure access for authorized platform users</p>
+      <p class="access-note"><i class="ti ti-shield-lock" aria-hidden="true"></i> For authorized Platform Console users</p>
     </section>
   </div>
   <footer class="landing-footer"><div><span>A product of</span><img src="assets/logos/kanerika_site_logo.svg" alt="Kanerika" /></div><span>© {{ year }} Kanerika Inc. All rights reserved.</span></footer>
