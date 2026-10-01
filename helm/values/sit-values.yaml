@@ -11,6 +11,10 @@
 # -----------------------------------------------------------------------------
 namespace: flip-sit
 
+# Default for a manual `helm upgrade`; the pipeline overrides repository and tag.
+image:
+  repository: acrflipdevsit.azurecr.io/flip-super-admin-app
+
 nodeSelector:
   env: sit
 
