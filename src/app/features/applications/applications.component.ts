@@ -1,5 +1,6 @@
 import { Component, HostListener, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { ModalShellComponent } from '../../core/ui/modal-shell.component';
 import { FormsModule } from '@angular/forms';
 import { ApplicationDraft, ApplicationsService } from '../../services/applications.service';
 import { ConfirmService } from '../../core/confirm.service';
@@ -60,10 +61,11 @@ function lastRootIndexAtOrBefore(rows: readonly { depth: number }[], index: numb
     EmptyStateComponent,
     TreeBranchComponent,
     AssignPlansComponent,
-    MigrationTypeFormComponent
+    MigrationTypeFormComponent,
+    ModalShellComponent
   ],
   templateUrl: './applications.component.html',
-  styleUrl: './applications.component.scss'
+  styleUrls: ['./applications.component.scss', './application-editor.scss']
 })
 export class ApplicationsComponent {
   applications = inject(ApplicationsService);

@@ -12,8 +12,9 @@
 
   <form *ngIf="!loading()" (ngSubmit)="save()" autocomplete="off">
     <div class="meta-bar">
-      <span class="id-chip" *ngIf="existingId() !== null; else newId">
-        <i class="ti ti-hash" aria-hidden="true"></i> Migration type id <strong>{{ existingId() }}</strong>
+      <span class="id-chip editing" *ngIf="existingId() !== null; else newId"
+            title="These are the details already saved in master migration types. Saving updates this row; no new row is added.">
+        <i class="ti ti-pencil" aria-hidden="true"></i> Editing saved migration type <strong>id {{ existingId() }}</strong> · saving updates it
       </span>
       <ng-template #newId>
         <span class="id-chip muted"><i class="ti ti-hash" aria-hidden="true"></i> Id is assigned automatically on save</span>
@@ -41,8 +42,13 @@
     <div class="grid">
       <div class="field span-2">
         <label for="mt-name">Name</label>
-        <input id="mt-name" name="name" class="input" [ngModel]="name()" (ngModelChange)="name.set($event)" maxlength="255" [class.invalid]="!name().trim()" />
+        <input id="mt-name" name="name" class="input" [ngModel]="name()" (ngModelChange)="onNameChange($event)" maxlength="255"
+               [class.invalid]="!name().trim() || !!nameClash()" />
         <span class="error-text" *ngIf="!name().trim()">Name is required.</span>
+        <span class="error-text" *ngIf="nameClash() as clash">
+          '{{ clash.existingName }}' already exists in master migration types (id {{ clash.existingId }}{{ clash.existingAppLabel ? ', used by ' + clash.existingAppLabel : '' }}).
+          Choose another name, or edit it from that application.
+        </span>
       </div>
       <div class="field span-2">
         <label for="mt-desc">Description</label>
@@ -51,11 +57,13 @@
       </div>
       <div class="field">
         <label for="mt-processing">Processing type</label>
-        <select id="mt-processing" name="processingType" class="input" [ngModel]="processingType()" (ngModelChange)="processingType.set($event)">
+        <select id="mt-processing" name="processingType" class="input" [ngModel]="processingType()" (ngModelChange)="processingType.set($event)"
+                [class.invalid]="tried() && !!requiredErrors().processingType">
           <option value="">Not set</option>
           <option *ngFor="let p of processingTypes" [value]="p">{{ p }}</option>
           <option *ngIf="processingType() && !processingTypes.includes(processingType())" [value]="processingType()">{{ processingType() }}</option>
         </select>
+        <span class="error-text" *ngIf="tried() && requiredErrors().processingType">{{ requiredErrors().processingType }}</span>
       </div>
       <div class="field">
         <label>Inventory</label>
@@ -103,8 +111,10 @@
       <div class="field">
         <label for="mt-health">Health check API URL</label>
         <input id="mt-health" name="healthCheckApiUrl" class="input mono" [ngModel]="healthCheckApiUrl()" (ngModelChange)="healthCheckApiUrl.set($event)"
-               placeholder="https://…/api/health" [class.invalid]="urlErrors().healthCheckApiUrl" />
-        <span class="error-text" *ngIf="urlErrors().healthCheckApiUrl">{{ urlErrors().healthCheckApiUrl }}</span>
+               placeholder="https://…/api/health" [class.invalid]="urlErrors().healthCheckApiUrl || (tried() && requiredErrors().healthCheckApiUrl)" />
+        <span class="error-text" *ngIf="urlErrors().healthCheckApiUrl || (tried() && requiredErrors().healthCheckApiUrl)">
+          {{ urlErrors().healthCheckApiUrl || requiredErrors().healthCheckApiUrl }}
+        </span>
       </div>
       <div class="field">
         <label for="mt-enc">Encryption API URL <span class="optional-tag">· optional</span></label>
@@ -115,7 +125,8 @@
       <div class="field span-2">
         <label for="mt-blob">Blob folder</label>
         <input id="mt-blob" name="migrationBlobFolder" class="input mono" [ngModel]="migrationBlobFolder()" (ngModelChange)="migrationBlobFolder.set($event)"
-               placeholder="sql-server-to-fabric/input-dir" />
+               placeholder="sql-server-to-fabric/input-dir" [class.invalid]="tried() && !!requiredErrors().migrationBlobFolder" />
+        <span class="error-text" *ngIf="tried() && requiredErrors().migrationBlobFolder">{{ requiredErrors().migrationBlobFolder }}</span>
       </div>
     </div>
 
@@ -140,7 +151,7 @@
     <div class="wizard-actions">
       <button type="button" class="btn ghost" (click)="close()" [disabled]="saving()">{{ stepLabel ? 'Skip for now' : 'Cancel' }}</button>
       <div class="spacer"></div>
-      <button type="submit" class="btn primary" [disabled]="!canSave()">
+      <button type="submit" class="btn primary" [disabled]="saving()">
         {{ saving() ? 'Saving…' : stepLabel ? 'Save and continue' : 'Save migration details' }}
       </button>
     </div>

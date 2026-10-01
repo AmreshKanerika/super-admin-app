@@ -16,6 +16,15 @@ import { AuthService } from '../core/auth/auth.service';
 import { API_BASE_URL } from '../core/api-config';
 import { displayNameOrFallback } from '../core/app-name.util';
 
+/** Result of the live name check in the migration details form. */
+export interface MigrationNameCheck {
+  available: boolean;
+  existingId: number | null;
+  existingName: string | null;
+  existingAppId: string | null;
+  existingAppLabel: string | null;
+}
+
 export interface ApplicationDraft {
   /** Only read on create — the machine key is fixed for the life of the application. */
   appName: string;
@@ -191,6 +200,13 @@ export class ApplicationsService {
       if ((error as { status?: number })?.status === 404) return null;
       throw error;
     }
+  }
+
+  /** Whether another application's master migration type already uses this name. */
+  checkMigrationName(appId: string, name: string): Promise<MigrationNameCheck> {
+    return firstValueFrom(
+      this.http.get<MigrationNameCheck>(`${API_BASE_URL}/platform/applications/${appId}/migration-type/name-check`, { params: { name } })
+    );
   }
 
   async saveMigrationType(appId: string, config: MigrationTypeConfig): Promise<MigrationTypeSaveResponse> {

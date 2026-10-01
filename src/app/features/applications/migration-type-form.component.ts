@@ -2,7 +2,7 @@ import { Component, EventEmitter, Input, OnInit, Output, computed, inject, signa
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ModalShellComponent } from '../../core/ui/modal-shell.component';
-import { ApplicationsService } from '../../services/applications.service';
+import { ApplicationsService, MigrationNameCheck } from '../../services/applications.service';
 import { ToastService } from '../../core/toast.service';
 import { Application, JsonValue, MigrationTypeConfig, MigrationTypeSaveResponse } from '../../models';
 import { displayNameOrFallback } from '../../core/app-name.util';
@@ -135,6 +135,20 @@ export class MigrationTypeFormComponent implements OnInit {
   readonly importText = signal('');
   readonly importError = signal<string | null>(null);
 
+  /** Set by the first Save click, so required-field errors only show once the user tries to save. */
+  readonly tried = signal(false);
+  /** Live result of the name check: another application already using this name blocks saving. */
+  readonly nameClash = signal<MigrationNameCheck | null>(null);
+  private nameCheckTimer: ReturnType<typeof setTimeout> | null = null;
+  private nameCheckSeq = 0;
+
+  /** Fields a migration cannot run without (the backend enforces the same). */
+  readonly requiredErrors = computed(() => ({
+    processingType: this.processingType().trim() ? null : 'Processing type is required.',
+    healthCheckApiUrl: this.healthCheckApiUrl().trim() ? null : 'Health check API URL is required.',
+    migrationBlobFolder: this.migrationBlobFolder().trim() ? null : 'Blob folder is required.'
+  }));
+
   readonly jsonErrors = computed<Partial<Record<JsonFieldKey, string>>>(() => {
     const errors: Partial<Record<JsonFieldKey, string>> = {};
     const text = this.jsonText();
@@ -160,9 +174,36 @@ export class MigrationTypeFormComponent implements OnInit {
     () =>
       !this.saving() &&
       !!this.name().trim() &&
+      !this.nameClash() &&
+      !Object.values(this.requiredErrors()).some(Boolean) &&
       Object.keys(this.jsonErrors()).length === 0 &&
       !Object.values(this.urlErrors()).some(Boolean)
   );
+
+  /** Name field input: updates the value and re-checks it against master migration types. */
+  onNameChange(value: string): void {
+    this.name.set(value);
+    this.scheduleNameCheck();
+  }
+
+  private scheduleNameCheck(): void {
+    if (this.nameCheckTimer) clearTimeout(this.nameCheckTimer);
+    const name = this.name().trim();
+    if (!name) {
+      this.nameClash.set(null);
+      return;
+    }
+    this.nameCheckTimer = setTimeout(async () => {
+      const seq = ++this.nameCheckSeq;
+      try {
+        const result = await this.applications.checkMigrationName(this.app.appId, name);
+        if (seq === this.nameCheckSeq) this.nameClash.set(result.available ? null : result);
+      } catch {
+        // A failed check never blocks the form; the backend checks again on save.
+        if (seq === this.nameCheckSeq) this.nameClash.set(null);
+      }
+    }, 350);
+  }
 
   get appLabel(): string {
     return displayNameOrFallback(this.app, this.app.appId);
@@ -177,6 +218,7 @@ export class MigrationTypeFormComponent implements OnInit {
       this.toast.show(this.messageOf(error, "Couldn't load the saved migration details"), 'critical');
     } finally {
       this.loading.set(false);
+      this.scheduleNameCheck();
     }
   }
 
@@ -222,6 +264,7 @@ export class MigrationTypeFormComponent implements OnInit {
       this.importError.set(null);
       this.importOpen.set(false);
       this.importText.set('');
+      this.scheduleNameCheck();
       this.toast.show('Form filled from the INSERT statement. Review it, then save.', 'success');
     } catch (error) {
       this.importError.set((error as Error).message);
@@ -229,7 +272,11 @@ export class MigrationTypeFormComponent implements OnInit {
   }
 
   async save(): Promise<void> {
-    if (!this.canSave()) return;
+    this.tried.set(true);
+    if (!this.canSave()) {
+      if (!this.saving()) this.toast.show('Fill in the highlighted fields before saving.', 'critical');
+      return;
+    }
     const text = this.jsonText();
     const json = (key: JsonFieldKey): JsonValue => (text[key].trim() ? (JSON.parse(text[key]) as JsonValue) : null);
     const config: MigrationTypeConfig = {

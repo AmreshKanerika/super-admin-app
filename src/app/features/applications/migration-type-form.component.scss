@@ -171,3 +171,6 @@ textarea.json { font-size: 12px; line-height: 1.45; resize: vertical; min-height
   .wizard-actions .spacer, .save-hint { display: none; }
   .wizard-actions .btn { flex: 1 1 auto; }
 }
+
+/* Saved details: makes it plain that Save edits the existing master row. */
+.id-chip.editing { border-color: var(--limit-design-line); background: var(--accent-soft); color: var(--accent-ink); }

@@ -1,0 +1,97 @@
+/* New / Edit application dialog. The dialog frame (header, close, scrolling) is app-modal-shell. */
+
+.app-form { display: flex; flex-direction: column; gap: 22px; }
+
+.af-section { display: flex; flex-direction: column; gap: 14px; }
+.af-section + .af-section { padding-top: 20px; border-top: 1px solid var(--line); }
+
+.af-head { display: flex; align-items: flex-start; gap: 12px; }
+.af-step {
+  display: grid; place-items: center; flex-shrink: 0; width: 26px; height: 26px; margin-top: 1px;
+  border-radius: 50%; background: var(--accent); color: #fff; font-size: 12.5px; font-weight: 700;
+}
+.af-head h4 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 14.5px; font-weight: 700; color: var(--ink); }
+.af-head p { margin: 3px 0 0; font-size: 12.5px; line-height: 1.5; color: var(--ink-faint); }
+.af-optional, .af-count {
+  padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 600;
+  background: var(--paper-sunken); color: var(--ink-faint);
+}
+.af-count { background: var(--accent-soft); color: var(--accent-ink); }
+
+.af-field { display: flex; flex-direction: column; gap: 6px; padding-left: 38px; }
+.af-field label { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600; color: var(--ink-soft); }
+.af-tag { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; border-radius: 999px; background: var(--paper-sunken); color: var(--ink-faint); font-size: 11px; font-weight: 600; }
+
+.af-input {
+  position: relative; display: flex; align-items: center;
+  border: 1px solid var(--line-strong); border-radius: 10px; background: var(--paper-raised);
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.af-input:hover { border-color: #b6bfd0; }
+.af-input:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent); }
+.af-input.invalid { border-color: var(--critical); }
+.af-input.locked { background: var(--paper-sunken); }
+.af-input > .ti { position: absolute; left: 12px; color: var(--ink-faint); font-size: 16px; pointer-events: none; }
+.af-input input, .af-input select {
+  width: 100%; min-width: 0; height: 42px; padding: 0 14px 0 38px; border: 0; border-radius: 10px;
+  background: transparent; color: var(--ink); font: 14px var(--font-sans); outline: none;
+}
+.af-input input.mono { font-family: var(--font-mono); font-size: 13px; letter-spacing: .02em; }
+.af-input input:disabled { color: var(--ink-soft); cursor: not-allowed; }
+.af-input.select select { appearance: none; padding-right: 36px; cursor: pointer; }
+.af-input .caret { left: auto; right: 12px; }
+
+.af-hint { font-size: 12px; line-height: 1.5; color: var(--ink-faint); }
+.af-hint code, .af-note code { padding: 1px 5px; border-radius: 4px; background: var(--paper-sunken); font-family: var(--font-mono); font-size: 11.5px; }
+.af-note { font-size: 12px; color: var(--ink-soft); }
+.af-error { display: flex; align-items: flex-start; gap: 6px; font-size: 12px; line-height: 1.45; color: var(--critical); }
+.af-error .ti { margin-top: 1px; font-size: 14px; }
+.af-section > .af-error { padding-left: 38px; }
+
+/* Live preview of the catalog row. */
+.af-preview { margin-left: 38px; padding: 12px 14px; border: 1px dashed var(--limit-design-line); border-radius: 12px; background: var(--ui-violet-wash); }
+.af-preview-label { display: block; margin-bottom: 8px; font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ui-eyebrow); }
+.af-preview-row { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.af-preview-icon { display: grid; place-items: center; flex-shrink: 0; width: 28px; height: 28px; border-radius: 8px; background: var(--accent); color: #fff; font-size: 13px; font-weight: 700; }
+.af-preview-row strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; color: var(--ink); }
+.af-preview-row code { margin-left: auto; padding: 2px 8px; border-radius: 6px; background: var(--paper-raised); border: 1px solid var(--line); color: var(--ink-soft); font: 12px var(--font-mono); white-space: nowrap; }
+
+/* Scopes as selectable cards; ALL spans the full width. */
+.af-scopes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding-left: 38px; }
+.af-scope {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 12px;
+  border: 1px solid var(--line); border-radius: 12px; background: var(--paper-raised); text-align: left; cursor: pointer;
+  transition: border-color .15s ease, background-color .15s ease, box-shadow .15s ease;
+}
+.af-scope.all { grid-column: 1 / -1; }
+.af-scope:hover { border-color: var(--line-strong); box-shadow: 0 4px 12px rgba(15, 23, 42, .05); }
+.af-scope:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.af-scope.on { border-color: var(--accent); background: var(--accent-soft); }
+.af-scope-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.af-scope-text strong { font-size: 13px; letter-spacing: .03em; color: var(--ink); }
+.af-scope.on .af-scope-text strong { color: var(--accent-ink); }
+.af-scope-text small { font-size: 11.5px; line-height: 1.4; color: var(--ink-faint); }
+.af-check {
+  display: grid; place-items: center; flex-shrink: 0; width: 22px; height: 22px;
+  border: 1.5px solid var(--line-strong); border-radius: 50%; color: transparent; font-size: 13px;
+}
+.af-scope.on .af-check { border-color: var(--accent); background: var(--accent); color: #fff; }
+
+/* Actions stay visible while the dialog body scrolls. */
+.af-footer {
+  position: sticky; bottom: -22px; z-index: 1; display: flex; justify-content: flex-end; gap: 10px;
+  margin: 4px -22px -22px; padding: 14px 22px; border-top: 1px solid var(--line); background: var(--paper-raised);
+}
+.af-footer .btn.primary { display: inline-flex; align-items: center; gap: 6px; }
+
+@media (max-width: 640px) {
+  .af-field, .af-scopes, .af-section > .af-error { padding-left: 0; }
+  .af-preview { margin-left: 0; }
+  .af-scopes { grid-template-columns: 1fr; }
+  .af-footer { margin: 4px -16px -16px; padding: 12px 16px; bottom: -16px; }
+  .af-footer .btn { flex: 1 1 auto; justify-content: center; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .af-input, .af-scope { transition: none; }
+}

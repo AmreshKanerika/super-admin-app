@@ -198,116 +198,148 @@
   (closed)="onAssignmentsClosed()"
 ></app-assign-plans>
 
-<div class="backdrop" *ngIf="editing() !== null" (click)="closeIfBackdropClicked($event)">
-  <aside
-    class="editor"
-    role="dialog"
-    aria-modal="true"
-    [attr.aria-label]="isCreating() ? 'New application' : 'Edit application'"
-  >
-    <header class="ed-head">
-      <h2>{{ isCreating() ? 'New application' : 'Edit application' }}</h2>
-      <button type="button" class="icon-btn" (click)="cancel()" aria-label="Close"><i class="ti ti-x" aria-hidden="true"></i></button>
-    </header>
-
-    <div class="ed-body">
-
-    <div class="field">
-      <label for="displayName">Display name</label>
-      <input
-        id="displayName"
-        class="input"
-        placeholder="Informatica to Databricks"
-        [ngModel]="draftDisplayName()"
-        (ngModelChange)="draftDisplayName.set($event)"
-        (blur)="suggestAppName()"
-        autocomplete="off"
-      />
-      <span class="hint">What everyone sees — in the console, in plans and on limits screens. Write it the way you would say it.</span>
-    </div>
-
-    <div class="field">
-      <label for="appName">
-        Machine name
-        <span class="optional-tag" *ngIf="!isCreating()">· fixed after creation</span>
-      </label>
-      <input
-        id="appName"
-        class="input mono"
-        placeholder="INFORMATICA_TO_DATABRICKS"
-        [ngModel]="draftAppName()"
-        (ngModelChange)="onAppNameInput($event)"
-        [disabled]="!isCreating()"
-        [class.invalid]="isCreating() && draftAppName() && (!appNameValid() || nameTaken())"
-        autocomplete="off"
-        spellcheck="false"
-      />
-      <span class="hint" *ngIf="isCreating()">
-        Uppercase letters, digits and single underscores — for example
-        <code>ALTERYX_TO_FABRIC</code>, <code>AI_WORKBENCH</code>, <code>SSIS_TO_ADF_PREMIGRATION</code>.
-      </span>
-      <span class="hint" *ngIf="!isCreating()">
-        The key the platform resolves this application by. Usage-metering calls arrive carrying it, so it
-        cannot be changed once anything is using it — create a new application instead.
-      </span>
-      <span class="error-text" *ngIf="isCreating() && draftAppName() && !appNameValid()">
-        Must start with a letter and contain only A–Z, 0–9 and single underscores.
-      </span>
-      <span class="error-text" *ngIf="isCreating() && nameTaken()">An application with this machine name already exists.</span>
-      <span class="normalised" *ngIf="isCreating() && draftAppName() && appNameValid() && normalisedAppName() !== draftAppName()">
-        Will be saved as <code>{{ normalisedAppName() }}</code>
-      </span>
-    </div>
-
-    <div class="preview" *ngIf="draftDisplayName() || draftAppName()">
-      <span class="preview-label">How it will appear</span>
-      <div class="preview-row">
-        <i class="ti ti-app-window" aria-hidden="true"></i>
-        <strong>{{ draftDisplayName() || '—' }}</strong>
-        <code class="machine">{{ normalisedAppName() || '—' }}</code>
+<app-modal-shell
+  *ngIf="editing() !== null"
+  [heading]="isCreating() ? 'New application' : 'Edit application'"
+  [subtitle]="isCreating() ? 'Adds it to the catalog — plans and roles can use it once it is there' : 'Changes apply wherever this application is used'"
+  [icon]="isCreating() ? 'ti-apps' : 'ti-pencil'"
+  [width]="680"
+  (close)="!saving() && cancel()"
+>
+  <form class="app-form" (ngSubmit)="save()" autocomplete="off" novalidate>
+    <!-- 1 · Name -->
+    <section class="af-section">
+      <div class="af-head">
+        <span class="af-step">1</span>
+        <div>
+          <h4>Name it</h4>
+          <p>What people see, and the key the platform uses.</p>
+        </div>
       </div>
-    </div>
 
-    <div class="field">
-      <label for="parent">Parent application <span class="optional-tag">· optional</span></label>
-      <select id="parent" class="input" [ngModel]="draftParentAppId()" (ngModelChange)="draftParentAppId.set($event)">
-        <option value="">None — top level</option>
-        <option *ngFor="let option of parentOptions()" [value]="option.app.appId">
-          {{ '— '.repeat(option.depth) }}{{ option.label }}
-        </option>
-      </select>
-      <span class="hint">Nest this beneath another application when it is a variant or a stage of it. The list excludes itself and anything below it, so a loop cannot be made.</span>
-    </div>
+      <div class="af-field">
+        <label for="displayName">Display name</label>
+        <span class="af-input">
+          <i class="ti ti-app-window" aria-hidden="true"></i>
+          <input
+            id="displayName"
+            name="displayName"
+            placeholder="Informatica to Databricks"
+            [ngModel]="draftDisplayName()"
+            (ngModelChange)="draftDisplayName.set($event)"
+            (blur)="suggestAppName()"
+          />
+        </span>
+        <span class="af-hint">Shown in the console, in plans and on limits screens. Write it the way you would say it.</span>
+      </div>
 
-    <div class="field">
-      <label>Scopes</label>
-      <span class="hint">The permissions a plan's roles can grant for this application.</span>
-      <div class="scopes">
+      <div class="af-field">
+        <label for="appName">
+          Machine name
+          <span class="af-tag" *ngIf="!isCreating()"><i class="ti ti-lock" aria-hidden="true"></i> fixed after creation</span>
+        </label>
+        <span class="af-input" [class.invalid]="isCreating() && draftAppName() && (!appNameValid() || nameTaken())" [class.locked]="!isCreating()">
+          <i class="ti ti-hash" aria-hidden="true"></i>
+          <input
+            id="appName"
+            name="appName"
+            class="mono"
+            placeholder="INFORMATICA_TO_DATABRICKS"
+            [ngModel]="draftAppName()"
+            (ngModelChange)="onAppNameInput($event)"
+            [disabled]="!isCreating()"
+            spellcheck="false"
+          />
+        </span>
+        <span class="af-hint" *ngIf="isCreating()">
+          Filled in from the display name. Capital letters, digits and single underscores — e.g. <code>ALTERYX_TO_FABRIC</code>.
+        </span>
+        <span class="af-hint" *ngIf="!isCreating()">
+          The key usage-metering calls carry, so it can't change once anything uses it. Create a new application instead.
+        </span>
+        <span class="af-error" *ngIf="isCreating() && draftAppName() && !appNameValid()">
+          <i class="ti ti-alert-circle" aria-hidden="true"></i> Must start with a letter and contain only A–Z, 0–9 and single underscores.
+        </span>
+        <span class="af-error" *ngIf="isCreating() && nameTaken()">
+          <i class="ti ti-alert-circle" aria-hidden="true"></i> An application with this machine name already exists.
+        </span>
+        <span class="af-note" *ngIf="isCreating() && draftAppName() && appNameValid() && normalisedAppName() !== draftAppName()">
+          Will be saved as <code>{{ normalisedAppName() }}</code>
+        </span>
+      </div>
+
+      <div class="af-preview" *ngIf="draftDisplayName() || draftAppName()">
+        <span class="af-preview-label">How it will appear</span>
+        <div class="af-preview-row">
+          <span class="af-preview-icon" aria-hidden="true">{{ (draftDisplayName() || draftAppName() || '?').charAt(0).toUpperCase() }}</span>
+          <strong>{{ draftDisplayName() || '—' }}</strong>
+          <code>{{ normalisedAppName() || '—' }}</code>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2 · Place -->
+    <section class="af-section">
+      <div class="af-head">
+        <span class="af-step">2</span>
+        <div>
+          <h4>Where it sits <span class="af-optional">optional</span></h4>
+          <p>Nest it under another application when it is a variant or a stage of it — for example a migration under Migration.</p>
+        </div>
+      </div>
+      <div class="af-field">
+        <label for="parent">Parent application</label>
+        <span class="af-input select">
+          <i class="ti ti-subtask" aria-hidden="true"></i>
+          <select id="parent" name="parent" [ngModel]="draftParentAppId()" (ngModelChange)="draftParentAppId.set($event)">
+            <option value="">None — top level</option>
+            <option *ngFor="let option of parentOptions()" [value]="option.app.appId">
+              {{ '— '.repeat(option.depth) }}{{ option.label }}
+            </option>
+          </select>
+          <i class="ti ti-chevron-down caret" aria-hidden="true"></i>
+        </span>
+        <span class="af-hint">The list leaves out this application and anything below it, so a loop can't be made.</span>
+      </div>
+    </section>
+
+    <!-- 3 · Scopes -->
+    <section class="af-section">
+      <div class="af-head">
+        <span class="af-step">3</span>
+        <div>
+          <h4>Scopes <span class="af-count" *ngIf="draftScopes().size">{{ draftScopes().size }} selected</span></h4>
+          <p>The permissions a plan's roles can grant for this application. ALL grants everything, instead of the individual scopes.</p>
+        </div>
+      </div>
+      <div class="af-scopes" role="group" aria-label="Scopes">
         <button
           type="button"
-          class="scope-toggle"
+          class="af-scope"
           *ngFor="let scope of allScopes"
           [class.on]="hasScope(scope)"
+          [class.all]="scope === 'ALL'"
           [attr.aria-pressed]="hasScope(scope)"
           (click)="toggleScope(scope)"
         >
-          <i class="ti" [class.ti-check]="hasScope(scope)" [class.ti-plus]="!hasScope(scope)" aria-hidden="true"></i>
-          <span class="sc-name">{{ scope }}</span>
-          <small>{{ scopeHints[scope] }}</small>
+          <span class="af-scope-text">
+            <strong>{{ scope }}</strong>
+            <small>{{ scopeHints[scope] }}</small>
+          </span>
+          <span class="af-check" aria-hidden="true"><i class="ti ti-check"></i></span>
         </button>
       </div>
-      <span class="error-text" *ngIf="!draftScopes().size">
-        No scopes means no role can be granted anything for this application.
+      <span class="af-error" *ngIf="!draftScopes().size">
+        <i class="ti ti-alert-circle" aria-hidden="true"></i> No scopes means no role can be granted anything for this application.
       </span>
-    </div>
+    </section>
 
-    </div>
-
-    <footer class="ed-foot">
+    <div class="af-footer">
       <button type="button" class="btn ghost" (click)="cancel()" [disabled]="saving()">Cancel</button>
-      <button type="button" class="btn primary" (click)="save()" [disabled]="!canSave()">
+      <button type="submit" class="btn primary" [disabled]="!canSave()">
+        <i class="ti" [class.ti-plus]="isCreating()" [class.ti-device-floppy]="!isCreating()" aria-hidden="true"></i>
         {{ saving() ? 'Saving…' : isCreating() ? 'Create application' : 'Save changes' }}
       </button>
-    </footer>
-  </aside>
-</div>
+    </div>
+  </form>
+</app-modal-shell>
