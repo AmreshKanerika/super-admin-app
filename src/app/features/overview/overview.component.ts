@@ -9,6 +9,8 @@ import {
   AnalyticsService,
   BILLING_LABEL,
   BillingKey,
+  CHANNEL_COLOR,
+  CHANNEL_LABEL,
   CrossDim,
   DateBasis,
   KpiDefinition,
@@ -16,12 +18,12 @@ import {
   STATUS_LABEL,
   StatusKey,
   billingKeyOf,
+  channelKeyOf,
   statusKeyOf
 } from '../../services/analytics.service';
 import { ChartCardComponent } from '../../core/charts/chart-card.component';
 import { DonutChartComponent } from '../../core/charts/donut-chart.component';
 import { LineChartComponent } from '../../core/charts/line-chart.component';
-import { ColumnChartComponent } from '../../core/charts/column-chart.component';
 import { HbarChartComponent } from '../../core/charts/hbar-chart.component';
 import { MeterComponent } from '../../core/charts/meter.component';
 import { ScrollSentinelComponent } from '../../core/ui/scroll-sentinel.component';
@@ -57,7 +59,6 @@ interface PresetOption {
     ChartCardComponent,
     DonutChartComponent,
     LineChartComponent,
-    ColumnChartComponent,
     HbarChartComponent,
 
     MeterComponent,
@@ -136,7 +137,7 @@ export class OverviewComponent {
   // --- KPI row -------------------------------------------------------------
 
   metricLabel(k: KpiDefinition): string {
-    return ({ total: 'Total organizations', paid: 'Paid organizations', trial: 'Trial organizations', subscribed: 'Active subscriptions', nearExpiry: 'Renewing in 30 days', expired: 'Expired', unsubscribed: 'Unsubscribed', reactivated: 'Reactivated' } as Record<string, string>)[k.key] ?? k.label;
+    return ({ total: 'Total organizations', paid: 'Paid organizations', trial: 'Trial organizations', subscribed: 'Active subscriptions', nearExpiry: 'Renewing in 30 days', expired: 'Expired', unsubscribed: 'Unsubscribed', reactivated: 'Reactivated', ssoEnabled: 'SSO enabled', lapsed: 'Lapsed' } as Record<string, string>)[k.key] ?? k.label;
   }
 
   deltaOf(k: KpiDefinition): number | null {
@@ -150,7 +151,8 @@ export class OverviewComponent {
   @ViewChild('organizationDialog') organizationDialog!: ElementRef<HTMLDialogElement>;
   readonly selectedMetric = signal<KpiDefinition | null>(null);
   readonly organizationSearch = signal('');
-  readonly primaryKpis = computed(() => ['total', 'paid', 'trial', 'subscribed', 'nearExpiry', 'expired', 'unsubscribed', 'reactivated'].map(key => this.a.kpis().find(k => k.key === key)!));
+  // Row 1: who the customers are. Row 2: subscription health, in the order sales acts on it.
+  readonly primaryKpis = computed(() => ['total', 'paid', 'trial', 'ssoEnabled', 'subscribed', 'nearExpiry', 'lapsed', 'reactivated'].map(key => this.a.kpis().find(k => k.key === key)!));
   readonly metricRows = computed(() => {
     const metric = this.selectedMetric();
     if (!metric) return this.a.rows();
@@ -192,14 +194,6 @@ export class OverviewComponent {
 
   readonly trendPage = signal(0);
   readonly auditReady = computed(() => !this.a.eventsLoading() && !this.a.eventsFailed());
-  readonly lifecycleSummary = computed(() => {
-    const t = this.a.lifecycleTrend();
-    const sum = (values: number[]) => values.reduce((total, value) => total + value, 0);
-    const added = sum(t.onboarded);
-    const ended = sum(t.churned);
-    const reactivated = this.auditReady() ? sum(t.reactivated) : null;
-    return { added, ended, reactivated, difference: reactivated === null ? null : added + reactivated - ended };
-  });
   readonly trendWindow = computed(() => {
     const total = this.a.lifecycleTrend().buckets.length;
     const page = Math.min(this.trendPage(), Math.max(0, Math.ceil(total / 12) - 1));
@@ -238,19 +232,6 @@ export class OverviewComponent {
     }));
   });
 
-  readonly netSeries = computed<ChartSeries[]>(() => {
-    const n = this.a.netMovement();
-    const { start, end } = this.trendWindow();
-    return [
-      { key: 'gained', label: this.auditReady() ? 'New + reactivated' : 'New organizations only', color: VIZ_SLOT.blue, values: (this.auditReady() ? n.gained : this.a.lifecycleTrend().onboarded).slice(start, end) },
-      { key: 'lost', label: 'Ended plans', color: VIZ_SLOT.red, values: n.lost.slice(start, end) }
-    ];
-  });
-  readonly netTable = computed<TableRow[]>(() => {
-    const n = this.a.netMovement();
-    return n.buckets.map((b, i) => ({ label: b.label, values: [this.auditReady() ? n.gained[i] : 'Unavailable', n.lost[i], this.auditReady() ? n.gained[i] - n.lost[i] : 'Unavailable'] }));
-  });
-
   readonly runwayItems = computed<BarDatum[]>(() => this.a.expiryRunway());
   readonly runwaySelected = computed(() => this.a.selection().expiry);
   readonly runwayTotal = computed(() => this.runwayItems().reduce((sum, i) => sum + i.value, 0));
@@ -258,14 +239,30 @@ export class OverviewComponent {
     this.runwayItems().map((i) => ({ label: i.label, values: [i.value, percent(i.value, this.runwayTotal())], color: i.color }))
   );
 
-  readonly billingItems = computed<BarDatum[]>(() => this.a.billingMix());
-  readonly billingSelected = computed(() => this.a.selection().billing);
-  readonly billingTable = computed<TableRow[]>(() => {
-    const mix = this.a.billingMix();
+  // --- acquisition channel (Azure Marketplace vs direct onboarding) ---
+
+  readonly channelSelected = computed(() => this.a.selection().channel);
+  /** Per channel: size, share, and how much of it is live and paying — what sales reads first. */
+  readonly channelFacts = computed(() => {
+    const rows = this.a.rowsIgnoringChannel();
+    const total = rows.length;
+    return this.a.channelMix().map((c) => {
+      const inChannel = rows.filter((r) => channelKeyOf(r) === c.key);
+      return {
+        ...c,
+        icon: c.key === 'MARKETPLACE' ? 'ti-brand-azure' : 'ti-building-store',
+        share: percent(c.value, total),
+        active: inChannel.filter((r) => statusKeyOf(r) === 'ACTIVE').length,
+        paid: inChannel.filter((r) => r.org.isPaidOrg).length
+      };
+    });
+  });
+  readonly channelBarLabel = computed(() => this.channelFacts().map((c) => `${c.label} ${c.share}`).join(', '));
+  readonly channelTable = computed<TableRow[]>(() => {
+    const mix = this.a.channelMix();
     const total = mix.reduce((sum, s) => sum + s.value, 0);
     return mix.map((s) => ({ label: s.label, values: [s.value, percent(s.value, total)], color: s.color }));
   });
-
   readonly semantic = SEMANTIC;
   readonly slot = VIZ_SLOT;
 
@@ -293,6 +290,7 @@ export class OverviewComponent {
   }
 
   metricContext(k: KpiDefinition): string {
+    if (k.context) return k.context;
     if (k.key === 'total') return this.a.windowLabel();
     if (k.key === 'reactivated') return 'By reactivation date';
     const total = this.a.totalOrganizations();

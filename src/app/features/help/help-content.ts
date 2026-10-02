@@ -332,7 +332,7 @@ export const HELP_GUIDES: HelpGuide[] = [
       },
       {
         title: 'Step 2 · Admin user',
-        text: 'The organization\'s first admin — the "Original admin", who can never be removed.',
+        text: 'The organization\'s first admin. They become the account owner, who can never be removed.',
         fields: [
           { name: 'First name / Last name', hint: '"Priya" "Sharma".' },
           { name: 'Email (used as username)', hint: '"priya.sharma@example.test". This is how they sign in.' }
@@ -716,7 +716,7 @@ export const HELP_GUIDES: HelpGuide[] = [
     steps: [
       {
         title: 'Open Users',
-        text: 'Right after onboarding the list holds only the Original admin, Priya Sharma.',
+        text: 'Right after onboarding the list holds only the account owner, Priya Sharma.',
         actions: ['Open the Users & roles tab.', 'Click Add user.'],
         image: img('org-users-before')
       },
@@ -785,12 +785,12 @@ export const HELP_GUIDES: HelpGuide[] = [
       {
         title: 'The finished list',
         text: 'Kanerika now has two Admins, a Developer, a Migration Analyst, and a Report Viewer who is also a Migration Analyst.',
-        actions: ['Search by name, email or role.', 'Priya Sharma\'s Remove button is locked because she is the Original admin.'],
+        actions: ['Search by name, email or role.', 'Priya Sharma\'s Remove button is locked because she is the account owner.'],
         image: img('org-users')
       }
     ],
     notes: [
-      { tone: 'warning', text: 'The Original admin can never be removed or lose the Admin role. Admins added later can be removed, as long as another Admin remains.' },
+      { tone: 'warning', text: 'The account owner can never be removed or lose the Admin role. Admins added later can be removed, as long as another Admin remains.' },
       { tone: 'info', text: 'If the email already has a FLIP account in another organization, that person is added here with the chosen roles instead of getting a second account.' }
     ]
   },
@@ -1062,7 +1062,7 @@ export const HELP_FAQ: HelpFaq[] = [
   },
   {
     group: 'Roles & users',
-    q: 'Who is the "Original admin" and why can\'t I remove them?',
+    q: 'Who is the "Account owner" and why can\'t I remove them?',
     a: 'The first Admin, created at onboarding. They can never be removed or lose Admin, so the organization always has an owner. Admins added later can be removed as long as another Admin remains.',
     guide: 'users'
   },
@@ -1093,7 +1093,7 @@ export const HELP_FAQ: HelpFaq[] = [
   {
     group: 'Roles & users',
     q: 'A user lost their temporary password. What now?',
-    a: 'Passwords are never stored, so the console cannot show it again. For anyone other than the Original admin, remove the user and add them again to create a new temporary password.',
+    a: 'Passwords are never stored, so the console cannot show it again. For anyone other than the account owner, remove the user and add them again to create a new temporary password.',
     guide: 'users'
   },
 

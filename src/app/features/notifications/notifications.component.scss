@@ -1,6 +1,98 @@
-.tabbar {
-  margin-bottom: 22px;
+/* ── Summary tiles + how-it-works note ─────────────────────────────────── */
+
+.ntf-stats {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+  margin: -6px 0 12px;
 }
+.ntf-stat {
+  display: flex; align-items: center; gap: 12px; min-width: 0;
+  padding: 13px 15px; text-align: left; cursor: pointer; color: inherit; font: inherit;
+  border: 1px solid var(--line); border-radius: 12px; background: #fff;
+  transition: border-color .15s, box-shadow .15s;
+}
+.ntf-stat:hover { border-color: #cdbfe2; box-shadow: 0 4px 14px rgba(89, 55, 118, .07); }
+.ntf-stat.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.ntf-stat:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ns-icon { display: grid; place-items: center; width: 38px; height: 38px; flex: none; border-radius: 10px; font-size: 19px; }
+.ns-icon.expiring { background: #efe9fa; color: #6a3fb1; }
+.ns-icon.week { background: #fff6dc; color: #94690c; }
+.ns-icon.overdue { background: #fdecee; color: #a63340; }
+.ns-icon.sent { background: #e5f5ee; color: #1b7357; }
+.ns-icon.failed { background: #fff1e3; color: #b8621b; }
+.ns-text { display: flex; flex-direction: column; min-width: 0; }
+.ns-text strong { font-size: 22px; line-height: 1.1; font-variant-numeric: tabular-nums; color: var(--ink); }
+.ns-text small { font-size: 12px; color: var(--ink-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.how-it-works { margin: 0 0 16px; border: 1px solid var(--line); border-radius: 12px; background: #faf9fd; }
+.how-it-works summary {
+  display: flex; align-items: center; gap: 8px; padding: 10px 14px; list-style: none; cursor: pointer;
+  font-size: 13px; font-weight: 600; color: var(--ink-soft); border-radius: 12px;
+}
+.how-it-works summary::-webkit-details-marker { display: none; }
+.how-it-works summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.how-it-works summary .ti-info-circle { color: var(--accent); font-size: 16px; }
+.hw-caret { margin-left: auto; transition: transform .15s; }
+.how-it-works[open] .hw-caret { transform: rotate(180deg); }
+.how-it-works ul { margin: 0; padding: 0 18px 12px 38px; display: grid; gap: 5px; font-size: 12.5px; line-height: 1.55; color: var(--ink-faint); }
+.how-it-works strong { color: var(--ink-soft); }
+
+/* ── Tabs ──────────────────────────────────────────────────────────────── */
+
+.tab-row {
+  display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  margin-bottom: 18px; border-bottom: 1px solid var(--line);
+}
+/* The row draws the rule so the badge on the right sits on the same line as the tabs. */
+.tab-row .tabbar { border-bottom: 0; min-width: 0; }
+.tabbar button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+.tab-count {
+  display: inline-block; min-width: 20px; margin-left: 4px; padding: 1px 6px; border-radius: 999px;
+  background: var(--paper-sunken); color: var(--ink-soft); font-size: 11px; font-weight: 600;
+  font-variant-numeric: tabular-nums; text-align: center;
+}
+.tabbar button.active .tab-count { background: var(--accent-soft); color: var(--accent-ink); }
+
+.auto-badge {
+  display: inline-flex; align-items: center; gap: 6px; max-width: 100%; margin-bottom: 8px; padding: 4px 10px;
+  border: 1px solid #cfe9dc; border-radius: 999px; background: #eef8f3; color: #176b4d;
+  font: 600 12px var(--font-sans); cursor: pointer;
+}
+.auto-badge span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.auto-badge.off { border-color: var(--line-strong); background: var(--paper-sunken); color: var(--ink-soft); }
+.auto-badge:hover { filter: brightness(.97); }
+.auto-badge:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ── Filters ───────────────────────────────────────────────────────────── */
+
+.filter-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 12px; }
+.search { position: relative; flex: 1 1 260px; min-width: 0; }
+.search .ti { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-size: 15px; color: var(--ink-faint); pointer-events: none; }
+.search .input { width: 100%; padding-left: 35px; }
+.filter-bar select.input { width: auto; flex: 0 0 auto; }
+
+.segment {
+  display: inline-grid; grid-auto-flow: column; gap: 2px; padding: 3px;
+  border-radius: 10px; background: #f1f0f6; border: 1px solid #e7e5ef;
+}
+.segment button {
+  padding: 6px 11px; border: 0; border-radius: 7px; background: transparent; color: #5a6378;
+  font: inherit; font-size: 12.5px; font-weight: 550; white-space: nowrap; cursor: pointer;
+}
+.segment button:hover { color: #2d3650; background: rgba(255, 255, 255, .55); }
+.segment button.on { background: #fff; color: var(--accent-ink); font-weight: 650; box-shadow: 0 1px 3px rgba(31, 38, 70, .14); }
+.segment button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.list-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-bottom: 10px; }
+.list-bar .count { display: inline-flex; align-items: center; gap: 10px; font-size: 12.5px; color: var(--ink-faint); }
+.list-bar .send-btn { margin-left: auto; }
+.clear-link {
+  display: inline-flex; align-items: center; gap: 4px; padding: 0; border: 0; background: none;
+  color: var(--accent-ink); font: 600 12.5px var(--font-sans); cursor: pointer;
+}
+.clear-link:hover { text-decoration: underline; }
+.clear-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
 
 .checkbox-row {
   display: flex;
@@ -8,7 +100,72 @@
   gap: 8px;
   font-size: 13px;
   color: var(--ink-soft);
+  cursor: pointer;
 }
+
+.hidden-note { display: flex; align-items: center; gap: 6px; margin: -2px 0 10px; color: #825c0a; }
+
+/* ── Tables ────────────────────────────────────────────────────────────── */
+
+.ntf-table tbody tr.selected { background: color-mix(in oklab, var(--accent-soft) 55%, transparent); }
+.ntf-table input[type='checkbox'] { width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent); }
+.ntf-table input[type='checkbox']:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ntf-table .nowrap { white-space: nowrap; }
+.ntf-table .muted { color: var(--ink-faint); }
+.ntf-table .sub-date { margin-top: 2px; font-size: 11.5px; color: var(--ink-faint); }
+.ntf-table .last-date { margin-right: 8px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ntf-table .actions { text-align: right; white-space: nowrap; }
+.ntf-table .actions .btn { display: inline-flex; align-items: center; gap: 5px; }
+.col-email, .col-recipient { overflow-wrap: anywhere; }
+
+/* A sent-at timestamp reads as one value, not five stacked fragments. */
+.hist-table td.col-sent {
+  white-space: nowrap;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Collapsed columns reappear under the organization name on narrower screens. */
+.row-meta { display: none; }
+.row-meta > span { display: none; }
+
+@media (max-width: 1100px) {
+  .col-last, .col-subject, .col-timing { display: none; }
+  .row-meta {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 2px 10px; margin-top: 4px;
+    font-size: 11.5px; font-weight: 400; color: var(--ink-faint);
+  }
+  .row-meta .meta-last, .row-meta .meta-subject, .row-meta .meta-timing { display: inline; }
+}
+
+@media (max-width: 760px) {
+  .col-email, .col-recipient { display: none; }
+  .row-meta .meta-email, .row-meta .meta-recipient { display: inline; overflow-wrap: anywhere; }
+  /* With the wide columns folded away the table fits, so drop the global min-width. */
+  .ntf-table { min-width: 0; }
+}
+
+@media (max-width: 640px) {
+  .ntf-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .col-sent { display: none; }
+  .row-meta .meta-sent { display: inline; }
+  .hist-table td:first-child { min-width: 0; }
+
+  .search, .filter-bar select.input { flex: 1 1 100%; width: 100%; }
+  .segment { width: 100%; grid-auto-columns: minmax(0, 1fr); }
+  .segment button { padding: 7px 4px; white-space: normal; line-height: 1.2; }
+
+  .list-bar .send-btn { width: 100%; margin-left: 0; justify-content: center; min-height: 40px; }
+  .ntf-table .actions .btn-text { display: none; }
+
+  .auto-badge { margin-bottom: 10px; }
+}
+
+@media (max-width: 1100px) and (min-width: 641px) {
+  .ntf-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+/* ── Settings ──────────────────────────────────────────────────────────── */
 
 .offset-chips {
   display: flex;
@@ -32,6 +189,10 @@
   margin: 0 0 14px;
 }
 
+.settings-card .hint.warn {
+  display: flex; align-items: center; gap: 6px; margin: 10px 0 0; color: #825c0a;
+}
+
 .settings-card-head {
   display: flex;
   align-items: flex-start;
@@ -43,6 +204,20 @@
   margin-bottom: 0;
 }
 
+.state-note {
+  display: flex; align-items: center; gap: 6px; margin: 12px 0 0;
+  font-size: 12.5px; font-weight: 600; color: #176b4d;
+}
+.state-note.off { color: var(--ink-faint); }
+
+/* Timings still edit while automatic reminders are off; the dimming just shows they're idle. */
+.settings-card.dimmed .offset-chips { opacity: .65; }
+
+.card-actions { display: flex; align-items: center; gap: 12px; margin-top: 14px; flex-wrap: wrap; }
+.card-actions .hint { margin: 0; }
+
+.chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
 .chip.active {
   background: var(--accent-soft);
   border-color: var(--accent);
@@ -50,17 +225,15 @@
   font-weight: 600;
 }
 
-/* A sent-at timestamp reads as one value, not five stacked fragments. */
-.dtable:not(.lead-icon) td:first-child {
-  white-space: nowrap;
-  color: var(--ink);
-  font-variant-numeric: tabular-nums;
+/* ── Misc ──────────────────────────────────────────────────────────────── */
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
 }
 
-/* ── Responsive ────────────────────────────────────────────────────────── */
-
-
-/* ── Responsive ────────────────────────────────────────────────────────── */
+.spin { display: inline-block; animation: ntf-spin 0.9s linear infinite; }
+@keyframes ntf-spin { to { transform: rotate(360deg); } }
 
 @media (max-width: 640px) {
   /* 560px is a reading-width cap for the settings column. Below that it only
@@ -92,7 +265,10 @@
     flex: 0 0 auto;
   }
 
-  .checkbox-row {
-    align-items: flex-start;
-  }
+  .card-actions .btn { width: 100%; justify-content: center; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ntf-stat, .hw-caret { transition: none; }
+  .spin { animation: none; }
 }

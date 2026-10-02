@@ -143,7 +143,6 @@ describe('Overview dashboard', () => {
     expect(sum(component.a.expiryRunway())).toBe(1);
     expect(component.a.conversion()).toEqual({ paid: 0, total: 1 });
     expect(component.a.lifecycleTrend().onboarded.reduce((a,b) => a+b, 0)).toBe(1);
-    expect(component.a.netMovement().gained.reduce((a,b) => a+b, 0)).toBe(1);
     expect(component.salesQueues().find(q => q.key === 'salesTrials')!.rows.length).toBe(1);
   });
 
@@ -203,14 +202,9 @@ describe('Overview dashboard', () => {
   it('does not present missing audit events as zero in lifecycle charts and tables', () => {
     component.a.eventsLoading.set(false);
     component.a.eventsFailed.set(true);
-    expect(component.lifecycleSummary().reactivated).toBeNull();
-    expect(component.lifecycleSummary().difference).toBeNull();
     expect(component.trendSeries().some(s => s.key === 'reactivated')).toBeFalse();
     expect(component.trendTable().every(r => r.values[2] === 'Unavailable')).toBeTrue();
-    expect(component.netTable().every(r => r.values[2] === 'Unavailable')).toBeTrue();
-    expect(component.netSeries()[0].label).toBe('New organizations only');
     component.a.eventsFailed.set(false);
-    expect(component.lifecycleSummary().reactivated).not.toBeNull();
     expect(component.trendSeries().some(s => s.key === 'reactivated')).toBeTrue();
   });
 });

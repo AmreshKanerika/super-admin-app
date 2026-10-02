@@ -171,6 +171,9 @@ export interface Organization {
   keycloakRealmName: string;
   isPaidOrg: boolean;
   isDecommissioned: boolean;
+  isSsoEnabled?: boolean;              // users sign in with Microsoft (set by Azure Marketplace onboarding)
+  azureMarketplaceManaged?: boolean;   // billed in the customer's Azure subscription: plans and paid status are read only here
+  emailDomain?: string | null;         // every user is expected on this domain; null = no rule
   createdDate: string;
   adminName: string;
   adminEmail: string;
@@ -508,6 +511,8 @@ export interface CreateOrgUserResult {
   /** Shown once. Null when the person already had a login for this org and keeps their password. */
   temporaryPassword: string | null;
   signInUrl: string | null;
+  /** SSO organization: the user signs in with Microsoft and has no FLIP password. */
+  ssoSignIn?: boolean;
   emailSent: boolean;
   emailError: string | null;
   message: string | null;

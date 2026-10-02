@@ -2,18 +2,6 @@
   display: block;
 }
 
-.lede {
-  max-width: 88ch;
-  margin: -8px 0 18px;
-  color: var(--ink-faint);
-  font-size: 12.5px;
-  line-height: 1.6;
-}
-
-.lede strong {
-  color: var(--ink-soft);
-}
-
 /* The editor is a panel beside the table rather than a modal: creating a
    sub-application means reading the tree while filling the form, and a modal
    would cover the thing being referred to. */
@@ -401,3 +389,111 @@ tbody tr.selected {
 @media (prefers-reduced-motion: reduce) {
   .catalog-row.just-created > td { animation: none; }
 }
+
+/* ── Summary tiles + how-it-works note ─────────────────────────────────── */
+
+.app-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 12px;
+  margin: -6px 0 12px;
+}
+.app-stat {
+  display: flex; align-items: center; gap: 12px; min-width: 0;
+  padding: 13px 15px; text-align: left; cursor: pointer; color: inherit; font: inherit;
+  border: 1px solid var(--line); border-radius: 12px; background: #fff;
+  transition: border-color .15s, box-shadow .15s;
+}
+.app-stat:hover { border-color: #cdbfe2; box-shadow: 0 4px 14px rgba(89, 55, 118, .07); }
+.app-stat.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.app-stat:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.as-icon { display: grid; place-items: center; width: 38px; height: 38px; flex: none; border-radius: 10px; font-size: 19px; }
+.as-icon.total { background: #efe9fa; color: #6a3fb1; }
+.as-icon.in-use { background: #fff1e3; color: #b8621b; }
+.as-icon.unused { background: #e5f5ee; color: #1b7357; }
+.as-icon.setup { background: #fff6dc; color: #94690c; }
+.as-text { display: flex; flex-direction: column; min-width: 0; }
+.as-text strong { font-size: 22px; line-height: 1.1; font-variant-numeric: tabular-nums; color: var(--ink); }
+.as-text small { font-size: 12px; color: var(--ink-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.how-it-works { margin: 0 0 16px; border: 1px solid var(--line); border-radius: 12px; background: #faf9fd; }
+.how-it-works summary {
+  display: flex; align-items: center; gap: 8px; padding: 10px 14px; list-style: none; cursor: pointer;
+  font-size: 13px; font-weight: 600; color: var(--ink-soft);
+}
+.how-it-works summary::-webkit-details-marker { display: none; }
+.how-it-works summary .ti-info-circle { color: var(--accent); font-size: 16px; }
+.hw-caret { margin-left: auto; transition: transform .15s; }
+.how-it-works[open] .hw-caret { transform: rotate(180deg); }
+.how-it-works ul { margin: 0; padding: 0 18px 12px 38px; display: grid; gap: 5px; font-size: 12.5px; line-height: 1.55; color: var(--ink-faint); }
+.how-it-works strong { color: var(--ink-soft); }
+
+/* ── Usage filter + catalog bar ────────────────────────────────────────── */
+
+.catalog-bar { flex-wrap: wrap; }
+.usage-segment {
+  display: inline-grid; grid-auto-flow: column; gap: 2px; padding: 3px;
+  border-radius: 10px; background: #f1f0f6; border: 1px solid #e7e5ef;
+}
+.usage-segment button {
+  padding: 6px 11px; border: 0; border-radius: 7px; background: transparent; color: #5a6378;
+  font: inherit; font-size: 12.5px; font-weight: 550; white-space: nowrap; cursor: pointer;
+}
+.usage-segment button:hover { color: #2d3650; background: rgba(255, 255, 255, .55); }
+.usage-segment button.on { background: #fff; color: var(--accent-ink); font-weight: 650; box-shadow: 0 1px 3px rgba(31, 38, 70, .14); }
+.usage-segment button[hidden] { display: none; }
+
+/* ── Row details ───────────────────────────────────────────────────────── */
+
+.parent-missing {
+  display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px;
+  background: #fff6dc; color: #8a6210; font-size: 11.5px; font-weight: 600;
+}
+.plans-btn {
+  display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0 10px; margin-right: 4px;
+  border: 1px solid #e0d3f1; border-radius: 8px; background: #f4effb; color: #5b3596;
+  font: 600 12px var(--font-sans); cursor: pointer; vertical-align: middle;
+  transition: background-color .15s, border-color .15s;
+}
+.plans-btn:hover { background: #ebe2f8; border-color: #c9b3e6; }
+.plans-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.plans-btn i { font-size: 14px; }
+
+/* Collapsed columns reappear under the name on narrower screens. */
+.row-meta { display: none; }
+@media (max-width: 1100px) {
+  .col-machine, .col-parent { display: none; }
+  .row-meta {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 4px 0 0 44px;
+    font-size: 11.5px; font-weight: 400; color: var(--ink-faint);
+  }
+  .row-meta .meta-scopes { display: none; }
+}
+@media (max-width: 640px) {
+  .col-scopes { display: none; }
+  .row-meta { margin-left: 0; }
+  .row-meta .meta-scopes { display: inline-flex; gap: 4px; }
+  .app-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .usage-segment { order: 3; width: 100%; grid-auto-columns: minmax(0, 1fr); }
+  .plans-btn span { display: none; }
+  .plans-btn { padding: 0 7px; }
+}
+@media (prefers-reduced-motion: reduce) { .app-stat, .plans-btn, .hw-caret { transition: none; } }
+
+/* Missing migration details: explanation above the filtered list, and a visible fix on each row. */
+.setup-explainer {
+  display: flex; gap: 12px; align-items: flex-start; margin: 0 0 12px; padding: 12px 14px;
+  border: 1px solid #f0dfa8; border-radius: 12px; background: #fffaeb; color: #6b5310;
+}
+.setup-explainer > .ti { font-size: 20px; color: #b4880f; margin-top: 1px; }
+.setup-explainer strong { font-size: 13px; color: #5a440a; }
+.setup-explainer p { margin: 3px 0 0; font-size: 12.5px; line-height: 1.55; }
+.setup-btn {
+  display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0 10px; margin-right: 4px;
+  border: 1px solid #f0d58f; border-radius: 8px; background: #fff6dc; color: #8a6210;
+  font: 600 12px var(--font-sans); cursor: pointer; vertical-align: middle;
+}
+.setup-btn:hover { background: #ffefc2; border-color: #e5c066; }
+.setup-btn:focus-visible { outline: 2px solid #b4880f; outline-offset: 2px; }
+.setup-btn i { font-size: 14px; }
+@media (max-width: 640px) { .setup-btn span { display: none; } .setup-btn { padding: 0 7px; } }

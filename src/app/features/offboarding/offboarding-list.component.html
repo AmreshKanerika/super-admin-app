@@ -1,66 +1,112 @@
-<app-page-header eyebrow="Decommissioning" title="Offboarding" subtitle="Expire an organization's access, or permanently delete its data." [showBack]="showBack" [backUrl]="backUrl"></app-page-header>
+<app-page-header eyebrow="Decommissioning" title="Offboarding" subtitle="Block an organization's access (reversible), reactivate it, or permanently delete its data." [showBack]="showBack" [backUrl]="backUrl"></app-page-header>
 
-<!-- Toolbar: search on the left, status filter on the right, mirroring Subscriptions & Limits. -->
+<!-- At a glance; each tile also filters the list (click again to clear). -->
+<div class="offb-stats" role="group" aria-label="Offboarding summary">
+  <button type="button" class="offb-stat" [class.on]="statusFilter() === 'ALL'" [attr.aria-pressed]="statusFilter() === 'ALL'" (click)="statusFilter.set('ALL')">
+    <span class="os-icon total"><i class="ti ti-building" aria-hidden="true"></i></span>
+    <span class="os-text"><strong>{{ counts().all }}</strong><small>Organizations</small></span>
+  </button>
+  <button type="button" class="offb-stat" [class.on]="statusFilter() === 'ACTIVE'" [attr.aria-pressed]="statusFilter() === 'ACTIVE'" (click)="setFilter('ACTIVE')">
+    <span class="os-icon active"><i class="ti ti-circle-check" aria-hidden="true"></i></span>
+    <span class="os-text"><strong>{{ counts().active }}</strong><small>Active</small></span>
+  </button>
+  <button type="button" class="offb-stat" [class.on]="statusFilter() === 'EXPIRED'" [attr.aria-pressed]="statusFilter() === 'EXPIRED'" (click)="setFilter('EXPIRED')">
+    <span class="os-icon expired"><i class="ti ti-lock" aria-hidden="true"></i></span>
+    <span class="os-text"><strong>{{ counts().expired }}</strong><small>Expired · access blocked</small></span>
+  </button>
+  <button type="button" class="offb-stat" [class.on]="statusFilter() === 'LONG_EXPIRED'" [attr.aria-pressed]="statusFilter() === 'LONG_EXPIRED'" (click)="setFilter('LONG_EXPIRED')"
+          [title]="'Expired ' + longExpiredDays + ' or more days ago and not reactivated'">
+    <span class="os-icon stale"><i class="ti ti-hourglass" aria-hidden="true"></i></span>
+    <span class="os-text"><strong>{{ counts().longExpired }}</strong><small>Expired {{ longExpiredDays }}+ days</small></span>
+  </button>
+</div>
+
+<details class="how-it-works">
+  <summary><i class="ti ti-info-circle" aria-hidden="true"></i> How offboarding works <i class="ti ti-chevron-down hw-caret" aria-hidden="true"></i></summary>
+  <ul>
+    <li><strong>Offboard</strong> expires the organization's subscriptions immediately and blocks sign-in for every user. <strong>No data is deleted.</strong></li>
+    <li>An expired organization can be <strong>reactivated</strong> at any time — its users get access back with their data intact.</li>
+    <li><strong>Delete permanently</strong> is a separate, manual step for expired organizations: it archives and then destroys the data, database, login system and web address. It cannot be undone and never happens automatically.</li>
+  </ul>
+</details>
+
+<!-- Toolbar: search, onboarding order/range, result count. -->
 <div class="offb-toolbar">
   <label class="offb-search">
     <i class="ti ti-search" aria-hidden="true"></i>
-    <input class="input" [ngModel]="search()" (ngModelChange)="search.set($event)" placeholder="Search by name or domain…" aria-label="Search organizations" />
+    <input class="input" type="search" [ngModel]="search()" (ngModelChange)="search.set($event)" placeholder="Search by name or domain…" aria-label="Search organizations by name or domain" />
   </label>
 
-  <select class="input select offb-onboarded" aria-label="Onboarded" title="Order and range by onboarding date"
-          [ngModel]="onboardedView()" (ngModelChange)="onboardedView.set($event)">
-    <option *ngFor="let o of onboardedOptions" [value]="o.value">{{ o.label }}</option>
-  </select>
+  <label class="offb-select">
+    <span class="sr-only">Onboarded</span>
+    <select class="input select" title="Order and range by onboarding date"
+            [ngModel]="onboardedView()" (ngModelChange)="onboardedView.set($event)">
+      <option *ngFor="let o of onboardedOptions" [value]="o.value">Onboarded: {{ o.label }}</option>
+    </select>
+  </label>
 
-  <div class="filter-chips" role="group" aria-label="Filter by status">
-    <button type="button" class="chip" [class.active]="statusFilter() === 'ALL'" (click)="setFilter('ALL')">
-      All <span class="chip-count">{{ counts().all }}</span>
-    </button>
-    <button type="button" class="chip active-tone" [class.active]="statusFilter() === 'ACTIVE'" (click)="setFilter('ACTIVE')">
-      Active <span class="chip-count">{{ counts().active }}</span>
-    </button>
-    <button type="button" class="chip expired-tone" [class.active]="statusFilter() === 'EXPIRED'" (click)="setFilter('EXPIRED')">
-      Expired <span class="chip-count">{{ counts().expired }}</span>
-    </button>
+  <div class="offb-count" aria-live="polite">
+    <span>{{ filtered().length }} of {{ total() }} organizations</span>
+    <button type="button" class="link-btn" *ngIf="filtersActive()" (click)="clearFilters()">Clear filters</button>
   </div>
 </div>
 
-<div class="scroll-x" *ngIf="filtered().length; else empty">
+<div class="table-wrap" *ngIf="filtered().length; else empty">
   <table class="dtable offb-table">
     <thead>
       <tr>
         <th>Organization</th>
-        <th>Domain</th>
-        <th>Status</th>
-        <th class="col-actions"></th>
+        <th class="col-domain">Domain</th>
+        <th class="col-onboarded">Onboarded</th>
+        <th class="col-status">Status</th>
+        <th class="col-actions"><span class="sr-only">Actions</span></th>
       </tr>
     </thead>
     <tbody>
       <tr *ngFor="let org of filtered()" [class.is-expired]="org.isDecommissioned">
-        <td>
+        <td class="col-org">
           <a class="org-name" [routerLink]="['/organizations', org.orgId]" [queryParams]="showBack ? { from: 'overview' } : null">{{ org.organizationName }}</a>
           <span class="org-admin" *ngIf="org.adminEmail">{{ org.adminEmail }}</span>
+          <!-- Folded columns: shown here only when their own column is hidden on narrower screens. -->
+          <span class="row-meta">
+            <span class="rm-domain mono" *ngIf="org.domainName">{{ org.domainName }}</span>
+            <span class="rm-onboarded">Onboarded {{ formatDate(org.createdDate) }}</span>
+            <span class="rm-status">
+              <app-status-pill *ngIf="!org.isDecommissioned" label="Active" tone="success"></app-status-pill>
+              <app-status-pill *ngIf="org.isDecommissioned" label="Expired · access blocked" tone="critical"></app-status-pill>
+              <span class="status-meta" *ngIf="org.isDecommissioned && org.pendingDeletionAt">Expired {{ expiredAgo(org) }}</span>
+            </span>
+          </span>
         </td>
-        <td class="mono org-domain">{{ org.domainName }}</td>
+        <td class="col-domain mono org-domain">
+          <ng-container *ngIf="org.domainName; else noDomain">{{ org.domainName }}</ng-container>
+          <ng-template #noDomain><span class="muted">No web address</span></ng-template>
+        </td>
+        <td class="col-onboarded org-date">{{ formatDate(org.createdDate) }}</td>
         <td class="col-status">
           <app-status-pill *ngIf="!org.isDecommissioned" label="Active" tone="success"></app-status-pill>
           <ng-container *ngIf="org.isDecommissioned">
             <app-status-pill label="Expired · access blocked" tone="critical"></app-status-pill>
-            <span class="status-meta" *ngIf="org.pendingDeletionAt">Expired {{ formatDate(org.pendingDeletionAt) }}</span>
+            <span class="status-meta" *ngIf="org.pendingDeletionAt" [title]="formatDate(org.pendingDeletionAt)">
+              Expired {{ expiredAgo(org) }} · {{ formatDate(org.pendingDeletionAt) }}
+            </span>
             <span class="status-reason" *ngIf="org.deletionReason" [title]="org.deletionReason">“{{ org.deletionReason }}”</span>
           </ng-container>
         </td>
         <td class="col-actions">
           <div class="offb-actions">
-            <button type="button" class="btn danger sm" *ngIf="!org.isDecommissioned" (click)="startOffboard(org.orgId)">
-              <i class="ti ti-logout" aria-hidden="true"></i> Offboard
+            <button type="button" class="btn danger sm" *ngIf="!org.isDecommissioned" (click)="startOffboard(org.orgId)"
+                    [attr.aria-label]="'Offboard ' + org.organizationName" title="Block access (reversible)">
+              <i class="ti ti-logout" aria-hidden="true"></i><span class="btn-label">Offboard</span>
             </button>
             <ng-container *ngIf="org.isDecommissioned">
-              <button type="button" class="btn ghost sm" (click)="reactivate(org.orgId)">
-                <i class="ti ti-restore" aria-hidden="true"></i> Reactivate
+              <button type="button" class="btn ghost sm reactivate-btn" (click)="reactivate(org.orgId)" [disabled]="busyOrgId() === org.orgId"
+                      [attr.aria-label]="'Reactivate ' + org.organizationName" title="Restore access">
+                <i class="ti ti-restore" aria-hidden="true"></i><span class="btn-label">Reactivate</span>
               </button>
-              <button type="button" class="btn danger solid sm" (click)="purgeNow(org.orgId)">
-                <i class="ti ti-trash" aria-hidden="true"></i> Delete permanently
+              <button type="button" class="btn danger solid sm" (click)="purgeNow(org.orgId)"
+                      [attr.aria-label]="'Delete ' + org.organizationName + ' permanently'" title="Permanently delete all data — cannot be undone">
+                <i class="ti ti-trash" aria-hidden="true"></i><span class="btn-label">Delete permanently</span>
               </button>
             </ng-container>
           </div>
@@ -70,57 +116,127 @@
   </table>
 </div>
 <ng-template #empty>
-  <app-empty-state
-    [title]="statusFilter() === 'EXPIRED' ? 'No expired organizations' : (statusFilter() === 'ACTIVE' ? 'No active organizations' : 'No organizations match')"
-    [message]="search() ? 'Try clearing the search.' : 'Nothing to show for this filter.'"></app-empty-state>
+  <app-empty-state *ngIf="!total(); else noMatch"
+    title="No organizations yet"
+    message="Organizations appear here once they are onboarded (or once the list has finished loading)."></app-empty-state>
+  <ng-template #noMatch>
+    <app-empty-state
+      [title]="statusFilter() === 'EXPIRED' || statusFilter() === 'LONG_EXPIRED' ? 'No expired organizations' : (statusFilter() === 'ACTIVE' ? 'No active organizations' : 'No organizations match')"
+      [message]="search() || onboardedView() !== 'latest'
+        ? 'Nothing matches your search and filters. Try a different name or domain, or clear the filters.'
+        : (statusFilter() === 'LONG_EXPIRED'
+          ? 'No organization has been expired for ' + longExpiredDays + ' days or more.'
+          : (statusFilter() === 'EXPIRED' ? 'Organizations you offboard appear here until they are reactivated or deleted.' : 'Nothing to show for this filter.'))">
+      <button type="button" class="btn ghost" (click)="clearFilters()">
+        <i class="ti ti-filter-off" aria-hidden="true"></i> Show all organizations
+      </button>
+    </app-empty-state>
+  </ng-template>
 </ng-template>
 
 <!-- PRE-CHECK / CONFIRM MODAL -->
 <div class="backdrop" *ngIf="targetOrgId()" (click)="closeModal()">
-  <div class="panel modal-panel" (click)="$event.stopPropagation()">
+  <div class="panel modal-panel" role="dialog" aria-modal="true" aria-labelledby="offb-dialog-title" (click)="$event.stopPropagation()">
     <div class="mp-head">
       <div class="mp-title">
         <span class="mp-eyebrow">Offboard organization</span>
-        <h3>{{ targetOrgName() }}</h3>
+        <h3 id="offb-dialog-title">{{ targetOrgName() || 'Loading organization…' }}</h3>
       </div>
-      <button type="button" class="x" (click)="closeModal()" aria-label="Close">✕</button>
+      <button type="button" class="x" (click)="closeModal()" [disabled]="submitting()" aria-label="Close">
+        <i class="ti ti-x" aria-hidden="true"></i>
+      </button>
     </div>
 
-    <p class="hint" *ngIf="precheckLoading()">Loading pre-check…</p>
+    <p class="hint loading-line" *ngIf="precheckLoading()">
+      <i class="ti ti-loader-2 spin" aria-hidden="true"></i> Checking users, jobs and subscriptions…
+    </p>
 
     <div class="precheck" *ngIf="preCheck() as pc">
       <div class="pc-stats">
         <div class="pc-stat">
           <span class="pc-num mono">{{ pc.activeUsers }}</span>
           <span class="pc-label">Active users</span>
-          <a class="pc-view-link" [routerLink]="['/organizations', targetOrgId()]" [queryParams]="{ tab: 'users' }" target="_blank">View</a>
+          <button type="button" class="pc-view-link" (click)="toggleDetail('users')" [class.on]="detailOpen() === 'users'"
+                  [attr.aria-expanded]="detailOpen() === 'users'" aria-controls="pc-detail">
+            {{ detailOpen() === 'users' ? 'Hide' : 'View' }} <i class="ti ti-chevron-down" aria-hidden="true"></i>
+          </button>
         </div>
         <div class="pc-stat">
           <span class="pc-num mono">{{ pc.openSubscriptions }}</span>
           <span class="pc-label">Open subscriptions</span>
-          <a class="pc-view-link" [routerLink]="['/organizations', targetOrgId()]" [queryParams]="{ tab: 'subscriptions' }" target="_blank">View</a>
+          <button type="button" class="pc-view-link" (click)="toggleDetail('subs')" [class.on]="detailOpen() === 'subs'"
+                  [attr.aria-expanded]="detailOpen() === 'subs'" aria-controls="pc-detail">
+            {{ detailOpen() === 'subs' ? 'Hide' : 'View' }} <i class="ti ti-chevron-down" aria-hidden="true"></i>
+          </button>
         </div>
+        <div class="pc-stat">
+          <span class="pc-num mono" [class.warn]="pc.runningJobs > 0">{{ pc.runningJobs }}</span>
+          <span class="pc-label">Running jobs</span>
+        </div>
+      </div>
+
+      <!-- In-place lists behind "View". -->
+      <div class="pc-detail" id="pc-detail" *ngIf="detailOpen() as kind">
+        <ng-container *ngIf="kind === 'users'">
+          <p class="pc-detail-head">Users in this organization <span *ngIf="orgUsers() as users">{{ users.length }}</span></p>
+          <p class="pc-detail-note" *ngIf="usersLoading()"><i class="ti ti-loader-2 spin" aria-hidden="true"></i> Loading users…</p>
+          <p class="pc-detail-note error" *ngIf="usersError()">Couldn't load users. <button type="button" class="link-btn" (click)="retryUsers()">Try again</button></p>
+          <ul class="pc-list" *ngIf="orgUsers() as users">
+            <li *ngFor="let u of users">
+              <span class="pc-avatar" aria-hidden="true">{{ userName(u).charAt(0).toUpperCase() }}</span>
+              <span class="pc-who"><strong>{{ userName(u) }}</strong><small>{{ u.username }}</small></span>
+              <span class="pc-tag" *ngIf="u.primaryAdmin">Account owner</span>
+            </li>
+            <li class="pc-empty" *ngIf="!users.length">No users in this organization.</li>
+          </ul>
+        </ng-container>
+
+        <ng-container *ngIf="kind === 'subs'">
+          <p class="pc-detail-head">Subscriptions <span>{{ targetSubscriptions().length }}</span></p>
+          <ul class="pc-list">
+            <li *ngFor="let s of targetSubscriptions()">
+              <span class="pc-avatar plan" aria-hidden="true"><i class="ti ti-clipboard-list"></i></span>
+              <span class="pc-who"><strong>{{ planName(s.planId) }}</strong><small>{{ s.planEndDate ? 'Ends ' + formatDate(s.planEndDate) : 'No end date' }}</small></span>
+              <app-status-pill [label]="statusLabel(s.planStatus)" [tone]="subTone(s.planStatus)"></app-status-pill>
+            </li>
+            <li class="pc-empty" *ngIf="!targetSubscriptions().length">No subscriptions.</li>
+          </ul>
+        </ng-container>
+
+        <a class="pc-open-org" [routerLink]="['/organizations', targetOrgId()]" [queryParams]="{ tab: kind === 'users' ? 'users' : 'subscriptions' }">
+          Open organization page <i class="ti ti-arrow-right" aria-hidden="true"></i>
+        </a>
+      </div>
+      <div class="pc-verdict warn" *ngIf="pc.runningJobs > 0">
+        <i class="ti ti-alert-triangle" aria-hidden="true"></i>
+        <span>{{ pc.runningJobs }} {{ pc.runningJobs === 1 ? 'job is' : 'jobs are' }} still running. Consider letting {{ pc.runningJobs === 1 ? 'it' : 'them' }} finish before blocking access.</span>
       </div>
       <div class="pc-verdict ok">
         <i class="ti ti-info-circle" aria-hidden="true"></i>
-        <span>Active subscriptions are expired immediately, blocking login for every user. <strong>No data is deleted</strong> — you can reactivate at any time.</span>
+        <span>Active subscriptions are expired immediately, blocking sign-in for every user. <strong>No data is deleted</strong> — you can reactivate at any time.</span>
       </div>
     </div>
 
     <div class="field">
-      <label>Reason</label>
-      <textarea class="input" rows="2" [(ngModel)]="reason" placeholder="Why is this organization being offboarded?"></textarea>
+      <label for="offb-reason">Reason</label>
+      <textarea id="offb-reason" class="input" rows="2" [(ngModel)]="reason" placeholder="Why is this organization being offboarded?"></textarea>
     </div>
 
     <div class="field">
-      <label>Type <span class="mono confirm-token">{{ targetOrgName() }}</span> to confirm</label>
-      <input class="input mono" [(ngModel)]="confirmText" [placeholder]="targetOrgName()" />
+      <label for="offb-confirm">Type <span class="mono confirm-token">{{ targetOrgName() }}</span> to confirm</label>
+      <input id="offb-confirm" class="input mono" [(ngModel)]="confirmText" [placeholder]="targetOrgName()" [disabled]="!targetOrgName()"
+             autocomplete="off" spellcheck="false" />
     </div>
 
+    <p class="hint why-disabled" *ngIf="!canExecute() && !submitting() && !precheckLoading()">
+      {{ !reason.trim() ? 'Add a reason' : 'Type the organization name exactly' }} to enable “Expire access”.
+    </p>
+
     <div class="wizard-actions">
-      <button type="button" class="btn ghost" (click)="closeModal()">Cancel</button>
+      <button type="button" class="btn ghost" (click)="closeModal()" [disabled]="submitting()">Cancel</button>
       <div class="spacer"></div>
       <button type="button" class="btn danger solid" [disabled]="!canExecute() || submitting()" (click)="execute()">
+        <i class="ti" [class.ti-lock]="!submitting()" [class.ti-loader-2]="submitting()" [class.spin]="submitting()" aria-hidden="true"></i>
         {{ submitting() ? 'Working…' : 'Expire access' }}
       </button>
     </div>

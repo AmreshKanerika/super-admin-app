@@ -62,8 +62,8 @@
                 <span class="person-text">
                   <span class="who">
                     {{ fullName(u) || '—' }}
-                    <span class="badge primary" *ngIf="u.primaryAdmin" title="The first Admin, created at onboarding">
-                      <i class="ti ti-crown" aria-hidden="true"></i> Original admin
+                    <span class="badge primary" *ngIf="u.primaryAdmin" title="Set up this organization at onboarding. Always keeps the Admin role and can't be removed.">
+                      <i class="ti ti-shield-star" aria-hidden="true"></i> Account owner
                     </span>
                   </span>
                   <span class="mono email">{{ u.username }}</span>
@@ -165,7 +165,7 @@
     <button type="button" class="pick" *ngFor="let r of pickableRoles(); trackBy: trackByRole"
             [class.on]="selected.has(r.roleId)" [class.locked]="mode === 'edit' && isLockedForEdit(r)"
             [attr.aria-pressed]="selected.has(r.roleId)" [disabled]="busy()" (click)="toggleRole(mode, r)"
-            [title]="mode === 'edit' && isLockedForEdit(r) ? 'The original admin always keeps the Admin role' : ''">
+            [title]="mode === 'edit' && isLockedForEdit(r) ? 'The account owner always keeps the Admin role' : ''">
       <span class="pick-icon" [class.admin]="r.roleType === 'ADMIN'" [class.custom]="r.roleType === 'CUSTOM'" aria-hidden="true">
         <i class="ti" [class.ti-shield-star]="r.roleType === 'ADMIN'" [class.ti-code]="r.roleType === 'DEVELOPER'" [class.ti-shield-check]="r.roleType === 'CUSTOM'"></i>
       </span>
@@ -206,6 +206,8 @@
                  [ngModel]="newEmail()" (ngModelChange)="newEmail.set($event)" [disabled]="busy()" />
         </div>
         <span class="m-error" *ngIf="addTried() && !emailValid(newEmail())">Enter a valid email address.</span>
+        <span class="m-error" *ngIf="newEmailOffDomain()">Not an &#64;{{ normalizedEmailDomain() }} address. Users of this organization are expected on that domain; you'll be asked to confirm.</span>
+        <span class="hint" *ngIf="normalizedEmailDomain() && !newEmailOffDomain()">Users of this organization use &#64;{{ normalizedEmailDomain() }} addresses.</span>
       </div>
       <div class="two">
         <div class="m-field">
@@ -236,7 +238,12 @@
       <span class="m-error" *ngIf="addTried() && !newRoles().size">Choose at least one role.</span>
     </div>
 
-    <label class="toggle-card" [class.on]="newSendEmail()">
+    <p class="sso-note" *ngIf="isSsoEnabled">
+      <i class="ti ti-brand-windows" aria-hidden="true"></i>
+      <span><strong>Signs in with Microsoft.</strong> No password is created — they sign in to {{ orgLabel }} with their Microsoft account, and the roles you pick here apply from their first sign-in.</span>
+    </p>
+
+    <label class="toggle-card" [class.on]="newSendEmail()" *ngIf="!isSsoEnabled">
       <span class="toggle-icon" aria-hidden="true"><i class="ti ti-mail-forward"></i></span>
       <span class="toggle-text">
         <strong>Email the sign-in details</strong>
@@ -267,14 +274,14 @@
         <span class="profile-name">{{ fullName(u) || '—' }}</span>
         <span class="mono profile-email">{{ u.username }}</span>
         <span class="profile-badges">
-          <span class="badge primary" *ngIf="u.primaryAdmin"><i class="ti ti-crown" aria-hidden="true"></i> Original admin</span>
+          <span class="badge primary" *ngIf="u.primaryAdmin" title="Set up this organization at onboarding"><i class="ti ti-shield-star" aria-hidden="true"></i> Account owner</span>
           <span class="badge">{{ u.homeOrganization ? 'Home organization' : 'Additional access' }}</span>
         </span>
       </div>
     </div>
     <div class="identity" *ngIf="u.primaryAdmin">
       <i class="ti ti-shield-lock" aria-hidden="true"></i>
-      <span>Created at onboarding — they always keep the <strong>Admin</strong> role and can't be removed.</span>
+      <span><strong>Account owner.</strong> Set up this organization at onboarding, so they always keep the <strong>Admin</strong> role and can't be removed.</span>
     </div>
 
     <div class="form-section">
@@ -339,7 +346,7 @@
 </app-modal-shell>
 
 <!-- ── One-time credentials ────────────────────────────────────────────── -->
-<app-modal-shell *ngIf="created() as c" heading="User created" [subtitle]="orgLabel" icon="ti-circle-check" [width]="540" (close)="closeCreated()">
+<app-modal-shell *ngIf="created() as c" heading="User created" [subtitle]="orgLabel" icon="ti-circle-check" [width]="540" [closeOnBackdrop]="!c.temporaryPassword" (close)="closeCreated()">
   <p class="hint top">Save these now — the password won't be shown again. It's temporary: {{ fullName(c.user) || c.user.username }} chooses their own at first sign-in.</p>
   <div class="cred-box">
     <div class="cred-row"><span class="k">Organization</span><span class="v">{{ orgLabel }}</span></div>

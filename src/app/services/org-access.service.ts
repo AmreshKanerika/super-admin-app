@@ -18,7 +18,12 @@ export interface CreateOrgUserRequest {
   lastName: string;
   roleIds: string[];
   sendCredentialsEmail: boolean;
+  /** Only after the super admin confirmed adding an email outside the organization's email domain. */
+  allowOtherEmailDomain?: boolean;
 }
+
+/** The 409 the API sends for an email outside the organization's domain; confirmable. */
+export const EMAIL_DOMAIN_MISMATCH = 'EMAIL_DOMAIN_MISMATCH';
 
 /**
  * An organization's users and roles, managed from the console. The backend runs these through the
@@ -61,9 +66,11 @@ export class OrgAccessService {
     return updated;
   }
 
-  async removeUser(orgId: string, orgLabel: string, user: OrgUser): Promise<void> {
-    await firstValueFrom(this.http.delete(`${this.base(orgId)}/users/${user.userId}`));
+  /** Resolves to the API's message, which warns when the user's Keycloak login could not be deleted. */
+  async removeUser(orgId: string, orgLabel: string, user: OrgUser): Promise<string | undefined> {
+    const response = await firstValueFrom(this.http.delete<{ message?: string }>(`${this.base(orgId)}/users/${user.userId}`));
     this.audit.log('ORG_USER_REMOVED', 'Organization', `${user.username} from ${orgLabel}`, 'SUCCESS', orgId);
+    return response?.message;
   }
 
   sendCredentials(orgId: string, userId: string, temporaryPassword: string): Promise<unknown> {

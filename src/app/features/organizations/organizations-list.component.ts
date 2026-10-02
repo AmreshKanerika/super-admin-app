@@ -1,4 +1,4 @@
-import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, HostListener, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -18,9 +18,8 @@ import { PlanStatus } from '../../models';
 
 type SortKey = 'name' | 'expiry' | 'created';
 
-/** Options of the "Onboarded" filter: an order, or a recent window (always newest first). */
-export type OnboardedView = 'latest' | 'earliest' | 'last7' | 'last30' | 'last90' | 'nameAZ' | 'nameZA' | 'expiry';
-const WINDOW_DAYS: Partial<Record<OnboardedView, number>> = { last7: 7, last30: 30, last90: 90 };
+/** How the list is ordered. Kept apart from filtering: the onboarded window lives in Filters. */
+export type SortView = 'latest' | 'earliest' | 'nameAZ' | 'nameZA' | 'expiry';
 
 @Component({
   selector: 'app-organizations-list',
@@ -64,20 +63,38 @@ export class OrganizationsListComponent {
   createdWithinDays: number | null = null;
   needsActivation = false;
   needsAttention = false;
+  /** Single sign-on filter: SSO (Microsoft, Azure Marketplace) organizations, the rest, or all. */
+  ssoFilter: 'enabled' | 'disabled' | null = null;
+  readonly quickFiltersOpen = signal(false);
+
+  /** Custom date ranges (yyyy-mm-dd, inclusive). "Custom" is selected while either end is being picked. */
+  onboardedCustom = false;
+  onboardedFrom = '';
+  onboardedTo = '';
+  renewalCustom = false;
+  endsFrom = '';
+  endsTo = '';
+  readonly todayIso = new Date().toISOString().slice(0, 10);
+  /** Horizontal shift (px) that keeps the panel inside the window, wherever the button sits. Null on phones (bottom sheet). */
+  readonly qfOffset = signal<number | null>(0);
 
   // Newest onboarded organizations first by default.
   sortKey = signal<SortKey>('created');
   sortAsc = signal(false);
 
-  readonly onboardedOptions: { value: OnboardedView; label: string }[] = [
+  readonly sortOptions: { value: SortView; label: string }[] = [
     { value: 'latest', label: 'Newest onboarded' },
     { value: 'earliest', label: 'Oldest onboarded' },
+    { value: 'expiry', label: 'Ending soonest' },
     { value: 'nameAZ', label: 'Name: A–Z' },
-    { value: 'nameZA', label: 'Name: Z–A' },
-    { value: 'expiry', label: 'Expiring soonest' },
-    { value: 'last7', label: 'Last 7 days' },
-    { value: 'last30', label: 'Last 30 days' },
-    { value: 'last90', label: 'Last 90 days' }
+    { value: 'nameZA', label: 'Name: Z–A' }
+  ];
+
+  readonly onboardedWindows: { days: number | null; label: string }[] = [
+    { days: null, label: 'Any' },
+    { days: 7, label: '7 days' },
+    { days: 30, label: '30 days' },
+    { days: 90, label: '90 days' }
   ];
   private static readonly ROWS_PER_SCROLL_STEP = 25;
 
@@ -100,6 +117,14 @@ export class OrganizationsListComponent {
     this.createdWithinDays = q.get('createdWithinDays') ? Number(q.get('createdWithinDays')) : null;
     this.needsActivation = q.get('needsActivation') === 'true';
     this.needsAttention = q.get('needsAttention') === 'true';
+    const sso = q.get('sso');
+    this.ssoFilter = sso === 'enabled' || sso === 'disabled' ? sso : null;
+    this.onboardedFrom = q.get('onboardedFrom') ?? '';
+    this.onboardedTo = q.get('onboardedTo') ?? '';
+    this.onboardedCustom = !!(this.onboardedFrom || this.onboardedTo);
+    this.endsFrom = q.get('endsFrom') ?? '';
+    this.endsTo = q.get('endsTo') ?? '';
+    this.renewalCustom = !!(this.endsFrom || this.endsTo);
     // The attention queue is ordered by urgency, not by onboarding date.
     if (this.needsAttention) {
       this.sortKey.set('expiry');
@@ -128,9 +153,12 @@ export class OrganizationsListComponent {
       needsActivation: this.needsActivation,
       needsAttention: this.needsAttention
     });
-    const scoped = this.needsActivation
-      ? rows.filter((row) => row.org.domainStatus && row.org.domainStatus !== 'ACTIVE')
-      : rows;
+    const scoped = rows
+      .filter((row) => !this.needsActivation || (row.org.domainStatus && row.org.domainStatus !== 'ACTIVE'))
+      .filter((row) => this.ssoFilter === null || (row.org.isSsoEnabled === true) === (this.ssoFilter === 'enabled'))
+      .filter((row) => withinRange(Date.parse(row.org.createdDate), this.onboardedFrom, this.onboardedTo))
+      .filter((row) => !(this.endsFrom || this.endsTo)
+        || row.subscriptions.some((sub) => !!sub.planEndDate && withinRange(Date.parse(sub.planEndDate), this.endsFrom, this.endsTo)));
     const sorted = [...scoped].sort((a, b) => {
       if (this.needsAttention && this.sortKey() === 'expiry') {
         const priority = this.overview.attentionReasons(a)[0].priority - this.overview.attentionReasons(b)[0].priority;
@@ -177,6 +205,11 @@ export class OrganizationsListComponent {
       this.createdWithinDays,
       this.needsActivation,
       this.needsAttention,
+      this.ssoFilter,
+      this.onboardedFrom,
+      this.onboardedTo,
+      this.endsFrom,
+      this.endsTo,
       this.sortKey(),
       this.sortAsc()
     ].join('|');
@@ -191,21 +224,28 @@ export class OrganizationsListComponent {
     }
   }
 
-  /** Current value of the "Onboarded" filter, derived from the sort + created window. */
-  onboardedView(): OnboardedView | '' {
-    const windowDays = this.createdWithinDays;
-    const match = (Object.keys(WINDOW_DAYS) as OnboardedView[]).find((v) => WINDOW_DAYS[v] === windowDays);
-    if (windowDays && match) return match;
+  sortView(): SortView {
     if (this.sortKey() === 'name') return this.sortAsc() ? 'nameAZ' : 'nameZA';
     if (this.sortKey() === 'expiry') return 'expiry';
     return this.sortAsc() ? 'earliest' : 'latest';
   }
 
-  setOnboardedView(view: OnboardedView): void {
-    this.createdWithinDays = WINDOW_DAYS[view] ?? null;
+  setSort(view: SortView): void {
     this.sortKey.set(view === 'expiry' ? 'expiry' : view === 'nameAZ' || view === 'nameZA' ? 'name' : 'created');
     this.sortAsc.set(view === 'earliest' || view === 'nameAZ' || view === 'expiry');
+  }
+
+  setOnboardedWindow(days: number | null): void {
+    this.createdWithinDays = days;
+    this.onboardedCustom = false;
+    this.onboardedFrom = '';
+    this.onboardedTo = '';
     this.onFilterChange();
+  }
+
+  /** "UNSUBSCRIBED" reads as "Unsubscribed" in the menu and chips. */
+  statusLabel(status: string): string {
+    return status ? status.charAt(0) + status.slice(1).toLowerCase() : '';
   }
 
   onSearchChange(value: string): void {
@@ -230,7 +270,12 @@ export class OrganizationsListComponent {
         hasSubscription: this.hasSubscription === false ? 'false' : null,
         createdWithinDays: this.createdWithinDays ?? null,
         needsActivation: this.needsActivation ? 'true' : null,
-        needsAttention: this.needsAttention ? 'true' : null
+        needsAttention: this.needsAttention ? 'true' : null,
+        sso: this.ssoFilter,
+        onboardedFrom: this.onboardedFrom || null,
+        onboardedTo: this.onboardedTo || null,
+        endsFrom: this.endsFrom || null,
+        endsTo: this.endsTo || null
       },
       replaceUrl: true,
       queryParamsHandling: 'merge'
@@ -255,8 +300,130 @@ export class OrganizationsListComponent {
       this.hasSubscription !== null ||
       this.createdWithinDays ||
       this.needsActivation ||
-      this.needsAttention
+      this.needsAttention ||
+      this.ssoFilter !== null ||
+      !!(this.onboardedFrom || this.onboardedTo || this.endsFrom || this.endsTo)
     );
+  }
+
+  /** How many of the options inside the Filters dropdown are on (shown on its button). */
+  quickFilterCount(): number {
+    return [!!this.planStatus, !!this.planId,
+      this.createdWithinDays !== null || !!(this.onboardedFrom || this.onboardedTo),
+      this.expiringInDays !== null || !!(this.endsFrom || this.endsTo),
+      this.paidOnly === true, this.needsActivation, this.ssoFilter !== null].filter(Boolean).length;
+  }
+
+  setExpiring(days: number | null): void {
+    this.expiringInDays = days;
+    this.renewalCustom = false;
+    this.endsFrom = '';
+    this.endsTo = '';
+    this.onFilterChange();
+  }
+
+  selectRenewalCustom(): void {
+    this.renewalCustom = true;
+    this.expiringInDays = null;
+    this.onFilterChange();
+  }
+
+  setEndsDate(edge: 'from' | 'to', value: string): void {
+    if (edge === 'from') this.endsFrom = value ?? '';
+    else this.endsTo = value ?? '';
+    this.onFilterChange();
+  }
+
+  clearEndsRange(): void {
+    this.renewalCustom = false;
+    this.endsFrom = '';
+    this.endsTo = '';
+    this.onFilterChange();
+  }
+
+  selectOnboardedCustom(): void {
+    this.onboardedCustom = true;
+    this.createdWithinDays = null;
+    this.onFilterChange();
+  }
+
+  setOnboardedDate(edge: 'from' | 'to', value: string): void {
+    if (edge === 'from') this.onboardedFrom = value ?? '';
+    else this.onboardedTo = value ?? '';
+    this.onFilterChange();
+  }
+
+  clearOnboardedRange(): void {
+    this.onboardedCustom = false;
+    this.onboardedFrom = '';
+    this.onboardedTo = '';
+    this.onFilterChange();
+  }
+
+  /** "1 Sep 2026 – 30 Sep 2026", "from 1 Sep 2026" or "until 30 Sep 2026". */
+  rangeLabel(from: string, to: string): string {
+    // Picked dates are calendar days: read them as local midnight, not UTC, so the chip shows the day picked.
+    const day = (iso: string) => formatDate(`${iso}T00:00:00`);
+    if (from && to) return `${day(from)} – ${day(to)}`;
+    return from ? `from ${day(from)}` : `until ${day(to)}`;
+  }
+
+  setSso(value: 'enabled' | 'disabled' | null): void {
+    this.ssoFilter = value;
+    this.onFilterChange();
+  }
+
+  togglePaidOnly(): void {
+    this.paidOnly = this.paidOnly === true ? null : true;
+    this.onFilterChange();
+  }
+
+  toggleNeedsActivation(): void {
+    this.needsActivation = !this.needsActivation;
+    this.onFilterChange();
+  }
+
+  clearQuickFilters(): void {
+    this.resetDateRanges();
+    this.planStatus = '';
+    this.planId = '';
+    this.createdWithinDays = null;
+    this.expiringInDays = null;
+    this.paidOnly = null;
+    this.needsActivation = false;
+    this.ssoFilter = null;
+    this.onFilterChange();
+  }
+
+  private resetDateRanges(): void {
+    this.onboardedCustom = false;
+    this.onboardedFrom = '';
+    this.onboardedTo = '';
+    this.renewalCustom = false;
+    this.endsFrom = '';
+    this.endsTo = '';
+  }
+
+  toggleQuickFilters(event: MouseEvent): void {
+    if (!this.quickFiltersOpen()) {
+      const button = (event.currentTarget as HTMLElement).getBoundingClientRect();
+      const gutter = 16;
+      const panelWidth = Math.min(600, window.innerWidth - gutter * 2);
+      const left = Math.max(gutter, Math.min(button.left, window.innerWidth - gutter - panelWidth));
+      this.qfOffset.set(window.innerWidth <= 640 ? null : Math.round(left - button.left));
+    }
+    this.quickFiltersOpen.set(!this.quickFiltersOpen());
+  }
+
+  @HostListener('window:resize')
+  onResize(): void {
+    this.quickFiltersOpen.set(false);
+  }
+
+  @HostListener('document:click')
+  @HostListener('document:keydown.escape')
+  closeQuickFilters(): void {
+    this.quickFiltersOpen.set(false);
   }
 
   resetFilters(): void {
@@ -271,6 +438,8 @@ export class OrganizationsListComponent {
     this.createdWithinDays = null;
     this.needsActivation = false;
     this.needsAttention = false;
+    this.ssoFilter = null;
+    this.resetDateRanges();
     this.sortKey.set('created');
     this.sortAsc.set(false);
     this.onFilterChange();
@@ -350,4 +519,13 @@ export class OrganizationsListComponent {
 // organizations1.created_date; rows without a parsable date sort as oldest.
 function createdTime(row: OrgOverviewRow): number {
   return Date.parse(row.org.createdDate) || 0;
+}
+
+/** Inclusive day range on a timestamp; an open end (empty string) doesn't constrain. */
+function withinRange(at: number, from: string, to: string): boolean {
+  if (!from && !to) return true;
+  if (Number.isNaN(at)) return false;
+  if (from && at < new Date(`${from}T00:00:00`).getTime()) return false;
+  if (to && at > new Date(`${to}T23:59:59.999`).getTime()) return false;
+  return true;
 }

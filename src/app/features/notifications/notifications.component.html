@@ -1,70 +1,227 @@
-<app-page-header eyebrow="Expiry reminders" title="Notifications" subtitle="Automatic and manual expiry reminders, delivery history, and reminder settings." [showBack]="showBack" [backUrl]="backUrl"></app-page-header>
+<app-page-header eyebrow="Expiry reminders" title="Notifications" subtitle="Remind organizations before their subscription expires, and track every reminder sent." [showBack]="showBack" [backUrl]="backUrl"></app-page-header>
 
-<div class="tabbar">
-  <button [class.active]="activeTab() === 'expiring'" (click)="activeTab.set('expiring')">Expiring soon</button>
-  <button [class.active]="activeTab() === 'history'" (click)="activeTab.set('history')">History</button>
-  <button [class.active]="activeTab() === 'settings'" (click)="activeTab.set('settings')">Settings</button>
+<!-- Summary tiles: each one opens its tab with that filter applied (click again to clear). -->
+<div class="ntf-stats">
+  <button type="button" class="ntf-stat" [class.on]="activeTab() === 'expiring' && expWindow() === 'all' && !expSearch()" (click)="showExpiring('all')" title="Active subscriptions ending within 30 days">
+    <span class="ns-icon expiring"><i class="ti ti-hourglass" aria-hidden="true"></i></span>
+    <span class="ns-text"><strong>{{ stats().expiring }}</strong><small>Expiring in 30 days</small></span>
+  </button>
+  <button type="button" class="ntf-stat" [class.on]="activeTab() === 'expiring' && expWindow() === 'week'" [attr.aria-pressed]="activeTab() === 'expiring' && expWindow() === 'week'" (click)="showExpiring('week')">
+    <span class="ns-icon week"><i class="ti ti-calendar-due" aria-hidden="true"></i></span>
+    <span class="ns-text"><strong>{{ stats().week }}</strong><small>Within 7 days</small></span>
+  </button>
+  <button type="button" class="ntf-stat" [class.on]="activeTab() === 'expiring' && expWindow() === 'overdue'" [attr.aria-pressed]="activeTab() === 'expiring' && expWindow() === 'overdue'" (click)="showExpiring('overdue')">
+    <span class="ns-icon overdue"><i class="ti ti-alert-triangle" aria-hidden="true"></i></span>
+    <span class="ns-text"><strong>{{ stats().overdue }}</strong><small>Past end date</small></span>
+  </button>
+  <button type="button" class="ntf-stat" [class.on]="activeTab() === 'history' && histStatus() === 'SENT'" [attr.aria-pressed]="activeTab() === 'history' && histStatus() === 'SENT'" (click)="showHistory('SENT')">
+    <span class="ns-icon sent"><i class="ti ti-mail-check" aria-hidden="true"></i></span>
+    <span class="ns-text"><strong>{{ stats().sent }}</strong><small>Reminders sent</small></span>
+  </button>
+  <button type="button" class="ntf-stat" [class.on]="activeTab() === 'history' && histStatus() === 'FAILED'" [attr.aria-pressed]="activeTab() === 'history' && histStatus() === 'FAILED'" (click)="showHistory('FAILED')">
+    <span class="ns-icon failed"><i class="ti ti-mail-x" aria-hidden="true"></i></span>
+    <span class="ns-text"><strong>{{ stats().failed }}</strong><small>Failed to send</small></span>
+  </button>
+</div>
+
+<details class="how-it-works">
+  <summary><i class="ti ti-info-circle" aria-hidden="true"></i> How reminders work <i class="ti ti-chevron-down hw-caret" aria-hidden="true"></i></summary>
+  <ul>
+    <li>When <strong>automatic reminders</strong> are on, the organization's admin is emailed at each timing chosen in <strong>Settings</strong> (for example 7 days before expiry).</li>
+    <li><strong>Expiring soon</strong> lists active subscriptions ending within 30 days. Select rows and use <strong>Send reminder</strong> to email them now.</li>
+    <li>Every reminder, automatic or manual, appears in <strong>History</strong>. A failed reminder can be resent once the email settings or recipient are fixed.</li>
+    <li>Addresses under <strong>Also notify</strong> are copied on every reminder.</li>
+  </ul>
+</details>
+
+<div class="tab-row">
+  <div class="tabbar" role="tablist" aria-label="Notification views">
+    <button type="button" role="tab" [attr.aria-selected]="activeTab() === 'expiring'" [class.active]="activeTab() === 'expiring'" (click)="activeTab.set('expiring')">
+      Expiring soon <span class="tab-count">{{ stats().expiring }}</span>
+    </button>
+    <button type="button" role="tab" [attr.aria-selected]="activeTab() === 'history'" [class.active]="activeTab() === 'history'" (click)="activeTab.set('history')">
+      History <span class="tab-count">{{ stats().total }}</span>
+    </button>
+    <button type="button" role="tab" [attr.aria-selected]="activeTab() === 'settings'" [class.active]="activeTab() === 'settings'" (click)="activeTab.set('settings')">Settings</button>
+  </div>
+  <button type="button" class="auto-badge" [class.off]="!notifications.settings()().enabled" (click)="activeTab.set('settings')" title="Open reminder settings">
+    <i class="ti" [class.ti-bell-ringing]="notifications.settings()().enabled" [class.ti-bell-off]="!notifications.settings()().enabled" aria-hidden="true"></i>
+    <span *ngIf="notifications.settings()().enabled">Automatic reminders on · {{ activeOffsetsLabel() }}</span>
+    <span *ngIf="!notifications.settings()().enabled">Automatic reminders off</span>
+  </button>
 </div>
 
 <div class="tab-content">
   <!-- EXPIRING -->
-  <div *ngIf="activeTab() === 'expiring'">
-    <div class="row" style="justify-content:space-between;margin-bottom:12px">
-      <label class="checkbox-row"><input type="checkbox" [checked]="allSelected()" (change)="toggleSelectAll()" /> Select all</label>
-      <button type="button" class="btn primary sm" [disabled]="!selected().size" (click)="sendToSelected()">Send reminder ({{ selected().size }})</button>
+  <div *ngIf="activeTab() === 'expiring'" role="tabpanel" aria-label="Expiring soon">
+    <div class="filter-bar">
+      <div class="search">
+        <i class="ti ti-search" aria-hidden="true"></i>
+        <input class="input" type="search" placeholder="Search organization or admin email" aria-label="Search expiring subscriptions" [ngModel]="expSearch()" (ngModelChange)="expSearch.set($event)" />
+      </div>
+      <div class="segment" role="radiogroup" aria-label="Expiry window">
+        <button type="button" role="radio" *ngFor="let o of windowOptions" [class.on]="expWindow() === o.value" [attr.aria-checked]="expWindow() === o.value" (click)="expWindow.set(o.value)">{{ o.label }}</button>
+      </div>
+      <select class="input sort" aria-label="Sort subscriptions" [ngModel]="expSort()" (ngModelChange)="expSort.set($event)">
+        <option value="soonest">Sort: Soonest expiry</option>
+        <option value="name">Sort: Organization A–Z</option>
+      </select>
     </div>
-    <table class="dtable lead-icon" *ngIf="expiring().length; else noExp">
-      <thead>
-        <tr>
-          <th></th>
-          <th>Organization</th>
-          <th>Admin email</th>
-          <th>Expires</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr *ngFor="let r of expiring()">
-          <td><input type="checkbox" [checked]="selected().has(r.sub.subscriptionId)" (change)="toggleSelect(r.sub.subscriptionId)" /></td>
-          <td class="strong"><a class="row-link" [routerLink]="['/organizations', r.sub.orgId]" [queryParams]="showBack ? { from: 'overview' } : null">{{ orgName(r.sub.orgId) }}</a></td>
-          <td class="mono">{{ adminEmail(r.sub.orgId) }}</td>
-          <td><app-countdown [date]="r.sub.planEndDate"></app-countdown></td>
-        </tr>
-      </tbody>
-    </table>
-    <ng-template #noExp><p class="text-muted" style="padding:24px 0;text-align:center">Nothing expiring in the next 30 days.</p></ng-template>
+
+    <div class="list-bar" *ngIf="expiring().length">
+      <label class="checkbox-row">
+        <input type="checkbox" [checked]="allSelected()" [indeterminate]="someSelected()" [disabled]="!visibleExpiring().length" (change)="toggleSelectAll()" />
+        Select all shown
+      </label>
+      <span class="count">
+        {{ visibleExpiring().length }} of {{ expiring().length }} subscription{{ expiring().length === 1 ? '' : 's' }}
+        <button type="button" class="clear-link" *ngIf="expFiltered()" (click)="clearExpFilters()"><i class="ti ti-filter-off" aria-hidden="true"></i> Clear filters</button>
+      </span>
+      <button type="button" class="btn primary sm send-btn" [disabled]="!selectedVisible().length || sending()" (click)="sendToSelected()">
+        <i class="ti" [class.ti-send]="!sending()" [class.ti-loader-2]="sending()" [class.spin]="sending()" aria-hidden="true"></i>
+        {{ sending() ? 'Sending…' : 'Send reminder' }}<ng-container *ngIf="selectedVisible().length && !sending()"> ({{ selectedVisible().length }})</ng-container>
+      </button>
+    </div>
+    <p class="hint hidden-note" *ngIf="hiddenSelectedCount() > 0">
+      <i class="ti ti-eye-off" aria-hidden="true"></i>
+      {{ hiddenSelectedCount() }} selected subscription{{ hiddenSelectedCount() === 1 ? ' is' : 's are' }} hidden by filters and won't be emailed.
+    </p>
+
+    <div class="table-wrap" *ngIf="visibleExpiring().length">
+      <table class="dtable lead-icon ntf-table">
+        <thead>
+          <tr>
+            <th><span class="sr-only">Select</span></th>
+            <th>Organization</th>
+            <th class="col-email">Admin email</th>
+            <th class="col-last">Last reminder</th>
+            <th>Expires</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let r of visibleExpiring()" [class.selected]="selected().has(r.sub.subscriptionId)">
+            <td>
+              <input type="checkbox" [checked]="selected().has(r.sub.subscriptionId)" (change)="toggleSelect(r.sub.subscriptionId)" [attr.aria-label]="'Select ' + orgName(r.sub.orgId)" />
+            </td>
+            <td class="strong">
+              <a class="row-link" [routerLink]="['/organizations', r.sub.orgId]" [queryParams]="showBack ? { from: 'overview' } : null">{{ orgName(r.sub.orgId) }}</a>
+              <div class="row-meta">
+                <span class="meta-email mono" *ngIf="adminEmail(r.sub.orgId)">{{ adminEmail(r.sub.orgId) }}</span>
+                <ng-container *ngIf="lastReminder().get(r.sub.subscriptionId) as last; else neverMeta">
+                  <span class="meta-last">Last reminder {{ formatDate(last.sentDate) }} · {{ statusLabel(last.status) }}</span>
+                </ng-container>
+                <ng-template #neverMeta><span class="meta-last">No reminder yet</span></ng-template>
+              </div>
+            </td>
+            <td class="mono col-email">
+              <span *ngIf="adminEmail(r.sub.orgId); else noEmail">{{ adminEmail(r.sub.orgId) }}</span>
+              <ng-template #noEmail><span class="muted">No admin email</span></ng-template>
+            </td>
+            <td class="col-last">
+              <ng-container *ngIf="lastReminder().get(r.sub.subscriptionId) as last; else never">
+                <span class="last-date">{{ formatDate(last.sentDate) }}</span>
+                <app-status-pill [label]="statusLabel(last.status)" [tone]="statusTone(last.status)"></app-status-pill>
+              </ng-container>
+              <ng-template #never><span class="muted">Never</span></ng-template>
+            </td>
+            <td class="nowrap">
+              <app-countdown [date]="r.sub.planEndDate"></app-countdown>
+              <div class="sub-date">{{ formatDate(r.sub.planEndDate) }}</div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <app-empty-state
+      *ngIf="!visibleExpiring().length"
+      [title]="expiring().length ? 'No subscriptions match' : 'Nothing expiring soon'"
+      [message]="expiring().length ? 'No expiring subscription matches that search or window.' : 'No active subscription ends in the next 30 days. Reminders will appear here as end dates approach.'"
+    >
+      <button type="button" class="btn ghost" *ngIf="expiring().length" (click)="clearExpFilters()"><i class="ti ti-filter-off" aria-hidden="true"></i> Clear filters</button>
+      <button type="button" class="btn ghost" *ngIf="!expiring().length && notifications.log()().length" (click)="activeTab.set('history')"><i class="ti ti-history" aria-hidden="true"></i> View history</button>
+    </app-empty-state>
   </div>
 
   <!-- HISTORY -->
-  <div *ngIf="activeTab() === 'history'">
-    <table class="dtable" *ngIf="notifications.log()().length; else noHist">
-      <thead>
-        <tr>
-          <th>Sent</th>
-          <th>Organization</th>
-          <th>Subject</th>
-          <th>Recipient</th>
-          <th>Timing</th>
-          <th>Status</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr *ngFor="let n of notifications.log()()">
-          <td>{{ formatDateTime(n.sentDate) }}</td>
-          <td class="strong"><a class="row-link" [routerLink]="['/organizations', n.orgId]">{{ orgName(n.orgId) }}</a></td>
-          <td>{{ n.subject }}</td>
-          <td class="mono">{{ n.recipient }}</td>
-          <td>{{ offsetLabel(n.offsetDays) }}</td>
-          <td><app-status-pill [label]="n.status" [tone]="n.status === 'SENT' ? 'success' : n.status === 'FAILED' ? 'critical' : 'accent'"></app-status-pill></td>
-          <td><button type="button" class="btn ghost sm" *ngIf="n.status === 'FAILED'" (click)="resend(n.id)">Resend</button></td>
-        </tr>
-      </tbody>
-    </table>
-    <ng-template #noHist><p class="text-muted" style="padding:24px 0;text-align:center">No notifications sent yet.</p></ng-template>
+  <div *ngIf="activeTab() === 'history'" role="tabpanel" aria-label="History">
+    <div class="filter-bar">
+      <div class="search">
+        <i class="ti ti-search" aria-hidden="true"></i>
+        <input class="input" type="search" placeholder="Search organization, recipient or subject" aria-label="Search reminder history" [ngModel]="histSearch()" (ngModelChange)="histSearch.set($event)" />
+      </div>
+      <div class="segment" role="radiogroup" aria-label="Delivery status">
+        <button type="button" role="radio" *ngFor="let o of statusOptions" [class.on]="histStatus() === o.value" [attr.aria-checked]="histStatus() === o.value" (click)="histStatus.set(o.value)">{{ o.label }}</button>
+      </div>
+      <select class="input" aria-label="Filter by timing" [ngModel]="histOffset() + ''" (ngModelChange)="onHistOffset($event)">
+        <option value="all">Any timing</option>
+        <option *ngFor="let o of offsetChoices" [value]="o + ''">{{ offsetLabel(o) }}</option>
+      </select>
+      <select class="input sort" aria-label="Sort history" [ngModel]="histSort()" (ngModelChange)="histSort.set($event)">
+        <option value="newest">Sort: Newest first</option>
+        <option value="oldest">Sort: Oldest first</option>
+      </select>
+    </div>
+
+    <div class="list-bar" *ngIf="notifications.log()().length">
+      <span class="count">
+        {{ visibleLog().length }} of {{ notifications.log()().length }} notification{{ notifications.log()().length === 1 ? '' : 's' }}
+        <button type="button" class="clear-link" *ngIf="histFiltered()" (click)="clearHistFilters()"><i class="ti ti-filter-off" aria-hidden="true"></i> Clear filters</button>
+      </span>
+    </div>
+
+    <div class="table-wrap" *ngIf="visibleLog().length">
+      <table class="dtable ntf-table hist-table">
+        <thead>
+          <tr>
+            <th class="col-sent">Sent</th>
+            <th>Organization</th>
+            <th class="col-subject">Subject</th>
+            <th class="col-recipient">Recipient</th>
+            <th class="col-timing">Timing</th>
+            <th>Status</th>
+            <th><span class="sr-only">Actions</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let n of visibleLog()">
+            <td class="col-sent">{{ formatDateTime(n.sentDate) }}</td>
+            <td class="strong">
+              <a class="row-link" [routerLink]="['/organizations', n.orgId]" [queryParams]="showBack ? { from: 'overview' } : null">{{ orgName(n.orgId) }}</a>
+              <div class="row-meta">
+                <span class="meta-sent">{{ formatDateTime(n.sentDate) }}</span>
+                <span class="meta-subject">{{ n.subject }}</span>
+                <span class="meta-recipient mono">{{ n.recipient }}</span>
+                <span class="meta-timing">{{ offsetLabel(n.offsetDays) }}</span>
+              </div>
+            </td>
+            <td class="col-subject">{{ n.subject }}</td>
+            <td class="mono col-recipient">{{ n.recipient }}</td>
+            <td class="col-timing nowrap">{{ offsetLabel(n.offsetDays) }}</td>
+            <td><app-status-pill [label]="statusLabel(n.status)" [tone]="statusTone(n.status)"></app-status-pill></td>
+            <td class="actions">
+              <button type="button" class="btn ghost sm" *ngIf="n.status === 'FAILED'" [disabled]="resending().has(n.id)" (click)="resend(n.id)" [attr.aria-label]="'Resend reminder to ' + n.recipient">
+                <i class="ti" [class.ti-refresh]="!resending().has(n.id)" [class.ti-loader-2]="resending().has(n.id)" [class.spin]="resending().has(n.id)" aria-hidden="true"></i>
+                <span class="btn-text">{{ resending().has(n.id) ? 'Resending…' : 'Resend' }}</span>
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <app-empty-state
+      *ngIf="!visibleLog().length"
+      [title]="notifications.log()().length ? 'No notifications match' : 'No notifications sent yet'"
+      [message]="notifications.log()().length ? 'No reminder matches that search or filter.' : 'Reminders appear here once they are sent, automatically or from Expiring soon.'"
+    >
+      <button type="button" class="btn ghost" *ngIf="notifications.log()().length" (click)="clearHistFilters()"><i class="ti ti-filter-off" aria-hidden="true"></i> Clear filters</button>
+      <button type="button" class="btn ghost" *ngIf="!notifications.log()().length && expiring().length" (click)="activeTab.set('expiring')"><i class="ti ti-hourglass" aria-hidden="true"></i> View expiring soon</button>
+    </app-empty-state>
   </div>
 
   <!-- SETTINGS -->
-  <div *ngIf="activeTab() === 'settings'" class="settings-cards">
+  <div *ngIf="activeTab() === 'settings'" class="settings-cards" role="tabpanel" aria-label="Settings">
     <div class="panel settings-card">
       <div class="settings-card-head">
         <div>
@@ -73,29 +230,45 @@
         </div>
         <app-toggle-switch [checked]="notifications.settings()().enabled" (checkedChange)="toggleEnabled()" ariaLabel="Enable automatic reminders"></app-toggle-switch>
       </div>
+      <p class="state-note" [class.off]="!notifications.settings()().enabled">
+        <i class="ti" [class.ti-circle-check]="notifications.settings()().enabled" [class.ti-circle-off]="!notifications.settings()().enabled" aria-hidden="true"></i>
+        {{ notifications.settings()().enabled ? 'On — reminders go out automatically.' : 'Off — reminders are only sent when you send them manually.' }}
+      </p>
     </div>
 
-    <div class="panel settings-card">
+    <div class="panel settings-card" [class.dimmed]="!notifications.settings()().enabled">
       <h3>When to send</h3>
-      <p class="hint">Choose how many days before expiry a reminder goes out — pick as many as you'd like.</p>
-      <div class="offset-chips">
-        <button
-          type="button"
-          class="chip"
-          *ngFor="let o of offsetChoices"
-          [class.active]="hasOffset(o)"
-          (click)="toggleOffset(o)"
-        >
+      <p class="hint">Choose when a reminder goes out — pick as many as you'd like. Changes save instantly.</p>
+      <div class="offset-chips" role="group" aria-label="Reminder timings">
+        <button type="button" class="chip" *ngFor="let o of offsetChoices" [class.active]="hasOffset(o)" [attr.aria-pressed]="hasOffset(o)" (click)="toggleOffset(o)">
+          <i class="ti ti-check" *ngIf="hasOffset(o)" aria-hidden="true"></i>
           {{ offsetLabel(o) }}
         </button>
       </div>
+      <p class="hint warn" *ngIf="!notifications.settings()().offsets.length">
+        <i class="ti ti-alert-triangle" aria-hidden="true"></i> No timing selected, so no automatic reminders will be sent.
+      </p>
     </div>
 
     <div class="panel settings-card">
-      <h3>Also notify</h3>
-      <p class="hint">These addresses are copied on every reminder, alongside the organization's own admin.</p>
-      <input class="input mono" [(ngModel)]="ccText" (ngModelChange)="ccTextTouched = true" placeholder="platform-ops@flipnow.cloud" />
-      <button type="button" class="btn primary" style="margin-top:14px" (click)="saveCc()">Save settings</button>
+      <h3><label for="cc-recipients">Also notify</label></h3>
+      <p class="hint" id="cc-hint">Copied on every reminder, alongside the organization's own admin. Separate addresses with commas.</p>
+      <input
+        id="cc-recipients"
+        class="input mono"
+        [class.invalid]="ccInvalid().length"
+        aria-describedby="cc-hint"
+        [(ngModel)]="ccText"
+        (ngModelChange)="ccTextTouched = true"
+        placeholder="platform-ops&#64;flipnow.cloud"
+      />
+      <p class="hint warn" *ngIf="ccInvalid().length" role="status">
+        <i class="ti ti-alert-triangle" aria-hidden="true"></i> Doesn't look like an email address: {{ ccInvalid().join(', ') }}
+      </p>
+      <div class="card-actions">
+        <button type="button" class="btn primary" [disabled]="!ccDirty()" (click)="saveCc()">Save recipients</button>
+        <span class="hint" *ngIf="!ccDirty()">No unsaved changes</span>
+      </div>
     </div>
   </div>
 </div>

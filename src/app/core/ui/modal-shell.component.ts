@@ -6,7 +6,7 @@ import { NgIf } from '@angular/common';
   standalone: true,
   imports: [NgIf],
   template: `
-    <div class="backdrop" (click)="close.emit()">
+    <div class="backdrop" (click)="closeOnBackdrop && close.emit()">
       <div class="panel" role="dialog" aria-modal="true" [attr.aria-label]="heading" [style.maxWidth.px]="width" (click)="$event.stopPropagation()">
         <div class="head">
           <span class="head-icon" *ngIf="icon" aria-hidden="true"><i [class]="'ti ' + icon"></i></span>
@@ -154,6 +154,8 @@ export class ModalShellComponent {
   /** Optional Tabler icon class for a badge beside the heading, e.g. 'ti-user-plus'. */
   @Input() icon = '';
   @Input() width = 640;
+  /** Set false for dialogs that show something once (e.g. a temporary password), so a stray click outside can't dismiss it. */
+  @Input() closeOnBackdrop = true;
   @Output() close = new EventEmitter<void>();
 
   @HostListener('document:keydown.escape')

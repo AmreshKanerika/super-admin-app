@@ -1,28 +1,104 @@
 <app-page-header
   eyebrow="Access control"
   title="Console users"
-  subtitle="Everyone who can sign into this console, and what they can see once they're in."
+  subtitle="Who can sign in to this console, and with which role."
 >
-  <button type="button" class="btn primary" (click)="openAdd()">Add console user</button>
+  <button type="button" class="btn primary" (click)="openAdd()">
+    <i class="ti ti-user-plus" aria-hidden="true"></i><span>Add console user</span>
+  </button>
 </app-page-header>
 
-<div class="panel">
-  <table class="dtable" *ngIf="sorted().length; else noUsers">
+<details class="about-note">
+  <summary><i class="ti ti-info-circle" aria-hidden="true"></i>About console roles</summary>
+  <ul>
+    <li><strong>Super admin</strong> — {{ roles.SUPER_ADMIN.summary }}</li>
+    <li><strong>Sales</strong> — {{ roles.SALES.summary }}</li>
+    <li>Super admin accounts are protected: they can't be edited or removed from this page. Sales users can be edited or removed at any time.</li>
+    <li>Removing someone only revokes console access — their Kanerika login and other applications are unaffected.</li>
+  </ul>
+</details>
+
+<!-- At a glance; each tile is also a one-click filter. -->
+<div class="user-stats" role="group" aria-label="Console user summary" *ngIf="counts().total">
+  <button type="button" class="user-stat" [class.on]="!hasFilters()" [attr.aria-pressed]="!hasFilters()" (click)="clearFilters()">
+    <span class="us-icon total"><i class="ti ti-users" aria-hidden="true"></i></span>
+    <span class="us-text"><strong>{{ counts().total }}</strong><small>Total users</small></span>
+  </button>
+  <button type="button" class="user-stat" [class.on]="roleFilter() === 'SUPER_ADMIN'" [attr.aria-pressed]="roleFilter() === 'SUPER_ADMIN'"
+          (click)="toggleRole('SUPER_ADMIN')" [title]="roles.SUPER_ADMIN.summary">
+    <span class="us-icon admin"><i class="ti ti-shield-lock" aria-hidden="true"></i></span>
+    <span class="us-text"><strong>{{ counts().superAdmins }}</strong><small>Super admins</small></span>
+  </button>
+  <button type="button" class="user-stat" [class.on]="roleFilter() === 'SALES'" [attr.aria-pressed]="roleFilter() === 'SALES'"
+          (click)="toggleRole('SALES')" [title]="roles.SALES.summary">
+    <span class="us-icon sales"><i class="ti ti-briefcase" aria-hidden="true"></i></span>
+    <span class="us-text"><strong>{{ counts().sales }}</strong><small>Sales</small></span>
+  </button>
+  <button type="button" class="user-stat" [class.on]="pendingOnly()" [attr.aria-pressed]="pendingOnly()" (click)="togglePending()"
+          title="Added, but hasn't signed in to the console yet">
+    <span class="us-icon pending"><i class="ti ti-clock-hour-4" aria-hidden="true"></i></span>
+    <span class="us-text"><strong>{{ counts().pending }}</strong><small>Not signed in yet</small></span>
+  </button>
+</div>
+
+<div class="filterbar" role="search" aria-label="Find console users" *ngIf="counts().total">
+  <label class="search-field">
+    <i class="ti ti-search" aria-hidden="true"></i>
+    <input class="input" type="search" placeholder="Search name or email…" aria-label="Search console users"
+           [ngModel]="search()" (ngModelChange)="search.set($event)" />
+  </label>
+
+  <div class="seg" role="radiogroup" aria-label="Role">
+    <button type="button" role="radio" *ngFor="let o of roleOptions" [attr.aria-checked]="roleFilter() === o.value"
+            [class.on]="roleFilter() === o.value" (click)="roleFilter.set(o.value)">{{ o.label }}</button>
+  </div>
+
+  <div class="result-count" aria-live="polite">
+    <span>{{ filtered().length }} of {{ counts().total }} {{ counts().total === 1 ? 'user' : 'users' }}</span>
+    <button type="button" class="link-btn" *ngIf="hasFilters()" (click)="clearFilters()">Clear filters</button>
+  </div>
+</div>
+
+<div class="panel table-panel" *ngIf="filtered().length">
+  <table class="dtable users-table">
     <thead>
       <tr>
-        <th>Email</th>
-        <th>Name</th>
-        <th>Role</th>
-        <th>Status</th>
-        <th class="col-actions">Actions</th>
+        <th>User</th>
+        <th class="col-role">Role</th>
+        <th class="col-status">Status</th>
+        <th class="col-actions"><span class="visually-hidden">Actions</span></th>
       </tr>
     </thead>
     <tbody>
-      <tr *ngFor="let u of sorted()">
-        <td class="strong mono">{{ u.email }}</td>
-        <td>{{ u.displayName || '—' }}</td>
-        <td><app-status-pill [label]="u.role === 'SUPER_ADMIN' ? 'Super admin' : 'Sales'" [tone]="roleTone(u.role)"></app-status-pill></td>
-        <td>
+      <tr *ngFor="let u of filtered()">
+        <td class="col-user">
+          <div class="user-cell">
+            <span class="avatar" [class.admin]="u.role === 'SUPER_ADMIN'" aria-hidden="true">{{ initials(u) }}</span>
+            <div class="user-text">
+              <div class="user-name">
+                <span>{{ u.displayName || u.email }}</span>
+                <span class="you-tag" *ngIf="isMe(u)">You</span>
+              </div>
+              <div class="user-email mono" *ngIf="u.displayName">{{ u.email }}</div>
+              <!-- Role and status fold under the name on narrow screens. -->
+              <div class="row-meta">
+                <span class="role-badge" [class.admin]="u.role === 'SUPER_ADMIN'" [title]="roles[u.role].summary">
+                  <i class="ti" [ngClass]="roles[u.role].icon" aria-hidden="true"></i>{{ roles[u.role].label }}
+                </span>
+                <app-status-pill
+                  [label]="u.keycloakSubjectId ? 'Active' : 'Invited — not signed in yet'"
+                  [tone]="u.keycloakSubjectId ? 'success' : 'warning'"
+                ></app-status-pill>
+              </div>
+            </div>
+          </div>
+        </td>
+        <td class="col-role">
+          <span class="role-badge" [class.admin]="u.role === 'SUPER_ADMIN'" [title]="roles[u.role].summary">
+            <i class="ti" [ngClass]="roles[u.role].icon" aria-hidden="true"></i>{{ roles[u.role].label }}
+          </span>
+        </td>
+        <td class="col-status">
           <app-status-pill
             [label]="u.keycloakSubjectId ? 'Active' : 'Invited — not signed in yet'"
             [tone]="u.keycloakSubjectId ? 'success' : 'warning'"
@@ -30,45 +106,69 @@
         </td>
         <td class="col-actions">
           <div class="user-actions" *ngIf="u.role === 'SALES'; else protectedAdmin">
-            <button class="btn sm" type="button" (click)="openEdit(u)" [attr.aria-label]="'Edit ' + u.email">
+            <button class="btn sm ghost" type="button" (click)="openEdit(u)" [attr.aria-label]="'Edit ' + u.email">
               <i class="ti ti-pencil" aria-hidden="true"></i><span>Edit</span>
             </button>
             <button class="btn sm danger" type="button" (click)="openRemove(u)" [attr.aria-label]="'Remove console access for ' + u.email">
-              <i class="ti ti-user-minus" aria-hidden="true"></i><span>Remove access</span>
+              <i class="ti ti-user-minus" aria-hidden="true"></i><span>Remove</span>
             </button>
           </div>
           <ng-template #protectedAdmin>
-            <span class="protected-tag" title="Super admin accounts can't be edited or removed here">
-              <i class="ti ti-lock" aria-hidden="true"></i>Protected
+            <span class="protected-tag" title="Super admin accounts are protected and can't be edited or removed here">
+              <i class="ti ti-lock" aria-hidden="true"></i>
+              <span>Protected</span>
+              <span class="visually-hidden">— super admin accounts can't be edited or removed here</span>
             </span>
           </ng-template>
         </td>
       </tr>
     </tbody>
   </table>
-  <ng-template #noUsers>
-    <p class="text-muted" style="padding:24px 0;text-align:center">
-      No console users yet — every Kanerika login currently gets full access. Add someone below to start scoping access by role.
-    </p>
-  </ng-template>
 </div>
 
-<app-modal-shell *ngIf="editing() as user" heading="Edit sales user" [width]="480" (close)="closeEdit()">
-  <form (ngSubmit)="saveEdit()">
+<!-- No users at all: explain what that means and offer the next step. -->
+<app-empty-state
+  *ngIf="!counts().total"
+  title="No console users yet"
+  message="Every Kanerika login currently gets full access. Add someone to start scoping access by role."
+>
+  <button type="button" class="btn primary" (click)="openAdd()">
+    <i class="ti ti-user-plus" aria-hidden="true"></i><span>Add console user</span>
+  </button>
+</app-empty-state>
+
+<!-- Users exist, but the filters hide them all. -->
+<app-empty-state
+  *ngIf="counts().total && !filtered().length"
+  title="No users match"
+  message="Try a different search, or clear the filters to see everyone."
+>
+  <button type="button" class="btn ghost" (click)="clearFilters()">
+    <i class="ti ti-filter-off" aria-hidden="true"></i><span>Clear filters</span>
+  </button>
+</app-empty-state>
+
+<!-- ── Edit ─────────────────────────────────────────────────────────────── -->
+<app-modal-shell *ngIf="editing() as user" heading="Edit sales user" icon="ti-pencil" [width]="480" (close)="closeEdit()">
+  <form (ngSubmit)="saveEdit()" novalidate>
     <div class="field">
       <label for="sales-name">Name</label>
-      <input id="sales-name" name="editName" class="input" [(ngModel)]="editName" [disabled]="submitting()" autocomplete="off" />
-      <p class="field-error" *ngIf="!editName.trim()">Name is required.</p>
+      <input id="sales-name" name="editName" class="input" [class.invalid]="!editName.trim()" [(ngModel)]="editName"
+             [disabled]="submitting()" autocomplete="off" [attr.aria-invalid]="!editName.trim()" aria-describedby="sales-name-error" />
+      <p id="sales-name-error" class="field-error" *ngIf="!editName.trim()">Name is required.</p>
     </div>
     <div class="field">
       <label for="sales-email">Email</label>
-      <input id="sales-email" name="editEmail" class="input mono" type="email" [(ngModel)]="editEmail" [disabled]="submitting()" autocomplete="off" />
-      <p class="field-error" *ngIf="editEmail.trim() && !editEmailValid()">Enter a valid email address.</p>
-      <p class="hint" *ngIf="!editEmail.trim() || editEmailValid()">Their sign-in username stays the same. Changing the email also updates their login.</p>
+      <input id="sales-email" name="editEmail" class="input mono" type="email" [class.invalid]="editEmail.trim() && !editEmailValid()"
+             [(ngModel)]="editEmail" [disabled]="submitting()" autocomplete="off"
+             [attr.aria-invalid]="!editEmailValid()" aria-describedby="sales-email-help" />
+      <p id="sales-email-help" class="field-error" *ngIf="!editEmail.trim()">Email is required.</p>
+      <p id="sales-email-help" class="field-error" *ngIf="editEmail.trim() && !editEmailValid()">Enter a valid email address.</p>
+      <p id="sales-email-help" class="hint" *ngIf="editEmailValid()">Their sign-in username stays the same. Changing the email also updates their login.</p>
     </div>
     <div class="info-row">
       <span class="k">Role</span>
-      <app-status-pill label="Sales" [tone]="roleTone(user.role)"></app-status-pill>
+      <span class="role-badge" [title]="roles.SALES.summary"><i class="ti ti-briefcase" aria-hidden="true"></i>Sales</span>
     </div>
     <div class="wizard-actions">
       <button type="button" class="btn ghost" [disabled]="submitting()" (click)="closeEdit()">Cancel</button>
@@ -78,6 +178,7 @@
   </form>
 </app-modal-shell>
 
+<!-- ── Remove ───────────────────────────────────────────────────────────── -->
 <app-modal-shell *ngIf="removing() as user" heading="Remove console access?" [width]="480" (close)="closeRemove()">
   <div class="remove-summary">
     <i class="ti ti-alert-triangle" aria-hidden="true"></i>
@@ -87,58 +188,104 @@
     </div>
   </div>
   <p class="confirm-copy">
-    They will no longer be able to sign into this console. Their Kanerika login is kept, so any other applications they use are unaffected. You can add them back at any time.
+    They will no longer be able to sign in to this console. Their Kanerika login is kept, so any other applications they use are unaffected. You can add them back at any time.
   </p>
   <div class="wizard-actions">
     <button type="button" class="btn ghost" [disabled]="submitting()" (click)="closeRemove()">Cancel</button>
     <div class="spacer"></div>
-    <button type="button" class="btn danger solid" [disabled]="submitting()" (click)="removeUser()">{{ submitting() ? 'Removing…' : 'Remove access' }}</button>
-  </div>
-</app-modal-shell>
-
-<app-modal-shell *ngIf="addOpen()" heading="Add a console user" [width]="480" (close)="closeAdd()">
-  <div class="field">
-    <label>Email</label>
-    <input class="input mono" type="email" [(ngModel)]="email" placeholder="name@kanerika.com" [disabled]="submitting()" />
-    <p class="hint">If they already have a Kanerika login, we'll use it. Otherwise we'll create one and show you a temporary password to share with them.</p>
-  </div>
-  <div class="row gap-16 field-row">
-    <div class="field">
-      <label>First name</label>
-      <input class="input" [(ngModel)]="firstName" placeholder="Jordan" [disabled]="submitting()" />
-    </div>
-    <div class="field">
-      <label>Last name</label>
-      <input class="input" [(ngModel)]="lastName" placeholder="Ellis" [disabled]="submitting()" />
-    </div>
-  </div>
-  <div class="field">
-    <label>Role</label>
-    <select class="input" [(ngModel)]="role" [disabled]="submitting()">
-      <option value="SALES">Sales — organizations, subscriptions, notifications and Customer Insights</option>
-      <option value="SUPER_ADMIN">Super admin — full technical access, including plans, limits, and provisioning</option>
-    </select>
-  </div>
-  <div class="wizard-actions">
-    <button type="button" class="btn ghost" (click)="closeAdd()">Cancel</button>
-    <div class="spacer"></div>
-    <button type="button" class="btn primary" [disabled]="!canSubmit() || submitting()" (click)="submit()">
-      {{ submitting() ? 'Adding…' : 'Add user' }}
+    <button type="button" class="btn danger solid" [disabled]="submitting()" (click)="removeUser()">
+      <i class="ti ti-user-minus" aria-hidden="true"></i><span>{{ submitting() ? 'Removing…' : 'Remove access' }}</span>
     </button>
   </div>
 </app-modal-shell>
 
-<app-modal-shell *ngIf="created() as c" heading="Console login created" [width]="480" (close)="closeCreated()">
-  <p class="hint" style="margin-top:0">
-    Save this now — the password won't be shown again. It's temporary; {{ c.displayName }} will be asked to set their own on first sign-in.
-  </p>
+<!-- ── Add ──────────────────────────────────────────────────────────────── -->
+<app-modal-shell *ngIf="addOpen()" heading="Add a console user" icon="ti-user-plus" [width]="520" (close)="closeAdd()">
+  <form (ngSubmit)="submit()" novalidate>
+    <div class="field">
+      <label for="add-email">Email</label>
+      <input id="add-email" name="email" class="input mono" type="email" #emailCtl="ngModel" [(ngModel)]="email"
+             placeholder="name&#64;kanerika.com" autocomplete="off" [disabled]="submitting()"
+             [class.invalid]="(emailCtl.touched || addAttempted) && !addEmailValid()"
+             [attr.aria-invalid]="(emailCtl.touched || addAttempted) && !addEmailValid()" aria-describedby="add-email-help" />
+      <p id="add-email-help" class="field-error" *ngIf="(emailCtl.touched || addAttempted) && !addEmailValid(); else emailHint">
+        {{ email.trim() ? 'Enter a valid email address.' : 'Email is required.' }}
+      </p>
+      <ng-template #emailHint>
+        <p id="add-email-help" class="hint">If they already have a Kanerika login, we'll use it. Otherwise we'll create one and show you a temporary password.</p>
+      </ng-template>
+    </div>
+    <div class="row gap-16 field-row">
+      <div class="field">
+        <label for="add-first">First name</label>
+        <input id="add-first" name="firstName" class="input" #firstCtl="ngModel" [(ngModel)]="firstName" placeholder="Jordan"
+               autocomplete="off" [disabled]="submitting()"
+               [class.invalid]="(firstCtl.touched || addAttempted) && !firstName.trim()"
+               [attr.aria-invalid]="(firstCtl.touched || addAttempted) && !firstName.trim()" />
+        <p class="field-error" *ngIf="(firstCtl.touched || addAttempted) && !firstName.trim()">First name is required.</p>
+      </div>
+      <div class="field">
+        <label for="add-last">Last name</label>
+        <input id="add-last" name="lastName" class="input" #lastCtl="ngModel" [(ngModel)]="lastName" placeholder="Ellis"
+               autocomplete="off" [disabled]="submitting()"
+               [class.invalid]="(lastCtl.touched || addAttempted) && !lastName.trim()"
+               [attr.aria-invalid]="(lastCtl.touched || addAttempted) && !lastName.trim()" />
+        <p class="field-error" *ngIf="(lastCtl.touched || addAttempted) && !lastName.trim()">Last name is required.</p>
+      </div>
+    </div>
+    <fieldset class="field role-field" [disabled]="submitting()">
+      <legend>Role</legend>
+      <div class="role-choices">
+        <label class="role-choice" *ngFor="let r of roleChoices" [class.on]="role === r" [class.admin]="r === 'SUPER_ADMIN'">
+          <input type="radio" name="role" [value]="r" [(ngModel)]="role" />
+          <span class="rc-icon" aria-hidden="true"><i class="ti" [ngClass]="roles[r].icon"></i></span>
+          <span class="rc-text">
+            <strong>{{ roles[r].label }}</strong>
+            <small>{{ roles[r].summary }}</small>
+          </span>
+        </label>
+      </div>
+      <p class="hint role-warning" *ngIf="role === 'SUPER_ADMIN'">
+        <i class="ti ti-lock" aria-hidden="true"></i>Super admin accounts are protected — you won't be able to edit or remove them here later.
+      </p>
+    </fieldset>
+    <div class="wizard-actions">
+      <button type="button" class="btn ghost" [disabled]="submitting()" (click)="closeAdd()">Cancel</button>
+      <div class="spacer"></div>
+      <button type="submit" class="btn primary" [disabled]="submitting() || (addAttempted && !canSubmit())">
+        {{ submitting() ? 'Adding…' : 'Add user' }}
+      </button>
+    </div>
+  </form>
+</app-modal-shell>
+
+<!-- ── One-time credential reveal ───────────────────────────────────────── -->
+<app-modal-shell *ngIf="created() as c" heading="Console login created" icon="ti-key" [width]="500" [closeOnBackdrop]="false" (close)="closeCreated()">
+  <div class="once-warning" role="alert">
+    <i class="ti ti-alert-triangle" aria-hidden="true"></i>
+    <p><strong>Save this password now — it won't be shown again.</strong>
+      It's temporary; {{ c.displayName || c.email }} will be asked to set their own on first sign-in.</p>
+  </div>
   <div class="cred-box">
     <div class="cred-row"><span class="k">Console</span><span class="v">FLIP Platform Console</span></div>
     <div class="cred-row"><span class="k">Email</span><span class="v mono">{{ c.email }}</span></div>
-    <div class="cred-row"><span class="k">Temporary password</span><span class="v mono">{{ c.temporaryPassword }}</span></div>
+    <div class="cred-row"><span class="k">Role</span><span class="v">{{ roles[c.role].label }}</span></div>
+  </div>
+  <div class="password-box">
+    <span class="pw-label" id="temp-pw-label">Temporary password</span>
+    <div class="pw-line">
+      <code class="pw-value" aria-labelledby="temp-pw-label">{{ c.temporaryPassword }}</code>
+      <button type="button" class="btn sm primary" (click)="copyPassword()" aria-label="Copy temporary password">
+        <i class="ti" [ngClass]="copied() === 'password' ? 'ti-check' : 'ti-copy'" aria-hidden="true"></i>
+        <span>{{ copied() === 'password' ? 'Copied' : 'Copy' }}</span>
+      </button>
+    </div>
   </div>
   <div class="wizard-actions">
-    <button type="button" class="btn ghost" (click)="copyCredentials()">Copy to clipboard</button>
+    <button type="button" class="btn ghost" (click)="copyCredentials()">
+      <i class="ti" [ngClass]="copied() === 'all' ? 'ti-check' : 'ti-clipboard-copy'" aria-hidden="true"></i>
+      <span>{{ copied() === 'all' ? 'Copied' : 'Copy all details' }}</span>
+    </button>
     <div class="spacer"></div>
     <button type="button" class="btn primary" (click)="closeCreated()">Done</button>
   </div>

@@ -4,74 +4,180 @@
   subtitle="Every action taken by every platform admin, across every organization — persisted and immutable."
   [showBack]="showBack"
   [backUrl]="backUrl"
-></app-page-header>
+>
+  <button type="button" class="btn ghost" (click)="exportCsv()" title="Exports every entry matching the search, result and date filters">
+    <i class="ti ti-download" aria-hidden="true"></i> Export CSV
+  </button>
+</app-page-header>
 
-<div class="filter-bar panel">
-  <input
-    class="input search"
-    placeholder="Search by actor, action, or target…"
-    [(ngModel)]="search"
-    (ngModelChange)="onSearchChange()"
-  />
-
-  <select class="input filter-select" [(ngModel)]="resultFilter" (ngModelChange)="onFilterChange()">
-    <option value="">All results</option>
-    <option value="SUCCESS">Success only</option>
-    <option value="FAILURE">Failure only</option>
-  </select>
-
-  <div class="date-range">
-    <input type="date" class="input" [(ngModel)]="fromDate" (ngModelChange)="onFilterChange()" aria-label="From date" />
-    <span class="range-sep">–</span>
-    <input type="date" class="input" [(ngModel)]="toDate" (ngModelChange)="onFilterChange()" aria-label="To date" />
-  </div>
-
-  <div class="spacer"></div>
-
-  <button type="button" class="btn ghost sm" (click)="exportCsv()">
-    <i class="ti ti-download"></i> Export CSV
+<div class="tiles" role="group" aria-label="Summary">
+  <button type="button" class="tile" [class.on]="!hasFilters" (click)="clearFilters()" [attr.aria-pressed]="!hasFilters">
+    <span class="tile-icon accent"><i class="ti ti-list-details" aria-hidden="true"></i></span>
+    <span class="tile-text">
+      <strong>{{ allCount() === null ? '—' : (allCount() | number) }}</strong>
+      <small>All events</small>
+    </span>
+  </button>
+  <button type="button" class="tile" [class.on]="todayOn" (click)="toggleTodayTile()" [attr.aria-pressed]="todayOn">
+    <span class="tile-icon info"><i class="ti ti-calendar-event" aria-hidden="true"></i></span>
+    <span class="tile-text">
+      <strong>{{ todayCount() === null ? '—' : (todayCount() | number) }}</strong>
+      <small>Events today</small>
+    </span>
+  </button>
+  <button
+    type="button"
+    class="tile"
+    [class.on]="resultFilter === 'FAILURE'"
+    (click)="toggleFailuresTile()"
+    [attr.aria-pressed]="resultFilter === 'FAILURE'"
+  >
+    <span class="tile-icon critical"><i class="ti ti-alert-triangle" aria-hidden="true"></i></span>
+    <span class="tile-text">
+      <strong>{{ failureCount() === null ? '—' : (failureCount() | number) }}</strong>
+      <small>Failed actions</small>
+    </span>
   </button>
 </div>
 
-<p class="error-banner" *ngIf="error()">{{ error() }}</p>
+<div class="filter-bar panel">
+  <div class="search-wrap">
+    <i class="ti ti-search" aria-hidden="true"></i>
+    <input
+      class="input search"
+      type="search"
+      placeholder="Search by actor, action, or target…"
+      aria-label="Search audit log"
+      [(ngModel)]="search"
+      (ngModelChange)="onSearchChange()"
+    />
+  </div>
 
-<table class="dtable" *ngIf="items().length; else empty">
-  <thead>
-    <tr>
-      <th>When</th>
-      <th>Actor</th>
-      <th>Action</th>
-      <th>Target</th>
-      <th>Result</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr *ngFor="let a of items()">
-      <td class="mono nowrap">{{ formatDateTime(a.createdDate) }}</td>
-      <td>
-        <div class="actor-cell">
-          <span class="actor-avatar">{{ (a.actorName || a.actorEmail)[0] | uppercase }}</span>
-          <div class="actor-text">
-            <span class="actor-name" *ngIf="a.actorName">{{ a.actorName }}</span>
-            <span class="actor-email mono">{{ a.actorEmail }}</span>
+  <div class="segmented" role="radiogroup" aria-label="Result">
+    <button
+      type="button"
+      role="radio"
+      *ngFor="let opt of resultOptions"
+      [class.on]="resultFilter === opt.value"
+      [attr.aria-checked]="resultFilter === opt.value"
+      (click)="setResult(opt.value)"
+    >
+      {{ opt.label }}
+    </button>
+  </div>
+
+  <select class="input filter-select" aria-label="Category" [ngModel]="category()" (ngModelChange)="category.set($event)">
+    <option value="">All categories</option>
+    <option *ngFor="let c of categories" [value]="c.key">{{ c.label }}</option>
+  </select>
+
+  <div class="date-range" role="group" aria-label="Date range">
+    <input type="date" class="input" [max]="toDate || null" [(ngModel)]="fromDate" (ngModelChange)="onFilterChange()" aria-label="From date" />
+    <i class="ti ti-arrow-right range-sep" aria-hidden="true"></i>
+    <input type="date" class="input" [min]="fromDate || null" [(ngModel)]="toDate" (ngModelChange)="onFilterChange()" aria-label="To date" />
+  </div>
+</div>
+
+<div class="result-line" aria-live="polite">
+  <span *ngIf="!loading() || items().length">
+    <ng-container *ngIf="category(); else serverCount">
+      {{ rows().length | number }} matching in {{ items().length | number }} loaded of {{ totalElements() | number }} events
+    </ng-container>
+    <ng-template #serverCount>
+      {{ items().length | number }} of {{ totalElements() | number }} {{ totalElements() === 1 ? 'event' : 'events' }}
+    </ng-template>
+  </span>
+  <span *ngIf="loading() && !items().length">Loading activity…</span>
+  <button type="button" class="link-btn" *ngIf="hasFilters" (click)="clearFilters()">
+    <i class="ti ti-x" aria-hidden="true"></i> Clear filters
+  </button>
+</div>
+
+<div class="error-banner" role="alert" *ngIf="error()">
+  <i class="ti ti-alert-circle" aria-hidden="true"></i>
+  <span>{{ error() }}</span>
+  <button type="button" class="btn ghost sm" (click)="retry()">Try again</button>
+</div>
+
+<div class="log panel" *ngIf="rows().length; else empty">
+  <table class="dtable log-table">
+    <thead>
+      <tr>
+        <th scope="col">Event</th>
+        <th scope="col" class="col-actor">Actor</th>
+        <th scope="col" class="col-result">Result</th>
+        <th scope="col" class="col-when">When</th>
+      </tr>
+    </thead>
+    <tbody *ngFor="let day of days(); trackBy: trackDay">
+      <tr class="day-row">
+        <th scope="colgroup" colspan="4">
+          {{ day.label }}
+          <span class="day-count">{{ day.rows.length }} {{ day.rows.length === 1 ? 'event' : 'events' }}</span>
+        </th>
+      </tr>
+      <tr *ngFor="let r of day.rows; trackBy: trackRow" [class.failed]="r.failed">
+        <td class="col-event">
+          <div class="event-cell">
+            <span class="event-icon" [class.fail]="r.failed" [title]="r.category.label">
+              <i class="ti {{ r.category.icon }}" aria-hidden="true"></i>
+            </span>
+            <div class="event-text">
+              <span class="event-name">{{ r.action }}</span>
+              <span class="event-target" *ngIf="r.entry.targetLabel || r.targetType">
+                <span class="target-type" *ngIf="r.targetType">{{ r.targetType }}</span>
+                <span class="target-label" *ngIf="r.entry.targetLabel">{{ r.entry.targetLabel }}</span>
+              </span>
+              <!-- Folded columns for narrow screens -->
+              <span class="row-meta">
+                <span class="meta-actor">by {{ r.actor }}</span>
+                <span class="meta-sep" aria-hidden="true">·</span>
+                <time [attr.datetime]="r.entry.createdDate" [title]="r.exact">{{ r.relative }}</time>
+                <span class="meta-fail" *ngIf="r.failed"><i class="ti ti-alert-triangle" aria-hidden="true"></i> Failed</span>
+              </span>
+            </div>
           </div>
-        </div>
-      </td>
-      <td><span class="action-chip">{{ actionLabel(a.action) }}</span></td>
-      <td>
-        <span class="target-type">{{ a.targetType }}</span>
-        <span class="target-label">{{ a.targetLabel }}</span>
-      </td>
-      <td><app-status-pill [label]="a.result" [tone]="a.result === 'SUCCESS' ? 'success' : 'critical'"></app-status-pill></td>
-    </tr>
-  </tbody>
-</table>
+        </td>
+        <td class="col-actor">
+          <button type="button" class="actor-cell" (click)="filterByActor(r)" [title]="'Show all activity by ' + r.actor">
+            <span class="actor-avatar" aria-hidden="true">{{ r.initial }}</span>
+            <span class="actor-text">
+              <span class="actor-name">{{ r.actor }}</span>
+              <span class="actor-email" *ngIf="r.entry.actorName && r.entry.actorEmail">{{ r.entry.actorEmail }}</span>
+            </span>
+          </button>
+        </td>
+        <td class="col-result">
+          <app-status-pill [label]="r.failed ? 'Failed' : 'Succeeded'" [tone]="r.failed ? 'critical' : 'success'"></app-status-pill>
+        </td>
+        <td class="col-when">
+          <time class="when" [attr.datetime]="r.entry.createdDate" [title]="r.exact">{{ r.relative }}</time>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
 <ng-template #empty>
-  <app-empty-state
-    *ngIf="!loading()"
-    title="No matching activity"
-    message="Try a different search term, result filter, or date range."
-  ></app-empty-state>
+  <ng-container *ngIf="!loading() && !error()">
+    <app-empty-state
+      *ngIf="hasFilters; else noActivity"
+      title="No matching activity"
+      [message]="category() && items().length
+        ? 'None of the loaded events are in this category. Try another category or widen the search.'
+        : 'Nothing matches these filters. Try a different search term, result, or date range.'"
+    >
+      <button type="button" class="btn ghost" (click)="clearFilters()">
+        <i class="ti ti-filter-off" aria-hidden="true"></i> Clear filters
+      </button>
+    </app-empty-state>
+    <ng-template #noActivity>
+      <app-empty-state
+        title="No activity yet"
+        message="Admin actions such as creating organizations, changing plans or editing users will be recorded here."
+      ></app-empty-state>
+    </ng-template>
+  </ng-container>
 </ng-template>
 
 <app-scroll-sentinel *ngIf="hasMoreEntriesBelow()" (reached)="loadNextPage()"></app-scroll-sentinel>
@@ -79,7 +185,7 @@
 <p class="scroll-hint" *ngIf="totalElements()" aria-live="polite">
   <ng-container *ngIf="hasMoreEntriesBelow() || loading(); else allLoaded">
     <i class="ti ti-chevrons-down" aria-hidden="true"></i>
-    Showing {{ items().length }} of {{ totalElements() }} — loading more as you scroll
+    Showing {{ items().length | number }} of {{ totalElements() | number }} — loading more as you scroll
   </ng-container>
-  <ng-template #allLoaded>All {{ totalElements() }} entries loaded</ng-template>
+  <ng-template #allLoaded>All {{ totalElements() | number }} entries loaded</ng-template>
 </p>

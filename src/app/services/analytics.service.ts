@@ -30,7 +30,8 @@ export type DateBasis = 'ONBOARDED' | 'SUB_START' | 'SUB_END';
 export type StatusKey = 'ACTIVE' | 'UPCOMING' | 'SUSPENDED' | 'EXPIRED' | 'UNSUBSCRIBED' | 'NONE';
 export type BillingKey = 'PAID' | 'TRIAL';
 export type ExpiryKey = '0_7' | '8_15' | '16_30' | '31_60' | '60_PLUS';
-export type CrossDim = 'status' | 'billing' | 'plan' | 'expiry' | 'period';
+export type ChannelKey = 'MARKETPLACE' | 'DIRECT';
+export type CrossDim = 'status' | 'billing' | 'plan' | 'expiry' | 'period' | 'channel';
 
 export type Granularity = 'day' | 'week' | 'month' | 'quarter';
 
@@ -53,6 +54,8 @@ export interface KpiDefinition {
   hint: string;
   /** The cross-filter this tile applies, if any. */
   filter: { dim: CrossDim; value: string } | null;
+  /** Footer line under the number; defaults to its share of the filtered organizations. */
+  context?: string;
 }
 
 const DAY = 86_400_000;
@@ -81,7 +84,13 @@ export const EXPIRY_ORDER: ExpiryKey[] = ['0_7', '8_15', '16_30', '31_60', '60_P
 
 export const BILLING_LABEL: Record<BillingKey, string> = { PAID: 'Paid plan', TRIAL: 'Trial plan' };
 
-const EMPTY_SELECTION: Record<CrossDim, string[]> = { status: [], billing: [], plan: [], expiry: [], period: [] };
+export const CHANNEL_LABEL: Record<ChannelKey, string> = { MARKETPLACE: 'Azure Marketplace', DIRECT: 'Direct onboarding' };
+
+export const CHANNEL_ORDER: ChannelKey[] = ['MARKETPLACE', 'DIRECT'];
+
+export const CHANNEL_COLOR: Record<ChannelKey, string> = { MARKETPLACE: VIZ_SLOT.blue, DIRECT: VIZ_SLOT.violet };
+
+const EMPTY_SELECTION: Record<CrossDim, string[]> = { status: [], billing: [], plan: [], expiry: [], period: [], channel: [] };
 
 /**
  * Six buckets, not seven statuses. CANCELLED and UNSUBSCRIBED are the same
@@ -111,6 +120,16 @@ export function statusKeyOf(row: OrgOverviewRow): StatusKey {
 
 export function billingKeyOf(row: OrgOverviewRow): BillingKey {
   return row.org.isPaidOrg ? 'PAID' : 'TRIAL';
+}
+
+/**
+ * How the organization arrived. SSO is only ever switched on by Azure Marketplace onboarding, and a
+ * subscription row can carry the marketplace flag for orgs whose org-level flag predates it.
+ */
+export function channelKeyOf(row: OrgOverviewRow): ChannelKey {
+  const marketplace = row.org.azureMarketplaceManaged === true || row.org.isSsoEnabled === true
+    || row.subscriptions.some((sub) => sub.azureMarketplaceManaged === true);
+  return marketplace ? 'MARKETPLACE' : 'DIRECT';
 }
 
 /** Only a live subscription has a runway; everything else has already landed. */
@@ -418,6 +437,7 @@ export class AnalyticsService {
     const sel = this.selection();
     if (exclude !== 'status' && sel.status.length && !sel.status.includes(statusKeyOf(row))) return false;
     if (exclude !== 'billing' && sel.billing.length && !sel.billing.includes(billingKeyOf(row))) return false;
+    if (exclude !== 'channel' && sel.channel.length && !sel.channel.includes(channelKeyOf(row))) return false;
     if (exclude !== 'plan' && sel.plan.length) {
       const planId = row.subscription?.planId ?? '__none__';
       const topPlanIds = this.topPlanIds();
@@ -456,6 +476,7 @@ export class AnalyticsService {
   readonly rows = computed(() => this.rowsFor());
   readonly rowsIgnoringStatus = computed(() => this.rowsFor('status'));
   readonly rowsIgnoringBilling = computed(() => this.rowsFor('billing'));
+  readonly rowsIgnoringChannel = computed(() => this.rowsFor('channel'));
   readonly rowsIgnoringPlan = computed(() => this.rowsFor('plan'));
   readonly rowsIgnoringExpiry = computed(() => this.rowsFor('expiry'));
 
@@ -568,6 +589,9 @@ export class AnalyticsService {
         case 'salesWinback': return ['EXPIRED', 'UNSUBSCRIBED'].includes(statusKeyOf(row));
         case 'paid': return !!row.org.isPaidOrg;
         case 'trial': return !row.org.isPaidOrg;
+        case 'marketplace': return channelKeyOf(row) === 'MARKETPLACE';
+        case 'ssoEnabled': return row.org.isSsoEnabled === true;
+        case 'lapsed': return ['EXPIRED', 'UNSUBSCRIBED'].includes(statusKeyOf(row));
         default: return false;
       }
     });
@@ -586,6 +610,11 @@ export class AnalyticsService {
       r.subscription?.planStatus === 'ACTIVE' && r.daysToExpiry !== null && r.daysToExpiry >= 0 && r.daysToExpiry <= 30;
     const isPaid = (r: OrgOverviewRow) => r.org.isPaidOrg;
     const isTrial = (r: OrgOverviewRow) => !r.org.isPaidOrg;
+    const isSso = (r: OrgOverviewRow) => r.org.isSsoEnabled === true;
+    const isLapsed = (r: OrgOverviewRow) => isExpired(r) || isUnsub(r);
+    const isActiveTrial = (r: OrgOverviewRow) => isTrial(r) && isSubscribed(r);
+    const paidCount = this.countBy(rows, isPaid);
+    const conversion = rows.length ? Math.round((paidCount / rows.length) * 100) : 0;
 
     const prevWindow = this.previousWindow();
 
@@ -624,7 +653,8 @@ export class AnalyticsService {
         trend: this.forwardExpiryTrend(),
         upIsGood: false,
         hint: 'Active, ending within 30 days',
-        filter: null
+        filter: null,
+        context: `${this.countBy(rows, (r) => isNear(r) && (r.daysToExpiry ?? 99) <= 7)} within 7 days`
       },
       {
         key: 'expired',
@@ -672,11 +702,12 @@ export class AnalyticsService {
         trend: this.countInBuckets(allTime.filter(isPaid).map((r) => parse(r.org.createdDate))),
         upIsGood: true,
         hint: 'Billable organizations',
-        filter: { dim: 'billing', value: 'PAID' }
+        filter: { dim: 'billing', value: 'PAID' },
+        context: `${conversion}% paid conversion`
       },
       {
         key: 'trial',
-        label: 'Trial plan',
+        label: 'Trials in pipeline',
         icon: 'ti-flask',
         color: BILLING_COLOR['TRIAL'],
         value: this.countBy(rows, isTrial),
@@ -684,7 +715,34 @@ export class AnalyticsService {
         trend: this.countInBuckets(allTime.filter(isTrial).map((r) => parse(r.org.createdDate))),
         upIsGood: true,
         hint: 'Not yet converted to paid',
-        filter: { dim: 'billing', value: 'TRIAL' }
+        filter: { dim: 'billing', value: 'TRIAL' },
+        context: `${this.countBy(rows, isActiveTrial)} active trials to qualify`
+      },
+      {
+        key: 'lapsed',
+        label: 'Lapsed',
+        icon: 'ti-user-minus',
+        color: STATUS_COLOR['EXPIRED'],
+        value: this.countBy(rows, isLapsed),
+        previous: deltaFor(isLapsed),
+        trend: this.countInBuckets(allTime.filter(isLapsed).map((r) => parse(r.subscription?.planEndDate))),
+        upIsGood: false,
+        hint: 'Expired or cancelled — win-back targets',
+        filter: null,
+        context: `${this.countBy(rows, isExpired)} expired · ${this.countBy(rows, isUnsub)} unsubscribed`
+      },
+      {
+        key: 'ssoEnabled',
+        label: 'SSO enabled',
+        icon: 'ti-brand-windows',
+        color: VIZ_SLOT.blue,
+        value: this.countBy(rows, isSso),
+        previous: deltaFor(isSso),
+        trend: this.countInBuckets(allTime.filter(isSso).map((r) => parse(r.org.createdDate))),
+        upIsGood: true,
+        hint: 'Microsoft sign-in · billed in Azure Marketplace',
+        filter: null,
+        context: `${rows.length - this.countBy(rows, isSso)} use FLIP login`
       }
     ];
   });
@@ -719,6 +777,20 @@ export class AnalyticsService {
     }));
   });
 
+  /**
+   * Organizations by acquisition channel. Ignores its own filter so both bars stay visible (the
+   * selected one is highlighted) instead of collapsing to the single channel just chosen.
+   */
+  readonly channelMix = computed(() => {
+    const rows = this.rowsIgnoringChannel();
+    return CHANNEL_ORDER.map((key) => ({
+      key,
+      label: CHANNEL_LABEL[key],
+      value: rows.filter((r) => channelKeyOf(r) === key).length,
+      color: CHANNEL_COLOR[key]
+    }));
+  });
+
   readonly billingMix = computed(() => {
     const rows = this.rows();
     return (['PAID', 'TRIAL'] as BillingKey[]).map((key) => ({
@@ -750,7 +822,7 @@ export class AnalyticsService {
     const sorted = [...counts.entries()].sort((a, b) => b[1] - a[1]);
     const head = sorted.filter(([id]) => this.topPlanIds().has(id)).map(([planId, value], i) => ({
       key: planId,
-      label: this.plans.byId(planId)?.planName ?? planId,
+      label: this.plans.displayNameForPlanId(planId) || planId,
       value,
       color: slots[i]
     }));
@@ -788,16 +860,6 @@ export class AnalyticsService {
       onboarded: this.countInBuckets(rows.map((r) => parse(r.org.createdDate))),
       churned: this.countInBuckets(rows.filter(isChurn).map((r) => parse(r.subscription?.planEndDate))),
       reactivated: this.countInBuckets(this.eventsIn('REACTIVATED', { from: null, to: null }, false).map((e) => e.at))
-    };
-  });
-
-  /** Gained vs lost per period — the same series as the trend, read as polarity. */
-  readonly netMovement = computed(() => {
-    const trend = this.lifecycleTrend();
-    return {
-      buckets: trend.buckets,
-      gained: trend.buckets.map((_, i) => trend.onboarded[i] + trend.reactivated[i]),
-      lost: trend.churned
     };
   });
 
@@ -869,6 +931,7 @@ export class AnalyticsService {
     const chips: { dim: CrossDim; value: string; label: string }[] = [];
     for (const value of sel.status) chips.push({ dim: 'status', value, label: `Status: ${STATUS_LABEL[value as StatusKey] ?? value}` });
     for (const value of sel.billing) chips.push({ dim: 'billing', value, label: BILLING_LABEL[value as BillingKey] ?? value });
+    for (const value of sel.channel) chips.push({ dim: 'channel', value, label: `Channel: ${CHANNEL_LABEL[value as ChannelKey] ?? value}` });
     for (const value of sel.plan) {
       const label = value === '__none__' ? 'No plan assigned' : value === '__other__' ? 'Other plans' : this.plans.byId(value)?.planName ?? value;
       chips.push({ dim: 'plan', value, label: `Plan: ${label}` });

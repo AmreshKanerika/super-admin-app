@@ -13,75 +13,98 @@
   </a>
 </app-page-header>
 
-<!-- Lifecycle at a glance: each stage jumps to its first guide. Hidden while reading maximised. -->
-@if (!readingMode()) {
-  <section class="lifecycle" [class.collapsed]="stagesCollapsed()" aria-label="Organization lifecycle">
-    <div class="lifecycle-head">
-      <h2 class="section-label">Organization lifecycle</h2>
-      <button type="button" class="icon-tool" (click)="toggleStages()" [attr.aria-expanded]="!stagesCollapsed()"
-              [attr.data-tip]="stagesCollapsed() ? 'Expand stages' : 'Minimise stages'"
-              [attr.aria-label]="stagesCollapsed() ? 'Expand stages' : 'Minimise stages'">
-        <i class="ti" [class.ti-chevron-down]="stagesCollapsed()" [class.ti-chevron-up]="!stagesCollapsed()" aria-hidden="true"></i>
-      </button>
-    </div>
-    <ol class="stages">
-      @for (stage of stages; track stage.id; let i = $index) {
-        <li>
-          <button type="button" class="stage" [class.current]="activeStage() === stage.id" (click)="goToStage(stage.id)">
-            <span class="stage-icon"><i [class]="'ti ' + stage.icon" aria-hidden="true"></i></span>
-            <span class="stage-num">{{ i + 1 }}</span>
-            <span class="stage-label">{{ stage.label }}</span>
-          </button>
-        </li>
-      }
-    </ol>
-  </section>
-}
-
 <div class="help-layout" [class.reading]="readingMode()">
   <!-- Table of contents -->
-  <aside class="toc" aria-label="Guides">
-    <label class="search">
-      <i class="ti ti-search" aria-hidden="true"></i>
-      <input
-        type="search"
-        class="input"
-        placeholder="Search the guide…"
-        aria-label="Search the guide"
-        [ngModel]="search()"
-        (ngModelChange)="onSearch($event)"
-      />
-    </label>
+  <aside class="toc" [class.open]="tocOpen()" aria-label="Guides">
+    <!-- Phones and narrow windows: the contents fold into one button showing where you are. -->
+    <button type="button" class="toc-mobile" (click)="tocOpen.set(!tocOpen())" [attr.aria-expanded]="tocOpen()" aria-controls="toc-panel">
+      <i class="ti ti-list-details" aria-hidden="true"></i>
+      <span class="tm-text">
+        <small>Contents</small>
+        <strong>{{ activeGuideTitle() }}</strong>
+      </span>
+      <i class="ti ti-chevron-down tm-caret" aria-hidden="true"></i>
+    </button>
+
+    <div class="toc-panel" id="toc-panel">
+    <div class="toc-tools">
+      <label class="search">
+        <i class="ti ti-search" aria-hidden="true"></i>
+        <input
+          type="search"
+          class="input"
+          placeholder="Search the guide…"
+          aria-label="Search the guide"
+          [ngModel]="search()"
+          (ngModelChange)="onSearch($event)"
+        />
+      </label>
+      <!-- Lives in the sticky sidebar, so it is always reachable and never covers the guide. -->
+      <button type="button" class="icon-tool toc-reading" (click)="toggleReadingMode()"
+              data-tip="Read at full width" aria-label="Read the guide at full width">
+        <i class="ti ti-arrows-maximize" aria-hidden="true"></i>
+      </button>
+    </div>
 
     <nav>
       @for (entry of toc(); track entry.stage.id) {
-        <p class="toc-stage">{{ stageNumber(entry.stage.id) }} · {{ entry.stage.label }}</p>
-        @for (g of entry.guides; track g.id) {
-          <a class="toc-link" [class.active]="activeId() === g.id" [href]="'#' + g.id" (click)="$event.preventDefault(); scrollTo(g.id)">
-            <i [class]="'ti ' + g.icon" aria-hidden="true"></i>
-            <span>{{ g.title }}</span>
-          </a>
-        }
+        <div class="toc-section" [class.open]="isStageOpen(entry.stage.id)" [class.current]="activeStage() === entry.stage.id">
+          <button type="button" class="toc-stage" (click)="toggleStage(entry.stage.id)"
+                  [attr.aria-expanded]="isStageOpen(entry.stage.id)" [attr.aria-controls]="'toc-' + entry.stage.id">
+            <i class="ti ti-chevron-right toc-chevron" aria-hidden="true"></i>
+            <span class="toc-stage-name">{{ stageNumber(entry.stage.id) }} · {{ entry.stage.label }}</span>
+            <span class="toc-count">{{ entry.guides.length }}</span>
+          </button>
+          @if (isStageOpen(entry.stage.id)) {
+            <div class="toc-group" [id]="'toc-' + entry.stage.id">
+              @for (g of entry.guides; track g.id) {
+                <a class="toc-link" [class.active]="activeId() === g.id" [href]="'#' + g.id" (click)="$event.preventDefault(); scrollTo(g.id)">
+                  <i [class]="'ti ' + g.icon" aria-hidden="true"></i>
+                  <span>{{ g.title }}</span>
+                </a>
+              }
+            </div>
+          }
+        </div>
       }
       @if (faqCount()) {
-        <p class="toc-stage">Questions</p>
+        <p class="toc-stage static">Questions</p>
         <a class="toc-link" href="#faq" (click)="$event.preventDefault(); scrollTo('faq')">
           <i class="ti ti-help-circle" aria-hidden="true"></i>
           <span>FAQ <span class="count">{{ faqCount() }}</span></span>
         </a>
       }
     </nav>
+    </div>
   </aside>
 
   <div class="content">
-    <!-- Reading-width toggle: stays in the top-right corner of the guide while scrolling. -->
-    <div class="read-toggle">
-      <button type="button" class="icon-tool raised" (click)="toggleReadingMode()" [attr.aria-pressed]="readingMode()"
-              [attr.data-tip]="readingMode() ? 'Minimise (Esc)' : 'Maximise — read at full width'"
-              [attr.aria-label]="readingMode() ? 'Minimise the reading view' : 'Maximise the reading view'">
-        <i class="ti" [class.ti-arrows-maximize]="!readingMode()" [class.ti-arrows-minimize]="readingMode()" aria-hidden="true"></i>
+    @if (visibleGuides().length) {
+      <div class="guide-toolbar">
+        <span class="gt-count">{{ visibleGuides().length }} guide{{ visibleGuides().length === 1 ? '' : 's' }}@if (search()) { matching “{{ search() }}”}</span>
+        @if (!search()) {
+          <button type="button" class="btn ghost sm" (click)="expandAllGuides(true)" [disabled]="allGuidesOpen()">
+            <i class="ti ti-arrows-vertical" aria-hidden="true"></i> Expand all
+          </button>
+          <button type="button" class="btn ghost sm" (click)="expandAllGuides(false)" [disabled]="!openGuides().size">
+            <i class="ti ti-fold" aria-hidden="true"></i> Collapse all
+          </button>
+        }
+        <span class="gt-divider" aria-hidden="true"></span>
+        <button type="button" class="btn ghost sm gt-reading" (click)="toggleReadingMode()" [attr.aria-pressed]="readingMode()"
+                [title]="readingMode() ? 'Back to the normal layout (Esc)' : 'Hide the contents and read at full width'">
+          <i class="ti" [class.ti-arrows-maximize]="!readingMode()" [class.ti-arrows-minimize]="readingMode()" aria-hidden="true"></i>
+          {{ readingMode() ? 'Exit full width' : 'Full width' }}
+        </button>
+      </div>
+    }
+
+    <!-- Full width hides the sidebar, so the way back sits in the corner of the screen, clear of every card control. -->
+    @if (readingMode()) {
+      <button type="button" class="exit-reading" [class.hidden]="scrolling()" (click)="toggleReadingMode()">
+        <i class="ti ti-arrows-minimize" aria-hidden="true"></i> Exit full width <kbd>Esc</kbd>
       </button>
-    </div>
+    }
 
     @if (search() && !visibleGuides().length && !faqCount()) {
       <div class="card no-results">
@@ -92,12 +115,15 @@
     }
 
     @for (g of visibleGuides(); track g.id) {
-      <article class="guide card" [id]="g.id">
+      <article class="guide card" [id]="g.id" [class.collapsed]="!isGuideOpen(g.id)">
         <header class="guide-head">
           <span class="guide-icon"><i [class]="'ti ' + g.icon" aria-hidden="true"></i></span>
           <div class="guide-titles">
             <p class="guide-stage">Stage {{ stageNumber(g.stage) }} · {{ stageLabel(g.stage) }}</p>
-            <h2>{{ g.title }}</h2>
+            <h2>
+              <button type="button" class="guide-toggle" (click)="toggleGuide(g.id)"
+                      [attr.aria-expanded]="isGuideOpen(g.id)" [attr.aria-controls]="g.id + '-steps'">{{ g.title }}</button>
+            </h2>
             <p class="guide-summary">{{ g.summary }}</p>
             <div class="guide-meta">
               <a class="meta where" [routerLink]="g.where.path">
@@ -108,7 +134,18 @@
               <span class="meta"><i class="ti ti-list-numbers" aria-hidden="true"></i> {{ g.steps.length }} step{{ g.steps.length === 1 ? '' : 's' }}</span>
             </div>
           </div>
+          <button type="button" class="guide-chevron" (click)="toggleGuide(g.id)" [attr.aria-expanded]="isGuideOpen(g.id)"
+                  [attr.aria-label]="(isGuideOpen(g.id) ? 'Collapse ' : 'Expand ') + g.title" tabindex="-1">
+            <i class="ti ti-chevron-down" aria-hidden="true"></i>
+          </button>
         </header>
+
+        @if (!isGuideOpen(g.id)) {
+          <button type="button" class="guide-expand" (click)="toggleGuide(g.id)">
+            Show {{ g.steps.length }} step{{ g.steps.length === 1 ? '' : 's' }} <i class="ti ti-chevron-down" aria-hidden="true"></i>
+          </button>
+        } @else {
+        <div class="guide-body" [id]="g.id + '-steps'">
 
         <ol class="steps">
           @for (step of g.steps; track step.title; let i = $index) {
@@ -173,6 +210,8 @@
               </p>
             }
           </div>
+        }
+        </div>
         }
       </article>
     }

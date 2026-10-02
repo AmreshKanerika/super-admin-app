@@ -11,15 +11,37 @@
   </button>
 </app-page-header>
 
-<p class="lede">
-  This is the catalog of applications the platform knows about. An application reaches organizations
-  through the <strong>subscription plans</strong> that include it — use
-  <i class="ti ti-clipboard-list" aria-label="Subscription plans"></i> on a row to add it to plans or remove it,
-  and set its design-time and runtime limits under <strong>Plans</strong>. The scopes you give it here
-  are the permissions those plans' roles grant.
-  Once an organization is using an application it is locked: its scopes are what live users' permissions
-  are computed from, so editing and deleting are both disabled until it is removed from their plans.
-</p>
+<!-- At a glance: what's live (locked) versus free to change. Each tile filters the catalog. -->
+<div class="app-stats" role="group" aria-label="Catalog summary">
+  <button type="button" class="app-stat" [class.on]="usageFilter() === 'all'" (click)="usageFilter.set('all')">
+    <span class="as-icon total"><i class="ti ti-apps" aria-hidden="true"></i></span>
+    <span class="as-text"><strong>{{ total() }}</strong><small>Applications</small></span>
+  </button>
+  <button type="button" class="app-stat" [class.on]="usageFilter() === 'inUse'" (click)="usageFilter.set('inUse')">
+    <span class="as-icon in-use"><i class="ti ti-lock" aria-hidden="true"></i></span>
+    <span class="as-text"><strong>{{ usageCounts().inUse }}</strong><small>In use · locked</small></span>
+  </button>
+  <button type="button" class="app-stat" [class.on]="usageFilter() === 'unused'" (click)="usageFilter.set('unused')">
+    <span class="as-icon unused"><i class="ti ti-lock-open" aria-hidden="true"></i></span>
+    <span class="as-text"><strong>{{ usageCounts().unused }}</strong><small>Not in use · editable</small></span>
+  </button>
+  <button type="button" class="app-stat" *ngIf="usageCounts().needsSetup" [class.on]="usageFilter() === 'needsSetup'" (click)="usageFilter.set('needsSetup')"
+          title="Migration applications whose migration details (what the migration needs to run) haven't been saved yet">
+    <span class="as-icon setup"><i class="ti ti-alert-triangle" aria-hidden="true"></i></span>
+    <span class="as-text"><strong>{{ usageCounts().needsSetup }}</strong><small>Migration details missing</small></span>
+  </button>
+</div>
+
+<details class="how-it-works">
+  <summary><i class="ti ti-info-circle" aria-hidden="true"></i> How applications work <i class="ti ti-chevron-down hw-caret" aria-hidden="true"></i></summary>
+  <ul>
+    <li>An application reaches organizations through the <strong>subscription plans</strong> that include it — use <strong>Plans</strong> on a row to add it to plans or remove it.</li>
+    <li>Design-time and runtime limits are set per plan, under <strong>Subscription Plans</strong>.</li>
+    <li>The <strong>scopes</strong> set here are the permissions those plans' roles grant.</li>
+    <li>Once an organization uses an application it is <strong>locked</strong>: live users' permissions come from its scopes, so editing and deleting stay disabled until it's removed from their plans.</li>
+    <li>Applications nested under <strong>Migration</strong> are <strong>migration applications</strong>. Each needs its <strong>migration details</strong> — what the migration needs to run. Organizations receive a copy when the application reaches them through a plan, so set them up before adding it to plans.</li>
+  </ul>
+</details>
 
 <div class="layout">
   <!-- ── Catalog ────────────────────────────────────────────────────────── -->
@@ -35,7 +57,12 @@
           (ngModelChange)="search.set($event)"
         />
       </label>
-      <span class="count">{{ rows().length }} shown</span>
+      <div class="usage-segment" role="radiogroup" aria-label="Filter by usage">
+        <button type="button" role="radio" *ngFor="let f of usageFilters" [attr.aria-checked]="usageFilter() === f.key"
+                [class.on]="usageFilter() === f.key" (click)="usageFilter.set(f.key)"
+                [hidden]="f.key === 'needsSetup' && !usageCounts().needsSetup">{{ f.label }}</button>
+      </div>
+      <span class="count">{{ countLabel() }}</span>
       <button
         type="button"
         class="btn sm ghost tree-btn"
@@ -47,14 +74,23 @@
       </button>
     </div>
 
+    <!-- What "missing details" means and how to fix it, right where the list is filtered to them. -->
+    <div class="setup-explainer" *ngIf="usageFilter() === 'needsSetup' && usageCounts().needsSetup" role="note">
+      <i class="ti ti-arrows-exchange" aria-hidden="true"></i>
+      <div>
+        <strong>{{ usageCounts().needsSetup }} migration application{{ usageCounts().needsSetup === 1 ? '' : 's' }} without migration details</strong>
+        <p>These sit under <em>Migration</em> and need their run details saved (source, target and settings). Until then, an organization that gets one through a plan receives the application but not the details its migration needs. Select <b>Set up</b> on a row to add them — or fill the form from an existing SQL INSERT.</p>
+      </div>
+    </div>
+
     <div class="table-wrap" *ngIf="rows().length">
       <table class="dtable">
         <thead>
           <tr>
             <th>Application</th>
-            <th>Machine name</th>
-            <th>Parent</th>
-            <th>Scopes</th>
+            <th class="col-machine">Machine name</th>
+            <th class="col-parent">Parent</th>
+            <th class="col-scopes">Scopes</th>
             <th>Assigned</th>
             <th class="right">Actions</th>
           </tr>
@@ -96,13 +132,24 @@
                   [attr.aria-label]="'Show ' + row.childCount + ' nested applications'"
                 >{{ row.childCount }}</button>
               </span>
+              <!-- Shown here when the columns collapse on narrower screens. -->
+              <span class="row-meta">
+                <code class="machine">{{ row.app.appName }}</code>
+                <span *ngIf="row.app.parentAppId">in {{ parentLabel(row.app) }}</span>
+                <span class="meta-scopes"><span class="scope-chip" *ngFor="let s of row.app.scopes" [attr.data-scope]="s">{{ s }}</span></span>
+              </span>
               <small class="fallback" *ngIf="usesFallbackLabel(row.app)">
                 <i class="ti ti-alert-circle" aria-hidden="true"></i> No display name set — showing a derived label
               </small>
             </td>
-            <td><code class="machine">{{ row.app.appName }}</code></td>
-            <td class="muted">{{ parentLabel(row.app) }}</td>
-            <td>
+            <td class="col-machine"><code class="machine">{{ row.app.appName }}</code></td>
+            <td class="col-parent muted">
+              <span class="parent-missing" *ngIf="parentMissing(row.app); else parentName" title="Its parent application isn't in the catalog any more">
+                <i class="ti ti-alert-triangle" aria-hidden="true"></i> Not in catalog
+              </span>
+              <ng-template #parentName>{{ parentLabel(row.app) }}</ng-template>
+            </td>
+            <td class="col-scopes">
               <span class="scope-chip" *ngFor="let s of row.app.scopes" [attr.data-scope]="s">{{ s }}</span>
               <span class="muted" *ngIf="!row.app.scopes?.length">None</span>
             </td>
@@ -118,21 +165,31 @@
               </button>
               <button
                 type="button"
-                class="icon-btn"
+                class="plans-btn"
                 (click)="openAssignments(row.app)"
                 title="Subscription plans — add to or remove from plans"
                 [attr.aria-label]="'Choose subscription plans for ' + row.label"
               >
-                <i class="ti ti-clipboard-list" aria-hidden="true"></i>
+                <i class="ti ti-clipboard-list" aria-hidden="true"></i><span>Plans</span>
+              </button>
+              <!-- Missing details get a visible call to action; saved ones a quiet icon to review them. -->
+              <button
+                type="button"
+                class="setup-btn"
+                *ngIf="row.app.migrationApplication && !row.app.migrationConfigured"
+                (click)="openMigrationDetails(row.app)"
+                title="Migration details not saved yet — organizations won't receive them"
+                [attr.aria-label]="'Set up migration details for ' + row.label"
+              >
+                <i class="ti ti-alert-triangle" aria-hidden="true"></i><span>Set up</span>
               </button>
               <button
                 type="button"
                 class="icon-btn migration-btn"
-                *ngIf="row.app.migrationApplication"
-                [class.needs-setup]="!row.app.migrationConfigured"
+                *ngIf="row.app.migrationApplication && row.app.migrationConfigured"
                 (click)="openMigrationDetails(row.app)"
-                [title]="row.app.migrationConfigured ? 'Migration details' : 'Migration details not set up yet'"
-                [attr.aria-label]="(row.app.migrationConfigured ? 'Edit migration details for ' : 'Set up migration details for ') + row.label"
+                title="Migration details (saved)"
+                [attr.aria-label]="'Edit migration details for ' + row.label"
               >
                 <i class="ti ti-arrows-exchange" aria-hidden="true"></i>
               </button>
@@ -168,10 +225,10 @@
 
     <ng-template #noApps>
       <app-empty-state
-        [title]="search() ? 'No applications match' : 'No applications yet'"
+        [title]="search() || usageFilter() !== 'all' ? 'No applications match' : 'No applications yet'"
         [message]="
-          search()
-            ? 'Nothing in the catalog matches that search.'
+          search() || usageFilter() !== 'all'
+            ? 'Nothing in the catalog matches that search or filter.'
             : 'Add the first application to start building plans from it.'
         "
       >

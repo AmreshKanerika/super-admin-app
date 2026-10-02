@@ -156,6 +156,9 @@ import { TableRow } from './chart.types';
       .cc-plot {
         min-width: 0;
       }
+      :host(.align-top) .cc-body {
+        justify-content: flex-start;
+      }
       .cc-table {
         margin-top: 12px;
         max-height: 320px;

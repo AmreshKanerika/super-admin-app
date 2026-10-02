@@ -2,131 +2,6 @@
   display: block;
 }
 
-.section-label {
-  margin: 0 0 10px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--ui-eyebrow);
-}
-
-// --- lifecycle strip ---------------------------------------------------------
-
-.lifecycle {
-  margin-bottom: 22px;
-}
-
-.lifecycle-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 10px;
-}
-
-.lifecycle-head .section-label {
-  margin: 0;
-}
-
-/* Minimised strip: one slim row of chips that still jump to their stage. */
-.lifecycle.collapsed { margin-bottom: 16px; }
-.lifecycle.collapsed .stages { display: flex; flex-wrap: wrap; gap: 6px; }
-.lifecycle.collapsed .stages li::before { display: none; }
-.lifecycle.collapsed .stage { flex-direction: row; gap: 6px; width: auto; padding: 5px 11px 5px 6px; border-radius: 999px; }
-.lifecycle.collapsed .stage-icon { width: 22px; height: 22px; border-radius: 50%; font-size: 13px; }
-.lifecycle.collapsed .stage-num { display: none; }
-.lifecycle.collapsed .stage-label { font-size: 12px; }
-
-/* Maximised reading: no contents sidebar, the guide uses the full width. */
-.help-layout.reading { grid-template-columns: minmax(0, 1fr); }
-.help-layout.reading .toc { display: none; }
-.help-layout.reading .content { max-width: 1320px; width: 100%; margin: 0 auto; }
-.help-layout.reading ::ng-deep .shot-btn { max-width: 100%; }
-
-.stages {
-  display: grid;
-  grid-template-columns: repeat(9, minmax(0, 1fr));
-  gap: 8px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  counter-reset: stage;
-}
-
-.stages li {
-  position: relative;
-  min-width: 0;
-}
-
-.stages li + li::before {
-  content: '';
-  position: absolute;
-  top: 26px;
-  left: -8px;
-  width: 8px;
-  height: 2px;
-  background: var(--ui-violet-soft);
-}
-
-.stage {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  width: 100%;
-  padding: 12px 6px 10px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--paper-raised);
-  color: var(--ink-soft);
-  font: inherit;
-  cursor: pointer;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
-}
-
-.stage:hover {
-  border-color: var(--limit-design-line);
-  box-shadow: 0 6px 16px rgba(43, 20, 66, 0.08);
-  transform: translateY(-1px);
-}
-
-.stage.current {
-  border-color: var(--accent);
-  background: var(--ui-violet-wash);
-  color: var(--accent-ink);
-}
-
-.stage-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 9px;
-  background: var(--accent-soft);
-  color: var(--accent);
-  font-size: 17px;
-}
-
-.stage.current .stage-icon {
-  background: var(--accent);
-  color: #fff;
-}
-
-.stage-num {
-  font-size: 10.5px;
-  font-weight: 700;
-  color: var(--ink-faint);
-}
-
-.stage-label {
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1.25;
-  text-align: center;
-}
-
 // --- layout ------------------------------------------------------------------
 
 .help-layout {
@@ -135,6 +10,13 @@
   gap: 22px;
   align-items: start;
 }
+
+/* Full width: the contents sidebar steps aside and the guide uses the whole page.
+   Restored after the lifecycle strip was removed (its block carried these rules). */
+.help-layout.reading { grid-template-columns: minmax(0, 1fr); }
+.help-layout.reading .toc { display: none; }
+.help-layout.reading .content { width: 100%; max-width: 1320px; margin: 0 auto; }
+.help-layout.reading ::ng-deep .shot-btn { max-width: 100%; }
 
 .toc {
   position: sticky;
@@ -147,10 +29,19 @@
   background: var(--paper-raised);
 }
 
+.toc-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.toc-tools .search { flex: 1; min-width: 0; }
+.toc-reading { flex: none; width: 36px; height: 36px; }
+
 .search {
   position: relative;
   display: block;
-  margin-bottom: 10px;
 }
 
 .search .ti {
@@ -579,33 +470,33 @@ figcaption {
 
 // --- responsive --------------------------------------------------------------
 
-@media (max-width: 1180px) {
-  .stages {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-  }
-
-  .stages li:nth-child(6)::before {
-    display: none;
-  }
-}
-
 @media (max-width: 900px) {
   .help-layout {
     grid-template-columns: 1fr;
   }
 
+  // The contents become one sticky "Contents · <current guide>" button that opens the list.
   .toc {
-    position: static;
+    position: sticky;
+    top: 8px;
+    z-index: 5;
     max-height: none;
+    padding: 0;
+    overflow: visible;
   }
 
-  .stages {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
+  .toc-mobile { display: flex; }
 
-  .stages li::before {
+  .toc-panel {
     display: none;
+    max-height: 60vh;
+    overflow-y: auto;
+    padding: 4px 12px 12px;
+    border-top: 1px solid var(--line);
   }
+
+  .toc.open .toc-panel { display: block; }
+  .toc.open .tm-caret { transform: rotate(180deg); }
 
   .guide,
   .faq {
@@ -631,7 +522,6 @@ figcaption {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .stage,
   .shot-btn,
   .qa,
   .q .ti,
@@ -639,3 +529,179 @@ figcaption {
     transition: none;
   }
 }
+
+// --- expand / collapse (docs-style) -------------------------------------------
+
+// Sidebar: one collapsible group per lifecycle stage.
+.toc-section { margin-top: 4px; }
+
+button.toc-stage {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  margin: 8px 0 2px;
+  padding: 6px 6px;
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  font: inherit;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  text-align: left;
+  cursor: pointer;
+}
+button.toc-stage:hover { background: var(--paper-sunken); color: var(--ink-soft); }
+button.toc-stage:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.toc-section.current button.toc-stage { color: var(--ui-eyebrow); }
+.toc-stage-name { flex: 1; min-width: 0; }
+.toc-chevron { font-size: 13px; transition: transform 0.15s ease; }
+.toc-section.open .toc-chevron { transform: rotate(90deg); }
+.toc-count {
+  min-width: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--paper-sunken);
+  color: var(--ink-faint);
+  font-size: 10.5px;
+  letter-spacing: 0;
+  line-height: 17px;
+  text-align: center;
+}
+.toc-group { display: flex; flex-direction: column; gap: 1px; padding-left: 10px; margin-left: 9px; border-left: 1px solid var(--line); }
+.toc-stage.static { margin: 14px 4px 4px; }
+
+// Content: guides fold to their header.
+.guide-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.gt-count { margin-right: auto; font-size: 12.5px; color: var(--ink-faint); }
+.gt-divider { width: 1px; height: 18px; background: var(--line); }
+
+.guide-head { position: relative; }
+.guide.collapsed { padding-bottom: 14px; }
+.guide.collapsed .guide-head { padding-bottom: 6px; border-bottom: 0; }
+.guide.collapsed:hover { border-color: #d9cfe9; box-shadow: 0 6px 18px rgba(89, 55, 118, 0.07); }
+
+.guide-toggle {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.guide-toggle:hover { color: var(--accent-ink); }
+.guide-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+
+.guide-chevron {
+  align-self: flex-start;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin-left: auto;
+  flex-shrink: 0;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: #fff;
+  color: var(--ink-faint);
+  cursor: pointer;
+}
+.guide-chevron i { font-size: 16px; transition: transform 0.15s ease; }
+.guide:not(.collapsed) .guide-chevron i { transform: rotate(180deg); }
+.guide-chevron:hover { color: var(--accent-ink); border-color: #cdbfe2; }
+
+.guide-expand {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 4px 0 0 58px; // under the title, past the icon
+  padding: 5px 10px;
+  border: 1px solid #e3dbef;
+  border-radius: 999px;
+  background: #faf8fd;
+  color: var(--accent-ink);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.guide-expand:hover { background: var(--accent-soft); }
+
+@media (max-width: 640px) {
+  .guide-expand { margin-left: 0; }
+  .guide-toolbar { padding-right: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toc-chevron, .guide-chevron i { transition: none; }
+}
+
+// Narrow-screen contents button (hidden on wide screens, where the sidebar is always shown).
+.toc-mobile {
+  display: none;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 11px 14px;
+  border: 0;
+  border-radius: 14px;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  color: var(--ink);
+}
+.toc-mobile > .ti:first-child { font-size: 18px; color: var(--accent); }
+.tm-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.tm-text small { font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-faint); }
+.tm-text strong { font-size: 13.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tm-caret { font-size: 16px; color: var(--ink-faint); transition: transform .15s ease; }
+
+@media (prefers-reduced-motion: reduce) { .tm-caret { transition: none; } }
+
+// Full width only makes sense beside a sidebar; on narrow screens the contents are already one button.
+@media (max-width: 900px) {
+  .gt-reading, .gt-divider, .toc-reading, .exit-reading { display: none; }
+  .help-layout.reading .toc { display: block; }
+}
+
+// Way back from full width: a labelled pill in the screen corner, out of the way of card controls.
+.exit-reading {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 40;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px 10px 12px;
+  border: 0;
+  border-radius: 999px;
+  background: #2b2140;
+  color: #fff;
+  font: 600 13px var(--font-sans);
+  box-shadow: 0 10px 28px rgba(31, 20, 52, 0.3);
+  cursor: pointer;
+  transition: opacity .2s ease, transform .2s ease, background-color .15s ease;
+}
+.exit-reading:hover { background: #3c2d5a; }
+.exit-reading:focus-visible { outline: 2px solid #b48ae0; outline-offset: 3px; }
+.exit-reading i { font-size: 16px; }
+.exit-reading kbd {
+  padding: 1px 6px;
+  border: 1px solid rgba(255, 255, 255, .25);
+  border-radius: 5px;
+  font: 600 10.5px var(--font-mono, monospace);
+  color: rgba(255, 255, 255, .8);
+}
+.exit-reading.hidden { opacity: 0; transform: translateY(8px); pointer-events: none; }
+@media (prefers-reduced-motion: reduce) { .exit-reading { transition: none; } }

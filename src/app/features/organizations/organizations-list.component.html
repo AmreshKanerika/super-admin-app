@@ -5,67 +5,135 @@
 <p class="attention-summary" *ngIf="needsAttention">Each organization appears once. Review the reasons and next steps below; open its name to manage the subscription or domain.</p>
 
 <div class="filterbar" role="search" aria-label="Find and filter organizations">
-  <input class="input search" placeholder="Search by name or domain…" type="search" aria-label="Search organizations" [ngModel]="search" (ngModelChange)="onSearchChange($event)" />
+  <label class="search-field">
+    <i class="ti ti-search" aria-hidden="true"></i>
+    <input class="input search" placeholder="Search by organization name or domain…" type="search" aria-label="Search organizations"
+           [ngModel]="search" (ngModelChange)="onSearchChange($event)" />
+  </label>
 
-  <select class="input select" aria-label="Subscription status" [(ngModel)]="planStatus" (change)="onFilterChange()">
-    <option value="">Any status</option>
-    <option *ngFor="let s of statusOptions" [value]="s">{{ s }}</option>
-  </select>
-
-  <select class="input select" aria-label="Subscription plan" [(ngModel)]="planId" (change)="onFilterChange()">
-    <option value="">Any plan</option>
-    <option *ngFor="let p of plans.list()()" [value]="p.planId">{{ p.planName }}</option>
-  </select>
-
-  <select class="input select" aria-label="Sort and onboarding range" title="Order and range by onboarding date"
-          [ngModel]="onboardedView()" (ngModelChange)="setOnboardedView($event)">
-    <option value="" disabled>Onboarded…</option>
-    <option *ngFor="let o of onboardedOptions" [value]="o.value">{{ o.label }}</option>
-  </select>
-
-  <div class="quick-chips">
-    <button
-      type="button"
-      class="chip"
-      [class.active]="expiringInDays === 7"
-      (click)="expiringInDays = expiringInDays === 7 ? null : 7; onFilterChange()"
-    >
-      Expiring ≤7d
+  <div class="quick-filters" (click)="$event.stopPropagation()">
+    <button type="button" class="input qf-trigger" [class.on]="quickFilterCount()" (click)="toggleQuickFilters($event)"
+            aria-haspopup="true" [attr.aria-expanded]="quickFiltersOpen()" aria-controls="quick-filter-panel">
+      <i class="ti ti-filter" aria-hidden="true"></i>
+      <span>Filters</span>
+      <span class="qf-count" *ngIf="quickFilterCount()">{{ quickFilterCount() }}</span>
+      <i class="ti ti-chevron-down qf-caret" [class.open]="quickFiltersOpen()" aria-hidden="true"></i>
     </button>
-    <button
-      type="button"
-      class="chip"
-      [class.active]="expiringInDays === 30"
-      (click)="expiringInDays = expiringInDays === 30 ? null : 30; onFilterChange()"
-    >
-      Expiring ≤30d
-    </button>
-    <button type="button" class="chip" [class.active]="paidOnly === true" (click)="paidOnly = paidOnly === true ? null : true; onFilterChange()">Paid only</button>
-    <button
-      type="button"
-      class="chip"
-      [class.active]="needsActivation"
-      (click)="needsActivation = !needsActivation; onFilterChange()"
-      title="Organizations whose URL is reserved but not yet activated">
-      Needs URL activation
-      <span class="chip-count" *ngIf="pendingActivationCount()">{{ pendingActivationCount() }}</span>
-    </button>
+
+    <div class="qf-panel" [style.left.px]="qfOffset()" id="quick-filter-panel" role="dialog" aria-label="Filter organizations" *ngIf="quickFiltersOpen()">
+      <div class="qf-head">
+        <strong>Filter organizations</strong>
+        <span>{{ filtered().length | number }} of {{ directoryTotal() | number }} match</span>
+      </div>
+
+      <div class="qf-body">
+        <div class="qf-col">
+          <div class="qf-group">
+            <label class="qf-legend" for="qf-status">Subscription status</label>
+            <select id="qf-status" class="input" [(ngModel)]="planStatus" (change)="onFilterChange()">
+              <option value="">Any status</option>
+              <option *ngFor="let s of statusOptions" [value]="s">{{ statusLabel(s) }}</option>
+            </select>
+          </div>
+
+          <div class="qf-group">
+            <label class="qf-legend" for="qf-plan">Plan</label>
+            <select id="qf-plan" class="input" [(ngModel)]="planId" (change)="onFilterChange()">
+              <option value="">Any plan</option>
+              <option *ngFor="let p of plans.list()()" [value]="p.planId">{{ p.planName }}</option>
+            </select>
+          </div>
+
+          <fieldset class="qf-group">
+            <legend class="qf-legend">Onboarded</legend>
+            <div class="qf-segment" role="radiogroup" aria-label="Onboarded">
+              <button type="button" *ngFor="let w of onboardedWindows" role="radio"
+                      [attr.aria-checked]="!onboardedCustom && createdWithinDays === w.days"
+                      [class.on]="!onboardedCustom && createdWithinDays === w.days" (click)="setOnboardedWindow(w.days)">{{ w.label }}</button>
+              <button type="button" role="radio" [attr.aria-checked]="onboardedCustom" [class.on]="onboardedCustom" (click)="selectOnboardedCustom()">Custom</button>
+            </div>
+            <div class="qf-range" *ngIf="onboardedCustom">
+              <label><span>From</span>
+                <input type="date" class="input" [ngModel]="onboardedFrom" (ngModelChange)="setOnboardedDate('from', $event)" [max]="onboardedTo || todayIso" />
+              </label>
+              <i class="ti ti-arrow-right" aria-hidden="true"></i>
+              <label><span>To</span>
+                <input type="date" class="input" [ngModel]="onboardedTo" (ngModelChange)="setOnboardedDate('to', $event)" [min]="onboardedFrom" [max]="todayIso" />
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset class="qf-group">
+            <legend class="qf-legend">Plan ends within</legend>
+            <div class="qf-segment" role="radiogroup" aria-label="Plan ends within">
+              <button type="button" role="radio" [attr.aria-checked]="!renewalCustom && expiringInDays === null" [class.on]="!renewalCustom && expiringInDays === null" (click)="setExpiring(null)">Any</button>
+              <button type="button" role="radio" [attr.aria-checked]="!renewalCustom && expiringInDays === 7" [class.on]="!renewalCustom && expiringInDays === 7" (click)="setExpiring(7)">7 days</button>
+              <button type="button" role="radio" [attr.aria-checked]="!renewalCustom && expiringInDays === 30" [class.on]="!renewalCustom && expiringInDays === 30" (click)="setExpiring(30)">30 days</button>
+              <button type="button" role="radio" [attr.aria-checked]="renewalCustom" [class.on]="renewalCustom" (click)="selectRenewalCustom()">Custom</button>
+            </div>
+            <div class="qf-range" *ngIf="renewalCustom">
+              <label><span>Ends from</span>
+                <input type="date" class="input" [ngModel]="endsFrom" (ngModelChange)="setEndsDate('from', $event)" [max]="endsTo" />
+              </label>
+              <i class="ti ti-arrow-right" aria-hidden="true"></i>
+              <label><span>To</span>
+                <input type="date" class="input" [ngModel]="endsTo" (ngModelChange)="setEndsDate('to', $event)" [min]="endsFrom" />
+              </label>
+            </div>
+          </fieldset>
+        </div>
+
+        <div class="qf-col">
+          <fieldset class="qf-group">
+            <legend class="qf-legend">Sign-in</legend>
+            <label class="qf-option"><input type="radio" name="qf-sso" [checked]="ssoFilter === null" (change)="setSso(null)" /><span>All organizations</span></label>
+            <label class="qf-option"><input type="radio" name="qf-sso" [checked]="ssoFilter === 'enabled'" (change)="setSso('enabled')" /><span>SSO enabled<small>Microsoft sign-in · Azure Marketplace</small></span></label>
+            <label class="qf-option"><input type="radio" name="qf-sso" [checked]="ssoFilter === 'disabled'" (change)="setSso('disabled')" /><span>SSO not enabled<small>FLIP username and password</small></span></label>
+          </fieldset>
+
+          <fieldset class="qf-group">
+            <legend class="qf-legend">Billing &amp; setup</legend>
+            <label class="qf-option"><input type="checkbox" [checked]="paidOnly === true" (change)="togglePaidOnly()" /><span>Paid organizations only</span></label>
+            <label class="qf-option" title="Organizations whose URL is reserved but not yet activated">
+              <input type="checkbox" [checked]="needsActivation" (change)="toggleNeedsActivation()" />
+              <span>Needs URL activation<small>URL reserved, not yet live</small></span>
+              <span class="qf-pill" *ngIf="pendingActivationCount()">{{ pendingActivationCount() }}</span>
+            </label>
+          </fieldset>
+        </div>
+      </div>
+
+      <div class="qf-footer">
+        <button type="button" class="btn sm ghost" [disabled]="!quickFilterCount()" (click)="clearQuickFilters()">Clear all</button>
+        <button type="button" class="btn sm primary" (click)="quickFiltersOpen.set(false)">Show {{ filtered().length | number }} {{ filtered().length === 1 ? 'organization' : 'organizations' }}</button>
+      </div>
+    </div>
   </div>
+
+  <label class="sort-field">
+    <span>Sort</span>
+    <select class="input" aria-label="Sort organizations" [ngModel]="sortView()" (ngModelChange)="setSort($event)">
+      <option *ngFor="let o of sortOptions" [value]="o.value">{{ o.label }}</option>
+    </select>
+  </label>
 
   <button type="button" class="btn sm ghost reset-filters" *ngIf="hasAnyFilter()" (click)="resetFilters()">
     <i class="ti ti-filter-off" aria-hidden="true"></i> Reset
   </button>
 </div>
 
-<div class="active-filters" *ngIf="planStatus || planId || expiringInDays || paidOnly || hasSubscription === false || createdWithinDays || needsActivation || needsAttention">
+<div class="active-filters" *ngIf="planStatus || planId || expiringInDays || paidOnly || hasSubscription === false || createdWithinDays || needsActivation || needsAttention || ssoFilter || onboardedFrom || onboardedTo || endsFrom || endsTo">
   <button type="button" class="chip removable" *ngIf="needsAttention" (click)="clearFilter('needsAttention')">Needs attention ×</button>
-  <button type="button" class="chip removable" *ngIf="planStatus" (click)="clearFilter('planStatus')">Status: {{ planStatus }} ×</button>
+  <button type="button" class="chip removable" *ngIf="planStatus" (click)="clearFilter('planStatus')">Status: {{ statusLabel(planStatus) }} ×</button>
   <button type="button" class="chip removable" *ngIf="planId" (click)="clearFilter('planId')">Plan: {{ planName(planId) }} ×</button>
-  <button type="button" class="chip removable" *ngIf="expiringInDays" (click)="clearFilter('expiringInDays')">Expiring in {{ expiringInDays }}d ×</button>
+  <button type="button" class="chip removable" *ngIf="expiringInDays" (click)="clearFilter('expiringInDays')">Ends in {{ expiringInDays }} days ×</button>
+  <button type="button" class="chip removable" *ngIf="endsFrom || endsTo" (click)="clearEndsRange()">Plan ends {{ rangeLabel(endsFrom, endsTo) }} ×</button>
   <button type="button" class="chip removable" *ngIf="paidOnly" (click)="clearFilter('paidOnly')">Paid organizations ×</button>
   <button type="button" class="chip removable" *ngIf="hasSubscription === false" (click)="clearFilter('hasSubscription')">No subscription ×</button>
-  <button type="button" class="chip removable" *ngIf="createdWithinDays" (click)="clearFilter('createdWithinDays')">Onboarded in {{ createdWithinDays }}d ×</button>
+  <button type="button" class="chip removable" *ngIf="createdWithinDays" (click)="clearFilter('createdWithinDays')">Onboarded in last {{ createdWithinDays }} days ×</button>
+  <button type="button" class="chip removable" *ngIf="onboardedFrom || onboardedTo" (click)="clearOnboardedRange()">Onboarded {{ rangeLabel(onboardedFrom, onboardedTo) }} ×</button>
   <button type="button" class="chip removable" *ngIf="needsActivation" (click)="clearFilter('needsActivation')">URL needs activation ×</button>
+  <button type="button" class="chip removable" *ngIf="ssoFilter" (click)="setSso(null)">{{ ssoFilter === 'enabled' ? 'SSO enabled' : 'SSO not enabled' }} ×</button>
 </div>
 
 <div class="view-bar">
@@ -101,6 +169,7 @@
     <div class="ec-meta">
       <ng-container *ngTemplateOutlet="planLinks; context: { $implicit: r }"></ng-container>
       <span><i class="ti" [class.ti-credit-card]="r.org.isPaidOrg" [class.ti-flask]="!r.org.isPaidOrg" aria-hidden="true"></i>{{ r.org.isPaidOrg ? 'Paid' : 'Trial' }}</span>
+      <ng-container *ngTemplateOutlet="marketplaceBadge; context: { $implicit: r.org }"></ng-container>
       <span
         class="domain-flag"
         *ngIf="r.org.domainStatus && r.org.domainStatus !== 'ACTIVE'"
@@ -143,7 +212,7 @@
     </thead>
     <tbody>
       <ng-container *ngFor="let r of visibleRows(); trackBy: rowKey"><tr [attr.data-status]="r.subscription?.planStatus || 'NONE'">
-        <td class="strong org-primary"><div class="org-cell"><span class="oc-list-avatar" aria-hidden="true">{{ r.org.organizationName.charAt(0).toUpperCase() }}</span><a class="row-link" [routerLink]="['/organizations', r.org.orgId]" [queryParams]="showBack ? { from: 'overview' } : null">{{ r.org.organizationName }}</a></div></td>
+        <td class="strong org-primary"><div class="org-cell"><span class="oc-list-avatar" aria-hidden="true">{{ r.org.organizationName.charAt(0).toUpperCase() }}</span><div class="org-name-stack"><a class="row-link" [routerLink]="['/organizations', r.org.orgId]" [queryParams]="showBack ? { from: 'overview' } : null">{{ r.org.organizationName }}</a><ng-container *ngTemplateOutlet="marketplaceBadge; context: { $implicit: r.org }"></ng-container></div></div></td>
         <td class="org-domain">
           <ng-container *ngTemplateOutlet="domainLink; context: { $implicit: r }"></ng-container>
           <span
@@ -194,6 +263,16 @@
   <i class="ti ti-chevrons-down" aria-hidden="true"></i>
   Loading more as you scroll
 </p>
+
+<ng-template #marketplaceBadge let-org>
+  <span class="marketplace-badge" *ngIf="org.azureMarketplaceManaged || org.isSsoEnabled"
+        title="Users sign in with Microsoft and billing is handled in Azure Marketplace, so plans and tier are read only here">
+    <i class="ti ti-brand-azure" aria-hidden="true"></i>
+    <span *ngIf="org.isSsoEnabled">SSO</span>
+    <span class="sep" *ngIf="org.isSsoEnabled && org.azureMarketplaceManaged" aria-hidden="true"></span>
+    <span *ngIf="org.azureMarketplaceManaged">Azure Marketplace</span>
+  </span>
+</ng-template>
 
 <ng-template #domainLink let-r>
 <a *ngIf="domainUrl(r) as url; else inactiveDomain" class="domain-value live-domain" [href]="url" target="_blank" rel="noopener noreferrer" [attr.aria-label]="'Open live workspace for ' + r.org.organizationName">{{ r.org.domainName }} ↗</a>

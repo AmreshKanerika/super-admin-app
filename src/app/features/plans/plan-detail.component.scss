@@ -1,173 +1,107 @@
-.grid-2 {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 20px;
-  align-items: start;
+/* Plan detail: summary tiles, then applications (main) beside organizations (aside). */
+
+.plan-summary { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin: -6px 0 18px; }
+.sum-tile { display: flex; align-items: center; gap: 12px; min-width: 0; padding: 13px 15px; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
+.sum-tile > span:last-child { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.sum-tile small { font-size: 11px; font-weight: 600; color: var(--ink-faint); }
+.sum-tile strong { font-size: 16px; font-weight: 700; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sum-tile strong em { font-style: normal; font-size: 12.5px; font-weight: 500; color: var(--ink-faint); }
+.sum-icon { display: grid; place-items: center; width: 38px; height: 38px; flex: none; border-radius: 10px; font-size: 19px; background: color-mix(in srgb, var(--tone) 12%, white); color: var(--tone); }
+.sum-icon.billing { background: #eef1f6; color: #56607a; }
+.sum-icon.billing.metered { background: #fff6dc; color: #94690c; }
+.sum-icon.apps { background: #efe9fa; color: #6a3fb1; }
+.sum-icon.orgs { background: #e5f5ee; color: #1b7357; }
+.sum-icon.created { background: #f1f2f5; color: #6b7487; }
+.type-badge { display: inline-flex; padding: 2px 10px; border-radius: 999px; font-size: 13px; background: color-mix(in srgb, var(--tone) 12%, white); color: color-mix(in srgb, var(--tone) 82%, black); }
+
+.detail-layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 18px; align-items: start; }
+.panel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 14px; }
+.panel-head h2 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 16px; font-weight: 700; color: var(--ink); }
+.panel-head p { margin: 4px 0 0; font-size: 12.5px; line-height: 1.5; color: var(--ink-faint); max-width: 62ch; }
+.count-badge { padding: 0 8px; border-radius: 999px; background: #efe9fa; color: #6a3fb1; font-size: 12px; line-height: 20px; }
+
+/* Applications toolbar */
+.grid-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 12px; }
+/* Search box and tree rows come from the shared _allowance-grid.scss (scoped by .application-workspace). */
+.grid-bar { margin-top: 0; }
+.org-search { position: relative; display: block; }
+.org-search i { position: absolute; top: 50%; left: 11px; transform: translateY(-50%); color: #8a91a3; font-size: 15px; pointer-events: none; }
+.org-search .input { width: 100%; padding-left: 34px; }
+.seg { display: inline-grid; grid-auto-flow: column; gap: 2px; padding: 3px; border-radius: 10px; background: #f1f0f6; border: 1px solid #e7e5ef; }
+.seg button { padding: 6px 12px; border: 0; border-radius: 7px; background: transparent; color: #5a6378; font: inherit; font-size: 12.5px; font-weight: 550; white-space: nowrap; cursor: pointer; }
+.seg button:hover { color: #2d3650; background: rgba(255, 255, 255, .55); }
+.seg button.on { background: #fff; color: var(--accent-ink); font-weight: 650; box-shadow: 0 1px 3px rgba(31, 38, 70, .14); }
+.tree-tools { display: inline-flex; gap: 4px; }
+
+/* Applications table */
+.table-wrap { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+table.dtable { min-width: 0; width: 100%; }
+table.dtable td { overflow-wrap: anywhere; }
+.limits-table th { background: #f7f6fb; }
+.limits-table th.num, .limits-table td.num { text-align: right; }
+.col-access { width: 110px; }
+.col-limit { width: 130px; white-space: nowrap; }
+.limit-row.is-off .app-name { color: var(--ink-faint); }
+.access-pill { display: inline-flex; padding: 2px 9px; border-radius: 999px; background: #f1f2f5; color: #8a91a3; font-size: 11.5px; font-weight: 600; }
+.access-pill.on { background: #e5f5ee; color: #1b7357; }
+.allowance { font-weight: 650; font-variant-numeric: tabular-nums; color: #33405a; }
+.allowance.unlimited { color: #6a3fb1; }
+.allowance.blocked { color: #b23b52; }
+.row-meta { display: none; }
+.grid-help { display: flex; align-items: center; gap: 6px; margin: 10px 0 0; font-size: 12px; color: var(--ink-faint); }
+.empty-note { display: flex; align-items: center; gap: 8px; padding: 22px; border: 1px dashed var(--line-strong); border-radius: 12px; color: var(--ink-faint); font-size: 13px; justify-content: center; }
+.link { border: 0; background: none; color: var(--accent-ink); font: inherit; font-weight: 600; cursor: pointer; }
+
+/* Organizations aside */
+.orgs-panel { position: sticky; top: 12px; }
+.org-search { margin-bottom: 10px; }
+.org-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; max-height: 60vh; overflow-y: auto; }
+.org-list a { display: flex; align-items: center; gap: 10px; padding: 8px 8px; border-radius: 10px; color: inherit; text-decoration: none; }
+.org-list a:hover { background: #f6f4fb; }
+.org-avatar { display: grid; place-items: center; width: 30px; height: 30px; flex: none; border-radius: 9px; background: #efe9fa; color: #6a3fb1; font-size: 13px; font-weight: 700; }
+.org-name { flex: 1; min-width: 0; font-size: 13px; font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.org-go { color: #b8bcc8; }
+.orgs-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 24px 12px; text-align: center; color: var(--ink-faint); font-size: 13px; }
+.orgs-empty i { font-size: 26px; color: #c7cbd6; }
+.orgs-empty p { margin: 0; }
+
+/* Header "more" menu */
+.more-menu { position: relative; }
+.btn.icon-only { padding: 0; width: 36px; justify-content: center; }
+.more-pop { position: absolute; top: calc(100% + 6px); right: 0; z-index: 40; min-width: 200px; padding: 6px; background: var(--paper-raised); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-lg); display: flex; flex-direction: column; }
+.more-pop button { display: flex; align-items: center; gap: 9px; width: 100%; padding: 8px 10px; border: none; border-radius: var(--radius-sm); background: none; font-size: 13px; color: var(--ink-soft); text-align: left; cursor: pointer; }
+.more-pop button:hover:not(:disabled) { background: var(--paper-sunken); color: var(--ink); }
+.more-pop button:disabled { opacity: .55; cursor: not-allowed; }
+.more-pop button.danger { color: #b23b52; }
+.more-pop button small { margin-left: auto; font-size: 11px; color: var(--ink-faint); }
+
+/* Assign dialog */
+.backdrop { position: fixed; inset: 0; background: rgba(19, 26, 31, 0.42); display: flex; align-items: center; justify-content: center; padding: 24px; z-index: 100; }
+.detail-panel { width: 100%; max-width: 480px; max-height: 88vh; overflow-y: auto; }
+.dp-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.dp-head h3 { font-size: 16px; margin: 0; }
+.dp-head .x { display: grid; place-items: center; width: 30px; height: 30px; flex-shrink: 0; border: 1px solid var(--line); border-radius: 50%; background: #fff; color: var(--ink-faint); cursor: pointer; }
+.dp-head .x:hover { background: #fdecef; color: #b23b52; }
+.wizard-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); }
+
+/* Responsive */
+@media (max-width: 1240px) {
+  .plan-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .detail-layout { grid-template-columns: minmax(0, 1fr); }
+  .orgs-panel { position: static; }
+  .org-list { max-height: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
 }
-
-@media (max-width: 960px) {
-  .grid-2 {
-    grid-template-columns: 1fr;
-  }
+@media (max-width: 860px) {
+  /* The shared grid gives this table a 780px minimum; here the columns fold instead of scrolling. */
+  .apps-panel.application-workspace .limits-table { min-width: 0; }
 }
-
-.panel-title {
-  font-size: 13.5px;
-  margin-bottom: 14px;
+@media (max-width: 760px) {
+  .plan-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .col-access, .col-limit { display: none; }
+  .row-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 4px; font-size: 11.5px; color: var(--ink-faint); }
+  .panel-head { flex-direction: column; }
+  .tree-tools span { display: none; }
 }
-
-.kv-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 14px 20px;
+@media (max-width: 480px) {
+  .seg { order: 3; width: 100%; grid-auto-columns: minmax(0, 1fr); }
 }
-
-@media (max-width: 420px) {
-  .kv-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-.kv-item .k {
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--ink-faint);
-  margin-bottom: 4px;
-}
-
-.kv-item .v {
-  font-size: 13px;
-}
-
-// Specificity note: table.dtable td.strong (global, in styles.scss) sets font-weight/color on this
-// same cell, so the override here needs at least as many class+element selectors to actually win —
-// a bare .child-app-name loses to it silently.
-td.strong.child-app-name {
-  font-weight: 500;
-  color: var(--ink-soft);
-}
-
-// Fixed widths for the numeric/status columns so the Application column — the one with
-// variable-depth indentation and the longest labels — gets the rest of the table's width
-// instead of wrapping while the other columns sit mostly empty.
-table.apps-table th:nth-child(2),
-table.apps-table td:nth-child(2),
-table.apps-table th:nth-child(3),
-table.apps-table td:nth-child(3) {
-  width: 100px;
-  white-space: nowrap;
-}
-
-table.apps-table th:nth-child(4),
-table.apps-table td:nth-child(4) {
-  width: 110px;
-}
-
-// Every top-level app is its own family (Dashboard, Pipelines and everything nested under it, …).
-// Instead of colour-coding each family with a dot, the root row reads as a section header — bold,
-// faintly shaded — and a rule above it separates one family's block from the next, the way a
-// grouped settings or resource list would in most admin consoles.
-table.apps-table tbody tr.family-row {
-  background: var(--paper-sunken);
-}
-
-table.apps-table tbody tr.family-row:hover {
-  background: var(--line);
-}
-
-table.apps-table tbody tr.family-start td {
-  border-top: 1px solid var(--line-strong);
-}
-
-.disabled-link {
-  opacity: 0.5;
-  cursor: not-allowed;
-  pointer-events: none;
-}
-
-.backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(19, 26, 31, 0.42);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  z-index: 100;
-}
-
-.detail-panel {
-  width: 100%;
-  max-width: 480px;
-  max-height: 88vh;
-  overflow-y: auto;
-}
-
-.dp-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 14px;
-}
-
-.dp-head h3 {
-  font-size: 16px;
-  margin: 0;
-}
-
-.dp-head .x {
-  background: none;
-  border: none;
-  color: var(--ink-faint);
-  cursor: pointer;
-  font-size: 13px;
-  flex-shrink: 0;
-}
-
-.wizard-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-top: 18px;
-  padding-top: 16px;
-  border-top: 1px solid var(--line);
-}
-
-/* Column grid shared by the header strip and every card row, so the four
-   columns line up across separate cards the way they did in the old table. */
-.apps-grid {
-  grid-template-columns: minmax(0, 1fr) 120px 120px 120px;
-}
-
-.limit-read {
-  font-size: 12.5px;
-  font-weight: 600;
-}
-
-.limit-read.kind-design {
-  color: var(--limit-design);
-}
-
-.limit-read.kind-runtime {
-  color: var(--limit-runtime);
-}
-
-.tree-cards-head {
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--ink-faint);
-  min-height: 0;
-  padding-bottom: 10px;
-}
-
-.kv-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); padding-bottom: 20px; margin-bottom: 20px; border-bottom: 1px solid var(--line); }
-@media(max-width:700px) { .kv-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
-
-table.dtable { min-width: 0; width:100%; }
-table.dtable td { overflow-wrap:anywhere; }

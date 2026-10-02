@@ -135,13 +135,42 @@ export class ApplicationsComponent {
    */
   private readonly matchedIds = computed<ReadonlySet<string> | null>(() => {
     const query = this.search().trim().toLowerCase();
-    if (!query) return null;
+    const usage = this.usageFilter();
+    if (!query && usage === 'all') return null;
     return new Set(
       this.applications
         .list()()
-        .filter((app) => this.displayNameOf(app).toLowerCase().includes(query) || app.appName.toLowerCase().includes(query))
+        .filter((app) => !query || this.displayNameOf(app).toLowerCase().includes(query) || app.appName.toLowerCase().includes(query))
+        .filter((app) => matchesUsage(app, usage))
         .map((app) => app.appId)
     );
+  });
+
+  /** In use (locked), not in use, or migration apps whose details aren't set up yet. */
+  readonly usageFilter = signal<UsageFilter>('all');
+  readonly usageFilters: { key: UsageFilter; label: string }[] = [
+    { key: 'all', label: 'All' },
+    { key: 'inUse', label: 'In use' },
+    { key: 'unused', label: 'Not in use' },
+    { key: 'needsSetup', label: 'Missing details' }
+  ];
+
+  readonly usageCounts = computed(() => {
+    const apps = this.applications.list()();
+    return {
+      inUse: apps.filter((app) => matchesUsage(app, 'inUse')).length,
+      unused: apps.filter((app) => matchesUsage(app, 'unused')).length,
+      needsSetup: apps.filter((app) => matchesUsage(app, 'needsSetup')).length
+    };
+  });
+
+  /** "11 top-level · 68 total" normally; "8 match" while searching or filtering. */
+  readonly countLabel = computed(() => {
+    const matched = this.matchedIds();
+    if (matched) return `${matched.size} match${matched.size === 1 ? '' : 'es'}`;
+    const apps = this.applications.list()();
+    const topLevel = apps.filter((app) => !app.parentAppId || !this.applications.byId(app.parentAppId)).length;
+    return `${topLevel} top-level · ${apps.length} total`;
   });
 
   readonly rows = computed<CatalogRow[]>(() =>
@@ -293,6 +322,10 @@ export class ApplicationsComponent {
     };
     walk(appId);
     return out;
+  }
+
+  parentMissing(app: Application): boolean {
+    return !!app.parentAppId && !this.applications.byId(app.parentAppId);
   }
 
   parentLabel(app: Application): string {
@@ -481,5 +514,16 @@ export class ApplicationsComponent {
   private messageOf(error: unknown, fallback: string): string {
     const httpError = error as { error?: { message?: string }; message?: string };
     return httpError?.error?.message || httpError?.message || fallback;
+  }
+}
+
+type UsageFilter = 'all' | 'inUse' | 'unused' | 'needsSetup';
+
+function matchesUsage(app: Application, filter: UsageFilter): boolean {
+  switch (filter) {
+    case 'inUse': return app.assignedOrgCount > 0;
+    case 'unused': return !(app.assignedOrgCount > 0);
+    case 'needsSetup': return !!app.migrationApplication && !app.migrationConfigured;
+    default: return true;
   }
 }

@@ -156,6 +156,16 @@
             <p class="k">Tier</p>
             <p class="v">{{ o.isPaidOrg ? 'Paid' : 'Trial' }}</p>
           </div>
+          <div class="kv-item">
+            <p class="k">Sign-in</p>
+            <p class="v">{{ o.isSsoEnabled ? 'Single sign-on (Microsoft)' : 'FLIP login' }}</p>
+            <p class="v-sub" *ngIf="isAzureManaged()">Billing managed in Azure Marketplace</p>
+          </div>
+          <div class="kv-item">
+            <p class="k">Email domain</p>
+            <p class="v mono">{{ o.emailDomain ? '@' + o.emailDomain : '—' }}</p>
+            <p class="v-sub" *ngIf="o.emailDomain">New users must use this domain</p>
+          </div>
           <div class="kv-item" *ngIf="activeSub()">
             <p class="k">Subscription expires</p>
             <p class="v">{{ formatDate(activeSub()!.planEndDate) }}</p>
@@ -242,6 +252,8 @@
         [orgId]="orgId"
         [orgLabel]="org()?.organizationName || 'this organization'"
         [canManage]="isSuperAdmin()"
+        [emailDomain]="org()?.emailDomain"
+        [isSsoEnabled]="org()?.isSsoEnabled === true"
       ></app-org-users-roles>
     </div>
 
@@ -375,10 +387,11 @@
 
       <div class="field">
         <label>Tier</label>
-        <select class="input" [(ngModel)]="editIsPaidOrg">
+        <select class="input" [(ngModel)]="editIsPaidOrg" [disabled]="isAzureManaged()">
           <option [ngValue]="true">Paid</option>
           <option [ngValue]="false">Trial</option>
         </select>
+        <p class="hint" *ngIf="isAzureManaged()">Billed through Azure Marketplace — the tier follows the customer's Azure subscription.</p>
       </div>
 
       <p class="hint">The organization's web address and core infrastructure can't be changed here — they're already set up from onboarding.</p>

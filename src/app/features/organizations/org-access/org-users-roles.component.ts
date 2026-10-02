@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ModalShellComponent } from '../../../core/ui/modal-shell.component';
 import { StatusPillComponent } from '../../../core/ui/status-pill.component';
-import { OrgAccessService } from '../../../services/org-access.service';
+import { EMAIL_DOMAIN_MISMATCH, OrgAccessService } from '../../../services/org-access.service';
 import { ApplicationsService } from '../../../services/applications.service';
 import { PlansService } from '../../../services/plans.service';
 import { ToastService } from '../../../core/toast.service';
@@ -14,6 +14,17 @@ import { OrgRoleEditorComponent, messageOf } from './org-role-editor.component';
 
 type View = 'users' | 'roles';
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** 'kanerika.com' from 'Kanerika.com' or '@kanerika.com'; '' when there is no domain rule. */
+function normalizedDomain(domain: string | null | undefined): string {
+  return (domain ?? '').trim().toLowerCase().replace(/^@/, '');
+}
+
+/** The expected domain from the API's email-domain 409, or null for any other error. */
+function domainMismatchOf(error: unknown): string | null {
+  const http = error as { status?: number; error?: { code?: string; expectedDomain?: string } };
+  return http?.status === 409 && http.error?.code === EMAIL_DOMAIN_MISMATCH ? http.error.expectedDomain || "the organization's domain" : null;
+}
 
 /**
  * An organization's users and roles (new SaaS model): users hold subscription roles - Admin /
@@ -34,6 +45,9 @@ export class OrgUsersRolesComponent implements OnInit {
   @Input({ required: true }) orgId!: string;
   @Input({ required: true }) orgLabel!: string;
   @Input() canManage = false;
+  /** organizations1.email_domain: new users are expected on it. Blank means no rule. */
+  @Input() emailDomain: string | null | undefined = null;
+  @Input() isSsoEnabled = false;
 
   private access = inject(OrgAccessService);
   private applications = inject(ApplicationsService);
@@ -201,8 +215,37 @@ export class OrgUsersRolesComponent implements OnInit {
     return !!this.editingUser()?.primaryAdmin && role.roleType === 'ADMIN';
   }
 
+  /** Set when the email being typed isn't on the organization's domain (subdomains count as on it). */
+  readonly newEmailOffDomain = computed(() => {
+    const domain = normalizedDomain(this.emailDomain);
+    const email = this.newEmail().trim().toLowerCase();
+    if (!domain || !EMAIL_PATTERN.test(email)) return false;
+    const actual = email.slice(email.lastIndexOf('@') + 1);
+    return actual !== domain && !actual.endsWith('.' + domain);
+  });
+
+  readonly normalizedEmailDomain = computed(() => normalizedDomain(this.emailDomain));
+
   async addUser(): Promise<void> {
     if (!this.newUserValid() || this.busy()) return;
+    let allowOtherEmailDomain = false;
+    if (this.newEmailOffDomain() && !(allowOtherEmailDomain = await this.confirmOtherDomain(this.normalizedEmailDomain()))) return;
+    await this.submitNewUser(allowOtherEmailDomain);
+  }
+
+  /** An organization's users share one email domain; anything else is a deliberate, confirmed exception. */
+  private async confirmOtherDomain(expectedDomain: string): Promise<boolean> {
+    const email = this.newEmail().trim();
+    const decision = await this.confirm.open({
+      title: `Add ${email} outside @${expectedDomain}?`,
+      message: `Everyone in ${this.orgLabel} is expected to use an @${expectedDomain} address${this.isSsoEnabled ? ', and they sign in with their Microsoft account on that domain' : ''}. Only continue if this person really belongs to the organization.`,
+      confirmLabel: 'Add anyway',
+      danger: true
+    });
+    return decision.confirmed;
+  }
+
+  private async submitNewUser(allowOtherEmailDomain: boolean): Promise<void> {
     this.busy.set(true);
     try {
       const result = await this.access.createUser(this.orgId, this.orgLabel, {
@@ -210,7 +253,9 @@ export class OrgUsersRolesComponent implements OnInit {
         firstName: this.newFirst().trim(),
         lastName: this.newLast().trim(),
         roleIds: [...this.newRoles()],
-        sendCredentialsEmail: this.newSendEmail()
+        // SSO users get no password, so there is nothing to email.
+        sendCredentialsEmail: !this.isSsoEnabled && this.newSendEmail(),
+        ...(allowOtherEmailDomain ? { allowOtherEmailDomain: true } : {})
       });
       this.addOpen.set(false);
       await this.load();
@@ -218,6 +263,13 @@ export class OrgUsersRolesComponent implements OnInit {
       else this.toast.show(result.message || `${result.user.username} added`, 'success');
       if (result.emailError) this.toast.show(result.emailError, 'critical');
     } catch (error: unknown) {
+      const mismatch = domainMismatchOf(error);
+      if (mismatch && !allowOtherEmailDomain) {
+        // The server knows the domain even when this page doesn't (or had it stale): same confirmation.
+        this.busy.set(false);
+        if (await this.confirmOtherDomain(mismatch)) await this.submitNewUser(true);
+        return;
+      }
       this.toast.show(messageOf(error, 'Could not add the user'), 'critical');
     } finally {
       this.busy.set(false);
@@ -297,7 +349,7 @@ export class OrgUsersRolesComponent implements OnInit {
   }
 
   removeLockReason(user: OrgUser): string | null {
-    return user.primaryAdmin ? "The organization's original Admin (created at onboarding) can't be removed." : null;
+    return user.primaryAdmin ? "This is the organization's account owner (set up at onboarding), so they can't be removed." : null;
   }
 
   async removeUser(user: OrgUser): Promise<void> {
@@ -313,9 +365,11 @@ export class OrgUsersRolesComponent implements OnInit {
     if (!decision.confirmed) return;
     this.busy.set(true);
     try {
-      await this.access.removeUser(this.orgId, this.orgLabel, user);
+      const message = await this.access.removeUser(this.orgId, this.orgLabel, user);
       await this.load();
-      this.toast.show(`${user.username} removed from ${this.orgLabel}`, 'success');
+      // The API words a login left behind in Keycloak as a warning; show it as one.
+      if (message && /could not be deleted/i.test(message)) this.toast.show(`${user.username}: ${message}`, 'critical');
+      else this.toast.show(`${user.username} removed from ${this.orgLabel}`, 'success');
     } catch (error: unknown) {
       this.toast.show(messageOf(error, 'Could not remove the user'), 'critical');
     } finally {

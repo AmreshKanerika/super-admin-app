@@ -216,21 +216,6 @@
   transform: none;
 }
 
-/* Sits over the top-right corner of the guide and follows the reader down the page. */
-.read-toggle {
-  position: sticky;
-  top: 12px;
-  z-index: 6;
-  display: flex;
-  justify-content: flex-end;
-  height: 0;
-  margin-bottom: -18px;
-}
-
-.read-toggle .icon-tool {
-  transform: translate(-14px, 14px);
-}
-
 @media (prefers-reduced-motion: reduce) {
   .icon-tool,
   .icon-tool[data-tip]::after {

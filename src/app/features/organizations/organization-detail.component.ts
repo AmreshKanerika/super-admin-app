@@ -290,7 +290,8 @@ export class OrganizationDetailComponent {
   activeSub = computed(() => this.subscriptions.activeByOrg(this.orgId));
   allSubs = computed(() => this.subscriptions.byOrg(this.orgId));
 
-  isAzureManaged = computed(() => this.allSubs().some((sub) => sub.azureMarketplaceManaged === true));
+  isAzureManaged = computed(() => this.org()?.azureMarketplaceManaged === true
+    || this.allSubs().some((sub) => sub.azureMarketplaceManaged === true));
 
   readonly lifecycle = inject(SubscriptionLifecycleService);
 

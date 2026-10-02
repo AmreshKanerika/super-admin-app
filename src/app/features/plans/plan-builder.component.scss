@@ -1,1 +1,77 @@
 // Application explorer styles are scoped in _application-explorer.scss.
+
+.step-progress { margin: -6px 0 12px; font-size: 12.5px; color: var(--ink-faint); }
+.step-progress strong { color: var(--ink-soft); }
+
+/* Billing mode as two choice cards instead of a dropdown. */
+.billing-choice { border: 0; padding: 0; margin: 0; }
+.billing-choice legend { padding: 0; margin-bottom: 6px; font-size: 12.5px; font-weight: 600; color: var(--ink-soft); }
+.choice-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; max-width: 640px; }
+.choice-card {
+  position: relative; display: flex; align-items: center; gap: 12px; padding: 13px 14px; cursor: pointer;
+  border: 1px solid var(--line-strong); border-radius: 12px; background: #fff; transition: border-color .15s, box-shadow .15s;
+}
+.choice-card:hover { border-color: #cdbfe2; }
+.choice-card.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; background: #fbf9fe; }
+.choice-card input { position: absolute; opacity: 0; pointer-events: none; }
+.choice-card:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+.cc-icon { display: grid; place-items: center; width: 36px; height: 36px; flex: none; border-radius: 10px; background: #f1ecf9; color: #6a3fb1; font-size: 18px; }
+.cc-text { display: flex; flex-direction: column; min-width: 0; }
+.cc-text strong { font-size: 13.5px; color: var(--ink); }
+.cc-text small { font-size: 12px; color: var(--ink-faint); }
+.cc-check { margin-left: auto; font-size: 18px; color: var(--accent); opacity: 0; }
+.choice-card.on .cc-check { opacity: 1; }
+
+/* Primary application, above the table. */
+.primary-app-card { display: flex; gap: 12px; align-items: flex-start; margin: 14px 0 4px; padding: 14px 16px; border: 1px solid #e3dbef; border-radius: 12px; background: #faf8fd; }
+.primary-app-card.missing { border-color: #f0d58f; background: #fffaeb; }
+.pa-icon { display: grid; place-items: center; width: 34px; height: 34px; flex: none; border-radius: 10px; background: #efe9fa; color: #6a3fb1; font-size: 17px; }
+.primary-app-card.missing .pa-icon { background: #fff1c9; color: #94690c; }
+.pa-field { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.pa-field label { font-size: 13px; font-weight: 650; color: var(--ink); display: flex; align-items: center; gap: 8px; }
+.pa-field select { max-width: 520px; }
+.pa-field .hint { margin: 0; }
+.req { padding: 1px 7px; border-radius: 999px; background: #fdecef; color: #b23b52; font-size: 10.5px; font-weight: 700; }
+
+/* Action bar pinned to the bottom of the screen while the steps are longer than it.
+   Solid, with a shadow above it, so rows scrolling underneath never show through. */
+.sticky-actions {
+  position: sticky; bottom: 12px; z-index: 6;
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 16px;
+  margin: 20px -8px -8px; padding: 12px 16px;
+  border: 1px solid #e3dff0; border-radius: 14px; background: #fff;
+  box-shadow: 0 -2px 6px rgba(31, 23, 52, .04), 0 12px 32px rgba(31, 23, 52, .14);
+}
+.sticky-actions .spacer { display: none; }
+.wa-cancel { color: var(--ink-soft); }
+.wa-middle { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.wa-step { display: inline-flex; gap: 5px; flex: none; }
+.wa-dot { width: 8px; height: 8px; border-radius: 50%; background: #e2dcef; }
+.wa-dot.done { background: #a98bd0; }
+.wa-dot.current { width: 22px; border-radius: 999px; background: var(--accent); }
+.wa-text { display: flex; flex-direction: column; min-width: 0; }
+.wa-text strong { font-size: 12.5px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wa-status { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--ink-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wa-status.blocked { color: #8a6210; }
+.wa-status i { font-size: 14px; flex: none; }
+.wa-nav { display: inline-flex; align-items: center; gap: 8px; }
+.wa-nav .btn i { font-size: 15px; }
+.wa-nav .ti-loader-2 { animation: wa-spin 1s linear infinite; }
+@keyframes wa-spin { to { transform: rotate(360deg); } }
+
+/* Narrow screens: the steps shrink to numbers, and the table drops columns instead of scrolling. */
+@media (max-width: 760px) {
+  :host ::ng-deep .stepper .step { font-size: 0; gap: 0; }
+  :host ::ng-deep .stepper .step.current { font-size: 12.5px; gap: 8px; }
+  :host ::ng-deep .stepper .step .n { font-size: 12px; }
+  .col-scopes, .col-readonly { display: none; }
+  :host ::ng-deep .application-workspace .limits-table { min-width: 0; }
+  :host ::ng-deep .application-workspace .access-toggle button { padding: 4px 7px; font-size: 11px; }
+  .choice-grid { grid-template-columns: 1fr; }
+  /* Phones: progress on top, then Cancel left and Back/Next right. */
+  .sticky-actions { grid-template-columns: auto 1fr; gap: 10px 12px; margin: 16px -10px -10px; padding: 10px 12px; bottom: 8px; }
+  .wa-middle { grid-column: 1 / -1; order: -1; }
+  .wa-nav { justify-self: end; }
+  .wa-nav .btn.primary { padding-inline: 14px; }
+}
+@media (prefers-reduced-motion: reduce) { .choice-card { transition: none; } .wa-nav .ti-loader-2 { animation: none; } }

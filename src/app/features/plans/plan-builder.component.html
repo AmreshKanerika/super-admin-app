@@ -16,6 +16,7 @@
     <div class="step-sep" *ngIf="i < stepLabels.length - 1"></div>
   </ng-container>
 </div>
+<p class="step-progress">Step {{ step() + 1 }} of {{ stepLabels.length }} · <strong>{{ stepLabels[step()] }}</strong></p>
 
 <div class="panel">
   <div *ngIf="editingPlanId && !loadedEditingPlan" class="loading-placeholder">
@@ -40,15 +41,17 @@
       <label>Description</label>
       <textarea class="input" rows="2" [(ngModel)]="description" placeholder="What is this plan for, and who is it built for?"></textarea>
     </div>
-    <div class="row gap-16">
-      <div class="field" style="flex:1">
-        <label>Billing mode</label>
-        <select class="input" [(ngModel)]="billingMode">
-          <option value="PREPAID">Prepaid</option>
-          <option value="METERED">Metered</option>
-        </select>
+    <fieldset class="field billing-choice">
+      <legend>Billing mode</legend>
+      <div class="choice-grid" role="radiogroup" aria-label="Billing mode">
+        <label class="choice-card" *ngFor="let b of billingOptions" [class.on]="billingMode === b.value">
+          <input type="radio" name="billingMode" [value]="b.value" [(ngModel)]="billingMode" />
+          <span class="cc-icon"><i class="ti" [ngClass]="b.icon" aria-hidden="true"></i></span>
+          <span class="cc-text"><strong>{{ b.label }}</strong><small>{{ b.hint }}</small></span>
+          <i class="ti ti-circle-check cc-check" aria-hidden="true"></i>
+        </label>
       </div>
-    </div>
+    </fieldset>
   </div>
 
 <div *ngIf="step() === 1 || step() === 2" class="application-workspace">
@@ -58,6 +61,19 @@
       <h2>{{ step() === 1 ? 'Choose application access' : 'Set application allowances' }}</h2>
       <p *ngIf="step() === 1">Switch on every application this plan grants. Access cascades to nested applications, and enabling one turns on its parent chain.</p>
       <p *ngIf="step() === 2">Every enabled application starts <strong>unlimited</strong> — click an allowance to cap it. Leave it as it is where the plan should not limit usage.</p>
+    </div>
+  </div>
+
+  <!-- Required to continue, so it sits above the table instead of after it. -->
+  <div class="primary-app-card" *ngIf="step() === 1" [class.missing]="!primaryAppValid()">
+    <span class="pa-icon"><i class="ti ti-star" aria-hidden="true"></i></span>
+    <div class="pa-field">
+      <label for="primary-app">Primary application <span class="req">Required</span></label>
+      <select id="primary-app" class="input" [(ngModel)]="primaryAppId" [disabled]="!primaryAppOptions().length">
+        <option value="">{{ primaryAppOptions().length ? 'Select the accelerator this plan bills against…' : 'Enable an application below first' }}</option>
+        <option *ngFor="let row of primaryAppOptions()" [value]="row.app.appId">{{ row.app | appDisplayName }}</option>
+      </select>
+      <p class="hint">A subscription is billed and de-duplicated against this application. A plan without one can't be onboarded.</p>
     </div>
   </div>
 
@@ -92,8 +108,8 @@
       <thead>
         <tr>
           <th>Application</th>
-          <th class="col-access">Access</th>
-          <th *ngIf="step() === 1">Scopes</th>
+          <th class="col-access" [class.col-readonly]="step() === 2">Access</th>
+          <th class="col-scopes" *ngIf="step() === 1">Scopes</th>
           <th class="col-limit" *ngIf="step() === 2">Design-time</th>
           <th class="col-limit" *ngIf="step() === 2">Runtime</th>
         </tr>
@@ -123,16 +139,16 @@
             </span>
           </td>
 
-          <td class="col-access">
+          <td class="col-access" [class.col-readonly]="step() === 2">
             <span class="access-toggle" *ngIf="step() === 1" role="group" [attr.aria-label]="'Access for ' + (row.app | appDisplayName)">
               <button type="button" class="on-enabled" [class.on]="row.accessStatus === 'ENABLED'" [attr.aria-pressed]="row.accessStatus === 'ENABLED'" (click)="setAccessStatus(row, 'ENABLED')">Enabled</button>
               <button type="button" class="on-disabled" [class.on]="row.accessStatus === 'DISABLED'" [attr.aria-pressed]="row.accessStatus === 'DISABLED'" (click)="setAccessStatus(row, 'DISABLED')">Disabled</button>
               <button type="button" class="on-hidden" [class.on]="row.accessStatus === 'HIDDEN'" [attr.aria-pressed]="row.accessStatus === 'HIDDEN'" (click)="setAccessStatus(row, 'HIDDEN')">Hidden</button>
             </span>
-            <span class="access-readonly" *ngIf="step() === 2" [class.on]="row.accessStatus === 'ENABLED'">{{ row.accessStatus }}</span>
+            <span class="access-readonly" *ngIf="step() === 2" [class.on]="row.accessStatus === 'ENABLED'">{{ accessLabel(row.accessStatus) }}</span>
           </td>
 
-          <td *ngIf="step() === 1" class="scopes-cell">
+          <td *ngIf="step() === 1" class="scopes-cell col-scopes">
             <span class="scope-chip" *ngFor="let scope of row.app.scopes" [attr.data-scope]="scope">{{ scope }}</span>
             <span class="muted" *ngIf="!row.app.scopes?.length">No scopes</span>
           </td>
@@ -183,19 +199,6 @@
   </div>
 </ng-template>
 
-  <div *ngIf="step() === 1" class="step-body primary-app-picker">
-    <div class="field">
-      <label>Primary application</label>
-      <select class="input" [(ngModel)]="primaryAppId">
-        <option value="">Select the accelerator this plan bills against…</option>
-        <option *ngFor="let row of primaryAppOptions()" [value]="row.app.appId">{{ row.app | appDisplayName }}</option>
-      </select>
-      <p class="hint">
-        A subscription is billed and de-duplicated against this application. A plan without one cannot be onboarded.
-      </p>
-    </div>
-  </div>
-
   <!-- STEP 3: REVIEW -->
   <div *ngIf="step() === 3" class="step-body">
     <section class="review-card">
@@ -203,7 +206,7 @@
       <div class="review-grid">
         <div class="kv-item"><p class="k">Display name</p><p class="v">{{ displayName || planName }}</p></div>
         <div class="kv-item"><p class="k">Plan key</p><p class="v mono">{{ planName }}</p></div>
-        <div class="kv-item"><p class="k">Billing mode</p><p class="v">{{ billingMode }}</p></div>
+        <div class="kv-item"><p class="k">Billing mode</p><p class="v">{{ billingMode === 'METERED' ? 'Metered' : 'Prepaid' }}</p></div>
         <div class="kv-item"><p class="k">Description</p><p class="v" [class.is-empty]="!description">{{ description || 'No description' }}</p></div>
         <div class="kv-item"><p class="k">Applications enabled</p><p class="v">{{ enabledRows().length }}</p></div>
       </div>
@@ -245,15 +248,35 @@
     </section>
   </div>
 
-  <div class="wizard-actions">
-    <button type="button" class="btn ghost" (click)="cancel()">Cancel</button>
-    <div class="spacer"></div>
-    <button type="button" class="btn ghost" *ngIf="step() > 0" (click)="back()">Back</button>
-    <button type="button" class="btn primary" *ngIf="step() < stepLabels.length - 1" [disabled]="!canGoNext()" (click)="next()">Next</button>
-    <button type="button" class="btn primary" *ngIf="step() === stepLabels.length - 1" (click)="save()" [disabled]="!canGoNext() || saving">
-      <span *ngIf="!saving">{{ editingPlanId ? 'Save changes' : 'Create plan' }}</span>
-      <span *ngIf="saving">Saving…</span>
-    </button>
+  <!-- Pinned to the bottom so Next is reachable without scrolling past a long table. -->
+  <div class="wizard-actions sticky-actions" role="group" aria-label="Plan builder steps">
+    <button type="button" class="btn ghost wa-cancel" (click)="cancel()">Cancel</button>
+
+    <div class="wa-middle">
+      <span class="wa-step" aria-hidden="true">
+        <span *ngFor="let label of stepLabels; let i = index" class="wa-dot" [class.done]="i < step()" [class.current]="i === step()"></span>
+      </span>
+      <span class="wa-text">
+        <strong>Step {{ step() + 1 }} of {{ stepLabels.length }} · {{ stepLabels[step()] }}</strong>
+        <span class="wa-status" [class.blocked]="!!nextBlocker()" aria-live="polite">
+          <i class="ti" [class.ti-alert-circle]="!!nextBlocker()" [class.ti-apps]="!nextBlocker()" aria-hidden="true"></i>
+          {{ nextBlocker() || (enabledRows().length + ' application' + (enabledRows().length === 1 ? '' : 's') + ' enabled') }}
+        </span>
+      </span>
+    </div>
+
+    <div class="wa-nav">
+      <button type="button" class="btn ghost" *ngIf="step() > 0" (click)="back()">
+        <i class="ti ti-arrow-left" aria-hidden="true"></i> Back
+      </button>
+      <button type="button" class="btn primary" *ngIf="step() < stepLabels.length - 1" [disabled]="!canGoNext()" (click)="next()">
+        Next: {{ stepLabels[step() + 1] }} <i class="ti ti-arrow-right" aria-hidden="true"></i>
+      </button>
+      <button type="button" class="btn primary" *ngIf="step() === stepLabels.length - 1" (click)="save()" [disabled]="!canGoNext() || saving">
+        <i class="ti" [class.ti-device-floppy]="!saving" [class.ti-loader-2]="saving" aria-hidden="true"></i>
+        {{ saving ? 'Saving…' : (editingPlanId ? 'Save changes' : 'Create plan') }}
+      </button>
+    </div>
   </div>
   </ng-container>
 </div>

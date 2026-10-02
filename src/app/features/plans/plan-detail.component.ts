@@ -1,6 +1,6 @@
 import { TreeBranchComponent } from '../../core/ui/tree-branch.component';
 import { PlanDisplayNamePipe } from '../../core/plan-name.pipe';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, HostListener, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -82,6 +82,46 @@ export class PlanDetailComponent {
   });
 
   readonly appQuery = signal('');
+  /** Show every app in the plan, only the ones it grants, or only the ones switched off. */
+  readonly accessFilter = signal<'all' | 'on' | 'off'>('all');
+  readonly orgQuery = signal('');
+  readonly moreOpen = signal(false);
+
+  readonly enabledCount = computed(() => this.sortedApps().filter((a) => a.accessStatus === 'ENABLED').length);
+
+  /** The organizations panel gets a search once the list is long enough to need one. */
+  readonly filteredOrgs = computed(() => {
+    const q = this.orgQuery().trim().toLowerCase();
+    return q ? this.usingOrgs().filter((r) => r.org.organizationName.toLowerCase().includes(q)) : this.usingOrgs();
+  });
+
+  toggleMore(event: MouseEvent): void {
+    event.stopPropagation();
+    this.moreOpen.update((open) => !open);
+  }
+
+  @HostListener('document:click')
+  @HostListener('document:keydown.escape')
+  closeMore(): void {
+    this.moreOpen.set(false);
+  }
+
+  typeLabel(type: string): string {
+    return type ? type.charAt(0) + type.slice(1).toLowerCase() : '';
+  }
+
+  billingLabel(mode: string): string {
+    return mode === 'METERED' ? 'Metered' : mode === 'PREPAID' ? 'Prepaid' : this.typeLabel(mode);
+  }
+
+  accessLabel(status: string): string {
+    return status === 'ENABLED' ? 'Enabled' : status === 'HIDDEN' ? 'Hidden' : 'Off';
+  }
+
+  /** Same palette as the plans list, so a plan's type reads the same everywhere. */
+  typeTone(type: string): string {
+    return ({ DEFAULT: '#6a3fb1', CUSTOM: '#c2417f', PAID: '#2a78d6', TRIAL: '#d9682b' } as Record<string, string>)[type] ?? '#5b6b86';
+  }
   expandAllApps(): void { this.expandedAppIds.set(new Set(this.parentAppIds())); }
   collapseAllApps(): void { this.expandedAppIds.set(new Set<string>()); }
 
@@ -107,7 +147,14 @@ export class PlanDetailComponent {
       depthOf: (row) => row.depth,
       idOf: (row) => row.appId,
       collapsedIds: this.collapsedAppIds(),
-      matches: this.appQuery().trim() ? row => this.appDisplayName(row.appId).toLowerCase().includes(this.appQuery().trim().toLowerCase()) : null
+      matches: this.appQuery().trim() || this.accessFilter() !== 'all'
+        ? (row) => {
+            const q = this.appQuery().trim().toLowerCase();
+            const access = this.accessFilter();
+            const on = row.accessStatus === 'ENABLED';
+            return (!q || this.appDisplayName(row.appId).toLowerCase().includes(q)) && (access === 'all' || (access === 'on') === on);
+          }
+        : null
     })
   );
 

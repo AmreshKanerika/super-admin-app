@@ -1,157 +1,184 @@
 <ng-container *ngIf="plan() as p">
-  <app-page-header eyebrow="Plan" [title]="p | planDisplayName" [subtitle]="p.description || p.planName" [showBack]="true" [backUrl]="'/plans'">
+  <app-page-header eyebrow="Subscription plan" [title]="p | planDisplayName" [subtitle]="p.description || p.planName" [showBack]="true" [backUrl]="'/plans'">
     <app-status-pill [label]="p.planState" [tone]="tone(p.planState)"></app-status-pill>
-    <button type="button" class="btn ghost" (click)="openAssign()">Assign to organization</button>
-    <a
-      class="btn ghost"
-      [routerLink]="['/plans', p.planId, 'edit']"
-      *ngIf="p.planType === 'CUSTOM'"
-    >
-      Edit
+    <a class="btn ghost" [routerLink]="['/plans', p.planId, 'edit']" *ngIf="p.planType === 'CUSTOM'">
+      <i class="ti ti-pencil" aria-hidden="true"></i> Edit
     </a>
-    <button type="button" class="btn ghost" [disabled]="cloning()" (click)="clone()">{{ cloning() ? 'Cloning…' : 'Clone' }}</button>
-    <button
-      type="button"
-      class="btn danger"
-      *ngIf="p.planType === 'CUSTOM'"
-      [disabled]="!canEditOrDelete() || deleting()"
-      [title]="!canEditOrDelete() ? 'Assigned to ' + usingOrgs().length + ' organization(s) — unassign first' : ''"
-      (click)="delete()"
-    >
-      Delete
+    <button type="button" class="btn primary" (click)="openAssign()">
+      <i class="ti ti-building-plus" aria-hidden="true"></i> Assign to organization
     </button>
-    <button type="button" class="btn danger" *ngIf="p.planState !== 'ARCHIVED'" (click)="setArchived(true)">Archive</button>
-    <button type="button" class="btn primary" *ngIf="p.planState === 'ARCHIVED'" (click)="setArchived(false)">Reactivate</button>
+
+    <!-- Less frequent actions live behind one menu so the header doesn't wrap into two rows. -->
+    <div class="more-menu" (click)="$event.stopPropagation()">
+      <button type="button" class="btn ghost icon-only" (click)="toggleMore($event)" [attr.aria-expanded]="moreOpen()" aria-haspopup="menu" aria-label="More actions" title="More actions">
+        <i class="ti ti-dots" aria-hidden="true"></i>
+      </button>
+      <div class="more-pop" role="menu" *ngIf="moreOpen()">
+        <button type="button" role="menuitem" [disabled]="cloning()" (click)="closeMore(); clone()">
+          <i class="ti ti-copy" aria-hidden="true"></i> {{ cloning() ? 'Cloning…' : 'Clone plan' }}
+        </button>
+        <button type="button" role="menuitem" *ngIf="p.planState !== 'ARCHIVED'" (click)="closeMore(); setArchived(true)">
+          <i class="ti ti-archive" aria-hidden="true"></i> Archive
+        </button>
+        <button type="button" role="menuitem" *ngIf="p.planState === 'ARCHIVED'" (click)="closeMore(); setArchived(false)">
+          <i class="ti ti-refresh" aria-hidden="true"></i> Reactivate
+        </button>
+        <button type="button" role="menuitem" class="danger" *ngIf="p.planType === 'CUSTOM'"
+                [disabled]="!canEditOrDelete() || deleting()" (click)="closeMore(); delete()"
+                [title]="!canEditOrDelete() ? 'Assigned to ' + usingOrgs().length + ' organization(s) — unassign first' : ''">
+          <i class="ti ti-trash" aria-hidden="true"></i> Delete plan
+          <small *ngIf="!canEditOrDelete()">In use</small>
+        </button>
+      </div>
+    </div>
   </app-page-header>
 
-  <div class="grid-2">
-    <div class="panel">
-      <h3 class="panel-title">Plan details</h3>
-      <div class="kv-grid">
-        <div class="kv-item"><p class="k">Type</p><p class="v">{{ p.planType }}</p></div>
-        <div class="kv-item"><p class="k">Billing mode</p><p class="v">{{ p.billingMode }}</p></div>
-        <div class="kv-item"><p class="k">Created</p><p class="v">{{ formatDate(p.createdDate) }}</p></div>
-        <div class="kv-item"><p class="k">Organizations using this plan</p><p class="v mono">{{ usingOrgs().length }}</p></div>
+  <!-- Plan at a glance. -->
+  <div class="plan-summary" [style.--tone]="typeTone(p.planType)">
+    <div class="sum-tile">
+      <span class="sum-icon"><i class="ti ti-tag" aria-hidden="true"></i></span>
+      <span><small>Type</small><strong><span class="type-badge">{{ typeLabel(p.planType) }}</span></strong></span>
+    </div>
+    <div class="sum-tile">
+      <span class="sum-icon billing" [class.metered]="p.billingMode === 'METERED'">
+        <i class="ti" [class.ti-gauge]="p.billingMode === 'METERED'" [class.ti-wallet]="p.billingMode !== 'METERED'" aria-hidden="true"></i>
+      </span>
+      <span><small>Billing</small><strong>{{ billingLabel(p.billingMode) }}</strong></span>
+    </div>
+    <div class="sum-tile">
+      <span class="sum-icon apps"><i class="ti ti-apps" aria-hidden="true"></i></span>
+      <span><small>Applications granted</small><strong>{{ enabledCount() }} <em>of {{ sortedApps().length }}</em></strong></span>
+    </div>
+    <div class="sum-tile">
+      <span class="sum-icon orgs"><i class="ti ti-building" aria-hidden="true"></i></span>
+      <span><small>Organizations</small><strong>{{ usingOrgs().length || 'None yet' }}</strong></span>
+    </div>
+    <div class="sum-tile">
+      <span class="sum-icon created"><i class="ti ti-calendar" aria-hidden="true"></i></span>
+      <span><small>Created</small><strong>{{ formatDate(p.createdDate) }}</strong></span>
+    </div>
+  </div>
+
+  <div class="detail-layout">
+    <!-- Applications & allowances -->
+    <section class="panel apps-panel application-workspace" aria-labelledby="apps-title">
+      <header class="panel-head">
+        <div>
+          <h2 id="apps-title">Applications &amp; allowances</h2>
+          <p>What this plan grants and the allowance for each application. Organization-specific overrides live under <em>Apps &amp; limits</em> on the organization.</p>
+        </div>
+        <a class="btn ghost sm" *ngIf="p.planType === 'CUSTOM'" [routerLink]="['/plans', p.planId, 'edit']"><i class="ti ti-adjustments" aria-hidden="true"></i> Edit configuration</a>
+      </header>
+
+      <div class="grid-bar">
+        <label class="grid-search">
+          <i class="ti ti-search" aria-hidden="true"></i>
+          <input type="search" class="input" placeholder="Find an application…" aria-label="Find an application"
+                 [ngModel]="appQuery()" (ngModelChange)="appQuery.set($event)" />
+        </label>
+        <div class="seg" role="radiogroup" aria-label="Access">
+          <button type="button" role="radio" [attr.aria-checked]="accessFilter() === 'all'" [class.on]="accessFilter() === 'all'" (click)="accessFilter.set('all')">All</button>
+          <button type="button" role="radio" [attr.aria-checked]="accessFilter() === 'on'" [class.on]="accessFilter() === 'on'" (click)="accessFilter.set('on')">Granted</button>
+          <button type="button" role="radio" [attr.aria-checked]="accessFilter() === 'off'" [class.on]="accessFilter() === 'off'" (click)="accessFilter.set('off')">Not granted</button>
+        </div>
+        <div class="tree-tools">
+          <button type="button" class="btn sm ghost" (click)="expandAllApps()" title="Expand all"><i class="ti ti-fold-down" aria-hidden="true"></i><span>Expand</span></button>
+          <button type="button" class="btn sm ghost" (click)="collapseAllApps()" title="Collapse all"><i class="ti ti-fold-up" aria-hidden="true"></i><span>Collapse</span></button>
+        </div>
       </div>
 
-<div class="application-workspace">
-  <div class="workspace-intro">
-    <div>
-      <span class="workspace-eyebrow">PLAN CONFIGURATION</span>
-      <h2>Applications &amp; allowances</h2>
-      <p>Everything this plan grants, with the allowance set for each application. Organization-specific overrides live under Apps &amp; limits.</p>
-    </div>
-    <a class="btn ghost sm" *ngIf="p.planType === 'CUSTOM'" [routerLink]="['/plans', p.planId, 'edit']">Edit configuration</a>
-  </div>
+      <div class="table-wrap" *ngIf="appTreeRows().length; else noApps">
+        <table class="dtable limits-table">
+          <thead>
+            <tr>
+              <th>Application</th>
+              <th class="col-access">Access</th>
+              <th class="col-limit num">Design-time</th>
+              <th class="col-limit num">Runtime</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let row of appTreeRows(); trackBy: trackByPlanAppId" class="limit-row" [class.is-off]="row.accessStatus !== 'ENABLED'">
+              <td class="app-cell">
+                <span class="tree-cell">
+                  <app-tree-branch [rails]="row.rails" [depth]="row.depth" [last]="row.isLastChild"></app-tree-branch>
+                  <button type="button" class="twisty" *ngIf="row.hasChildren; else noTwisty" [attr.aria-expanded]="row.expanded"
+                          [attr.aria-label]="(row.expanded ? 'Collapse ' : 'Expand ') + appDisplayName(row.appId)" (click)="toggleAppCollapsed(row.appId)">
+                    <i class="ti" [class.ti-chevron-down]="row.expanded" [class.ti-chevron-right]="!row.expanded" aria-hidden="true"></i>
+                  </button>
+                  <ng-template #noTwisty><span class="twisty-spacer" aria-hidden="true"></span></ng-template>
+                  <span class="app-name">{{ appDisplayName(row.appId) }}</span>
+                  <span class="child-count" *ngIf="row.hasChildren && !row.expanded">{{ row.descendantCount }}</span>
+                </span>
+                <!-- Access and allowances move under the name on narrow screens. -->
+                <span class="row-meta">
+                  <span class="access-pill" [class.on]="row.accessStatus === 'ENABLED'">{{ accessLabel(row.accessStatus) }}</span>
+                  <span *ngIf="row.accessStatus === 'ENABLED'">Design {{ allowanceLabel(row, 'design') }} · Runtime {{ allowanceLabel(row, 'runtime') }}</span>
+                </span>
+              </td>
+              <td class="col-access"><span class="access-pill" [class.on]="row.accessStatus === 'ENABLED'">{{ accessLabel(row.accessStatus) }}</span></td>
+              <td class="col-limit num"><span class="allowance" [class.unlimited]="row.accessStatus === 'ENABLED' && row.designTimeLimit === -1" [class.blocked]="row.accessStatus === 'ENABLED' && row.designTimeLimit === 0">{{ row.accessStatus === 'ENABLED' ? allowanceLabel(row, 'design') : '—' }}</span></td>
+              <td class="col-limit num"><span class="allowance" [class.unlimited]="row.accessStatus === 'ENABLED' && row.runtimeLimit === -1" [class.blocked]="row.accessStatus === 'ENABLED' && row.runtimeLimit === 0">{{ row.accessStatus === 'ENABLED' ? allowanceLabel(row, 'runtime') : '—' }}</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <ng-template #noApps>
+        <div class="empty-note"><i class="ti ti-search-off" aria-hidden="true"></i> No applications match. <button type="button" class="link" (click)="appQuery.set(''); accessFilter.set('all')">Clear</button></div>
+      </ng-template>
 
-  <div class="grid-bar">
-    <label class="grid-search">
-      <i class="ti ti-search" aria-hidden="true"></i>
-      <input
-        type="search"
-        class="input"
-        placeholder="Find an application…"
-        aria-label="Find an application"
-        [ngModel]="appQuery()"
-        (ngModelChange)="appQuery.set($event)"
-      />
-    </label>
+      <p class="grid-help"><i class="ti ti-info-circle" aria-hidden="true"></i> ∞ means the plan sets no cap. An allowance of 0 blocks usage.</p>
+    </section>
 
-    <span class="grid-count">{{ appTreeRows().length }} shown</span>
+    <!-- Organizations on this plan -->
+    <aside class="panel orgs-panel" aria-labelledby="orgs-title">
+      <header class="panel-head">
+        <div>
+          <h2 id="orgs-title">Organizations <span class="count-badge">{{ usingOrgs().length }}</span></h2>
+          <p>Subscribed to this plan right now.</p>
+        </div>
+      </header>
 
-    <button type="button" class="btn sm ghost" (click)="expandAllApps()"><i class="ti ti-fold-down" aria-hidden="true"></i> Expand all</button>
-    <button type="button" class="btn sm ghost" (click)="collapseAllApps()"><i class="ti ti-fold-up" aria-hidden="true"></i> Collapse all</button>
-  </div>
+      <label class="grid-search org-search" *ngIf="usingOrgs().length > 6">
+        <i class="ti ti-search" aria-hidden="true"></i>
+        <input type="search" class="input" placeholder="Find an organization…" aria-label="Find an organization"
+               [ngModel]="orgQuery()" (ngModelChange)="orgQuery.set($event)" />
+      </label>
 
-  <div class="scroll-x">
-    <table class="dtable limits-table">
-      <thead>
-        <tr>
-          <th>Application</th>
-          <th class="col-access">Access</th>
-          <th class="col-limit">Design-time</th>
-          <th class="col-limit">Runtime</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr
-          *ngFor="let row of appTreeRows(); trackBy: trackByPlanAppId"
-          class="limit-row"
-          [class.is-off]="row.accessStatus !== 'ENABLED'"
-        >
-          <td class="app-cell">
-            <span class="tree-cell">
-              <app-tree-branch [rails]="row.rails" [depth]="row.depth" [last]="row.isLastChild"></app-tree-branch>
-              <button
-                type="button"
-                class="twisty"
-                *ngIf="row.hasChildren; else noTwisty"
-                [attr.aria-expanded]="row.expanded"
-                [attr.aria-label]="(row.expanded ? 'Collapse ' : 'Expand ') + appDisplayName(row.appId)"
-                (click)="toggleAppCollapsed(row.appId)"
-              >
-                <i class="ti" [class.ti-chevron-down]="row.expanded" [class.ti-chevron-right]="!row.expanded" aria-hidden="true"></i>
-              </button>
-              <ng-template #noTwisty><span class="twisty-spacer" aria-hidden="true"></span></ng-template>
-              <span class="app-name">{{ appDisplayName(row.appId) }}</span>
-              <span class="child-count" *ngIf="row.hasChildren && !row.expanded">{{ row.descendantCount }}</span>
-            </span>
-          </td>
-
-          <td class="col-access">
-            <span class="access-readonly" [class.on]="row.accessStatus === 'ENABLED'">{{ row.accessStatus }}</span>
-          </td>
-
-          <td class="col-limit">
-            <span class="plan-allowance" [title]="'Design-time: ' + allowanceLabel(row, 'design')">{{ allowanceLabel(row, 'design') }}</span>
-          </td>
-
-          <td class="col-limit">
-            <span class="plan-allowance" [title]="'Runtime: ' + allowanceLabel(row, 'runtime')">{{ allowanceLabel(row, 'runtime') }}</span>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-
-  <p class="grid-help">∞ means the plan sets no cap. An allowance of 0 prevents usage.</p>
-</div>
-    </div>
-
-    <div class="panel">
-      <h3 class="panel-title">Organizations on this plan</h3>
-      <table class="dtable" *ngIf="usingOrgs().length; else noOrgs">
-        <thead>
-          <tr>
-            <th>Organization</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr *ngFor="let r of usingOrgs()">
-            <td class="strong"><a class="row-link" [routerLink]="['/organizations', r.org.orgId]">{{ r.org.organizationName }}</a></td>
-            <td><app-status-pill *ngIf="r.subscription" [label]="r.subscription.planStatus" [tone]="subscriptionTone(r.subscription.planStatus)"></app-status-pill></td>
-          </tr>
-        </tbody>
-      </table>
-      <ng-template #noOrgs><p class="text-muted" style="padding:20px 0;text-align:center">No organizations are on this plan.</p></ng-template>
-    </div>
+      <ul class="org-list" *ngIf="filteredOrgs().length; else noOrgs">
+        <li *ngFor="let r of filteredOrgs()">
+          <a [routerLink]="['/organizations', r.org.orgId]">
+            <span class="org-avatar" aria-hidden="true">{{ r.org.organizationName.charAt(0).toUpperCase() }}</span>
+            <span class="org-name">{{ r.org.organizationName }}</span>
+            <app-status-pill *ngIf="r.subscription" [label]="r.subscription.planStatus" [tone]="subscriptionTone(r.subscription.planStatus)"></app-status-pill>
+            <i class="ti ti-chevron-right org-go" aria-hidden="true"></i>
+          </a>
+        </li>
+      </ul>
+      <ng-template #noOrgs>
+        <div class="orgs-empty">
+          <i class="ti ti-building-off" aria-hidden="true"></i>
+          <p>{{ orgQuery() ? 'No organization matches.' : 'No organizations are on this plan yet.' }}</p>
+          <button type="button" class="btn sm primary" *ngIf="!orgQuery()" (click)="openAssign()">Assign to organization</button>
+        </div>
+      </ng-template>
+    </aside>
   </div>
 
   <div class="backdrop" *ngIf="assignOpen()" (click)="closeAssign()">
-    <div class="panel detail-panel" (click)="$event.stopPropagation()">
+    <div class="panel detail-panel" role="dialog" aria-modal="true" aria-labelledby="assign-title" (click)="$event.stopPropagation()">
       <div class="dp-head">
-        <h3>Assign "{{ p | planDisplayName }}" to an organization</h3>
-        <button type="button" class="x" (click)="closeAssign()">âœ•</button>
+        <h3 id="assign-title">Assign "{{ p | planDisplayName }}" to an organization</h3>
+        <button type="button" class="x" (click)="closeAssign()" aria-label="Close"><i class="ti ti-x" aria-hidden="true"></i></button>
       </div>
 
       <div class="field" *ngIf="unassignedOrgs().length; else noneToAssign">
-        <label>Organization</label>
-        <select class="input" [(ngModel)]="assignOrgId">
+        <label for="assign-org">Organization</label>
+        <select id="assign-org" class="input" [(ngModel)]="assignOrgId">
           <option value="">Select an organization…</option>
           <option *ngFor="let org of unassignedOrgs()" [value]="org.orgId">{{ org.organizationName }}</option>
         </select>
-        <p class="hint">Only organizations without an active subscription are shown. To move an organization onto a different plan, use the Change plan action on its subscription instead.</p>
+        <p class="hint">Only organizations without an active subscription are shown. To move an organization onto a different plan, use Change plan on its subscription instead.</p>
       </div>
       <ng-template #noneToAssign>
         <p class="text-muted" style="padding:8px 0">Every organization already has an active subscription.</p>

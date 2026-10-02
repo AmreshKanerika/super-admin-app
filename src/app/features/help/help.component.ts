@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, HostListener, OnDestroy, computed, inject, signal } from '@angular/core';
+import { AfterViewInit, Component, HostListener, OnDestroy, computed, effect, inject, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { PageHeaderComponent } from '../../core/ui/page-header.component';
@@ -31,11 +31,84 @@ export class HelpComponent implements AfterViewInit, OnDestroy {
   lightbox = signal<Lightbox | null>(null);
   /** Remembered per browser, so a reader who prefers the wide view keeps it. */
   readingMode = signal(readPreference(READING_MODE_KEY));
-  stagesCollapsed = signal(readPreference(STAGES_COLLAPSED_KEY));
+  /** The contents panel on narrow screens, where it folds into one button. */
+  tocOpen = signal(false);
+
+  /** Guides shown with their steps. The rest show only their header, like a docs index. */
+  openGuides = signal<Set<string>>(new Set([HELP_GUIDES[0].id]));
+  /** Sidebar stage groups the reader has opened. The stage being read is always open. */
+  openStages = signal<Set<string>>(new Set([HELP_GUIDES[0].stage]));
 
   private observer?: IntersectionObserver;
+  private scrollIdleTimer?: ReturnType<typeof setTimeout>;
+
+  /** True while the reader is scrolling, and for a moment after: the exit button steps aside. */
+  scrolling = signal(false);
+
+  // Captures scrolling of the app's content area as well as the window.
+  private readonly onAnyScroll = () => {
+    this.scrolling.set(true);
+    clearTimeout(this.scrollIdleTimer);
+    this.scrollIdleTimer = setTimeout(() => this.scrolling.set(false), 800);
+  };
 
   private query = computed(() => this.search().trim().toLowerCase());
+
+  allGuidesOpen = computed(() => this.guides.every((g) => this.openGuides().has(g.id)));
+
+  constructor() {
+    // The sidebar follows the reader like an accordion: the stage being read is open and the rest
+    // fold away, scrolling down or up. A stage opened by hand stays open until the reader moves on.
+    effect(() => {
+      const stage = this.activeStage();
+      untracked(() => this.openStages.set(new Set([stage])));
+    });
+    // Keep the highlighted guide visible inside the sidebar's own scroll area.
+    effect(() => {
+      this.activeId();
+      untracked(() => setTimeout(() => this.revealActiveLink()));
+    });
+  }
+
+  activeGuideTitle = computed(() => this.guides.find((g) => g.id === this.activeId())?.title ?? 'Guides');
+
+  private revealActiveLink(): void {
+    const toc = document.querySelector<HTMLElement>('.toc');
+    const link = toc?.querySelector<HTMLElement>('.toc-link.active');
+    if (!toc || !link || toc.scrollHeight <= toc.clientHeight) return;
+    const top = link.offsetTop;
+    const bottom = top + link.offsetHeight;
+    if (top < toc.scrollTop + 60 || bottom > toc.scrollTop + toc.clientHeight - 20) {
+      toc.scrollTo({ top: Math.max(0, top - toc.clientHeight / 3), behavior: 'smooth' });
+    }
+  }
+
+  /** A search shows every match in full, so nothing it found is hidden behind a toggle. */
+  isGuideOpen(id: string): boolean {
+    return !!this.query() || this.openGuides().has(id);
+  }
+
+  isStageOpen(id: string): boolean {
+    return !!this.query() || this.openStages().has(id);
+  }
+
+  toggleGuide(id: string): void {
+    const next = new Set(this.openGuides());
+    next.has(id) ? next.delete(id) : next.add(id);
+    this.openGuides.set(next);
+    setTimeout(() => this.observeSections());
+  }
+
+  toggleStage(id: string): void {
+    const next = new Set(this.openStages());
+    next.has(id) ? next.delete(id) : next.add(id);
+    this.openStages.set(next);
+  }
+
+  expandAllGuides(open: boolean): void {
+    this.openGuides.set(open ? new Set(this.guides.map((g) => g.id)) : new Set());
+    setTimeout(() => this.observeSections());
+  }
 
   visibleGuides = computed(() => {
     const q = this.query();
@@ -75,10 +148,6 @@ export class HelpComponent implements AfterViewInit, OnDestroy {
     return this.stages.find((s) => s.id === stageId)?.label ?? '';
   }
 
-  firstGuideOf(stageId: string): HelpGuide | undefined {
-    return this.guides.find((g) => g.stage === stageId);
-  }
-
   guideTitle(id?: string): string {
     return this.guides.find((g) => g.id === id)?.title ?? '';
   }
@@ -87,26 +156,28 @@ export class HelpComponent implements AfterViewInit, OnDestroy {
     const fragment = this.route.snapshot.fragment;
     if (fragment) setTimeout(() => this.scrollTo(fragment, 'auto'));
     this.observeSections();
+    document.addEventListener('scroll', this.onAnyScroll, { capture: true, passive: true });
   }
 
   ngOnDestroy(): void {
     this.observer?.disconnect();
+    clearTimeout(this.scrollIdleTimer);
+    document.removeEventListener('scroll', this.onAnyScroll, { capture: true });
   }
 
   scrollTo(id: string, behavior: ScrollBehavior = 'smooth'): void {
+    this.tocOpen.set(false);
+    // Opening a guide from the sidebar or an FAQ link shows its steps, then scrolls once laid out.
+    if (this.guides.some((g) => g.id === id) && !this.openGuides().has(id)) {
+      this.openGuides.set(new Set([...this.openGuides(), id]));
+      setTimeout(() => this.scrollTo(id, behavior));
+      return;
+    }
     const el = document.getElementById(id);
     if (!el) return;
     el.scrollIntoView({ behavior, block: 'start' });
     if (this.guides.some((g) => g.id === id)) this.activeId.set(id);
     history.replaceState(null, '', `${location.pathname}#${id}`);
-  }
-
-  goToStage(stageId: string): void {
-    const guide = this.firstGuideOf(stageId);
-    if (guide) {
-      this.search.set('');
-      setTimeout(() => this.scrollTo(guide.id));
-    }
   }
 
   onSearch(value: string): void {
@@ -141,19 +212,12 @@ export class HelpComponent implements AfterViewInit, OnDestroy {
     }
   }
 
-  /** Maximise: hide the lifecycle strip and the contents sidebar so the guide uses the full width. */
+  /** Maximise: hide the contents sidebar so the guide uses the full width. */
   toggleReadingMode(): void {
     const next = !this.readingMode();
     this.readingMode.set(next);
     writePreference(READING_MODE_KEY, next);
     setTimeout(() => this.observeSections());
-  }
-
-  /** Minimise the lifecycle strip to one slim row of stage chips. */
-  toggleStages(): void {
-    const next = !this.stagesCollapsed();
-    this.stagesCollapsed.set(next);
-    writePreference(STAGES_COLLAPSED_KEY, next);
   }
 
   /** Highlights the guide being read in the table of contents. */
@@ -184,7 +248,6 @@ function guideText(g: HelpGuide): string {
 }
 
 const READING_MODE_KEY = 'help-reading-mode';
-const STAGES_COLLAPSED_KEY = 'help-stages-collapsed';
 
 function readPreference(key: string): boolean {
   try {

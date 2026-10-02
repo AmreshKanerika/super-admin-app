@@ -47,7 +47,28 @@ export class PlanBuilderComponent implements OnInit {
 
   formatLimit = formatLimit;
   step = signal(0);
-  stepLabels = ['Details', 'Applications', 'Limits & scopes', 'Review'];
+  stepLabels = ['Details', 'Applications', 'Allowances', 'Review'];
+
+  readonly billingOptions = [
+    { value: 'PREPAID', label: 'Prepaid', icon: 'ti-wallet', hint: 'Paid up front for a subscription period.' },
+    { value: 'METERED', label: 'Metered', icon: 'ti-gauge', hint: 'Billed on actual usage.' }
+  ];
+
+  accessLabel(status: string): string {
+    return status === 'ENABLED' ? 'Enabled' : status === 'HIDDEN' ? 'Hidden' : 'Disabled';
+  }
+
+  primaryAppValid(): boolean {
+    return this.primaryAppOptions().some((row) => row.app.appId === this.primaryAppId);
+  }
+
+  /** Why Next is disabled, in words, so a greyed-out button never leaves the user guessing. */
+  nextBlocker(): string | null {
+    if (this.canGoNext()) return null;
+    if (this.step() === 0) return this.planName.trim() ? 'Choose a plan key that isn\'t taken' : 'Enter a display name to continue';
+    if (this.step() === 1) return this.enabledRows().length ? 'Choose the primary application to continue' : 'Enable at least one application';
+    return null;
+  }
 
   editingPlanId: string | null = null;
 

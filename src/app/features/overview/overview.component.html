@@ -7,9 +7,9 @@
   <section class="filterbar" aria-label="Dashboard filters">
     <div class="filter-controls">
       <i class="ti ti-calendar" aria-hidden="true"></i>
-      <label><span class="sr-only">Date range</span><select [ngModel]="a.preset()" (ngModelChange)="setPreset($event)"><option *ngFor="let p of presets" [value]="p.key">{{ p.label }}</option></select></label>
+      <label class="pill-select"><span class="sr-only">Date range</span><select [ngModel]="a.preset()" (ngModelChange)="setPreset($event)"><option *ngFor="let p of presets" [value]="p.key">{{ p.label }}</option></select></label>
       <span class="filter-divider"></span>
-      <label class="basis"><span>By</span><select aria-label="Date basis" [ngModel]="a.basis()" (ngModelChange)="a.basis.set($event); a.clearDim('period')"><option *ngFor="let b of basisOptions" [value]="b.key">{{ b.label }}</option></select></label>
+      <label class="basis pill-select"><span>By</span><select aria-label="Date basis" [ngModel]="a.basis()" (ngModelChange)="a.basis.set($event); a.clearDim('period')"><option *ngFor="let b of basisOptions" [value]="b.key">{{ b.label }}</option></select></label>
     </div>
     <span class="scope">{{ scopeSentence() }}</span>
     <button type="button" class="text-button" *ngIf="a.hasAnyFilter()" (click)="a.clearAll(); resetVisibleRows()"><i class="ti ti-refresh" aria-hidden="true"></i> Reset</button>
@@ -33,7 +33,7 @@
   <section class="analytics-section" aria-labelledby="action-title">
     <div class="section-heading"><h2 id="action-title">Renewals & follow-ups</h2><span>Prioritize your next action</span></div>
     <div class="action-grid"><section class="sales-card" aria-labelledby="queue-title">
-      <div class="queue-head"><div><span class="eyebrow">NEXT BEST ACTION</span><h3 id="queue-title">Your sales follow-up list</h3></div><button class="text-button" type="button" (click)="openSalesQueue()">View all {{ currentQueue().rows.length }} <i class="ti ti-arrow-up-right" aria-hidden="true"></i></button></div>
+      <div class="queue-head"><div><span class="eyebrow">NEXT BEST ACTION</span><h3 id="queue-title">Your sales follow-up list</h3></div><button class="dash-btn secondary" type="button" (click)="openSalesQueue()">View all {{ currentQueue().rows.length }} <i class="ti ti-arrow-up-right" aria-hidden="true"></i></button></div>
       <div class="queue-tabs" role="group" aria-label="Sales follow-up categories"><button type="button" *ngFor="let q of salesQueues()" [class.on]="salesFocus() === q.key" [attr.aria-pressed]="salesFocus() === q.key" (click)="salesFocus.set(q.key)"><i class="ti" [ngClass]="q.icon" aria-hidden="true"></i>{{ q.label }}<b>{{ q.rows.length }}</b></button></div>
       <p class="queue-hint">{{ currentQueue().hint }} · {{ salesFocus() === 'salesWinback' ? 'Most recently ended first' : 'Earliest expiry first' }}</p>
       <ul class="attention"><li *ngFor="let r of attentionPreview()"><a [routerLink]="['/organizations', r.org.orgId]" [queryParams]="{ from: 'overview' }"><span class="av">{{ r.org.organizationName.charAt(0).toUpperCase() }}</span><span class="who"><strong>{{ r.org.organizationName }}</strong><small>{{ planName(r.subscription?.planId) }} · {{ r.org.isPaidOrg ? 'Paid' : 'Trial' }}</small></span><span class="queue-due">{{ r.daysToExpiry === null ? 'No end date' : r.daysToExpiry! < 0 ? 'Ended ' + (-r.daysToExpiry!) + 'd ago' : r.daysToExpiry === 0 ? 'Ends today' : 'Ends in ' + r.daysToExpiry + 'd' }}</span><span class="queue-action">{{ currentQueue().action }} <i class="ti ti-arrow-up-right" aria-hidden="true"></i></span></a></li></ul>
@@ -105,11 +105,11 @@
       ></app-donut-chart>
     </app-chart-card></div>
   </section>
-  <section class="analytics-section"><div class="section-heading"><h2>Paid adoption & plan distribution</h2><span>Understand your customer base</span></div><div class="secondary-grid"><app-chart-card
+  <section class="analytics-section" aria-labelledby="mix-title"><div class="section-heading"><h2 id="mix-title">Customer mix</h2><span>Plans and acquisition channels — select a slice to filter</span></div><div class="mix-grid"><app-chart-card
       class="planmix-card"
       title="Plan mix"
       accent="#4a3aa7"
-      subtitle="Which plans the book is concentrated in."
+      subtitle="Which plans the customer base is concentrated in."
       [tableRows]="planTable()"
       [tableHeaders]="['Plan', 'Organizations', 'Share']"
       [empty]="!planSlices().length"
@@ -124,55 +124,29 @@
         (sliceToggle)="toggle('plan', $event)"
       ></app-donut-chart>
     </app-chart-card><app-chart-card
-      title="Paid vs trial"
+      class="align-top"
+      title="Acquisition channel"
       accent="#2a78d6"
-      subtitle="Paid and trial accounts in the current selection."
-      [tableRows]="billingTable()"
-      [tableHeaders]="['Type', 'Organizations', 'Share']"
-      [empty]="!a.rows().length"
+      subtitle="Where customers came from. Select a channel to filter the dashboard."
+      [tableRows]="channelTable()"
+      [tableHeaders]="['Channel', 'Organizations', 'Share']"
+      [empty]="!a.rowsIgnoringChannel().length"
+      footnote="Azure Marketplace organizations sign in with Microsoft (SSO) and are billed in Azure, so their plans are read only here."
     >
-      <app-hbar-chart
-        [items]="billingItems()"
-        [selected]="billingSelected()"
-        scaleTo="total"
-        (barToggle)="toggle('billing', $event)"
-      ></app-hbar-chart>
-
-      <div class="meters">
-        <app-meter
-          label="Paid account share"
-          [value]="a.conversion().paid"
-          [max]="a.conversion().total"
-          [color]="slot.blue"
-          [caption]="a.conversion().paid + ' of ' + a.conversion().total + ' organizations in this slice are on a paid plan.'"
-        ></app-meter>
-        <app-meter
-          label="Renewal safety"
-          [value]="a.renewalHealth().healthy"
-          [max]="a.renewalHealth().withPlan"
-          [color]="slot.aqua"
-          caption="Active plans with more than 30 days left or no end date."
-        ></app-meter>
+      <div class="channel-split">
+        <button type="button" class="cs-tile" *ngFor="let c of channelFacts()" [style.--c]="c.color"
+                [class.on]="channelSelected().includes(c.key)" [class.dim]="channelSelected().length && !channelSelected().includes(c.key)"
+                [attr.aria-pressed]="channelSelected().includes(c.key)" (click)="toggle('channel', c.key)">
+          <span class="cs-label"><i class="ti" [ngClass]="c.icon" aria-hidden="true"></i>{{ c.label }}</span>
+          <span class="cs-value"><strong>{{ c.value | number }}</strong><span>{{ c.share }}</span></span>
+          <span class="cs-facts"><span><b>{{ c.active }}</b> active</span><span><b>{{ c.paid }}</b> paid</span></span>
+        </button>
       </div>
-    </app-chart-card></div></section><section class="analytics-section"><div class="section-heading"><h2>Lifecycle comparison</h2><div class="period-nav"><span>{{ trendWindowLabel() }}</span><ng-container *ngIf="trendWindow().total > 12"><button type="button" aria-label="Show older lifecycle periods" [disabled]="trendWindow().start === 0" (click)="olderPeriods()">←</button><button type="button" aria-label="Show newer lifecycle periods" [disabled]="trendWindow().page === 0" (click)="newerPeriods()">→</button></ng-container></div></div><div class="lifecycle-summary"><div><span>New organizations</span><strong>{{ lifecycleSummary().added | number }}</strong></div><div><span>Reactivation events</span><strong>{{ lifecycleSummary().reactivated === null ? '—' : (lifecycleSummary().reactivated | number) }}</strong></div><div><span>Ended plans</span><strong>{{ lifecycleSummary().ended | number }}</strong></div><div><span>Activity difference</span><strong>{{ lifecycleSummary().difference === null ? '—' : (lifecycleSummary().difference | number) }}</strong></div></div><p class="queue-hint">Totals for the selected filters. Reactivations count events; activity difference is new organizations + reactivations − ended plans.</p><div class="secondary-grid"><app-chart-card
-      class="movement-card"
-      title="New vs ended plans"
-      accent="#e34948"
-      [subtitle]="'New and reactivated organizations compared with currently ended plans, ' + a.granularityLabel() + '.'"
-      [tableRows]="netTable()"
-      [tableHeaders]="['Period', 'New + reactivated', 'Ended plans', 'Difference']"
-      [empty]="!trendCategories().length"
-    >
-      <p class="audit-note" role="status" *ngIf="!auditReady()">{{ a.eventsFailed() ? 'Reactivations and the combined activity difference are unavailable. This chart compares new organizations only with ended plans.' : 'Loading reactivations. The chart currently compares new organizations only with ended plans.' }}</p><app-column-chart
-        [categories]="trendCategories()"
-        [categoryKeys]="trendKeys()"
-        [series]="netSeries()"
-        [selected]="a.selection().period"
-        mode="grouped"
-        [height]="250"
-        (bucketToggle)="toggle('period', $event)"
-      ></app-column-chart>
+      <div class="cs-bar" role="img" [attr.aria-label]="channelBarLabel()">
+        <span *ngFor="let c of channelFacts()" [style.flex-grow]="c.value" [style.background]="c.color"></span>
+      </div>
     </app-chart-card></div></section>
+
   <dialog #organizationDialog class="organization-dialog" aria-labelledby="organization-dialog-title"
     (cancel)="closeOrganizations()" (click)="$event.target === organizationDialog && closeOrganizations()">
   <section class="table-card">
@@ -182,9 +156,9 @@
         <p>{{ selectedMetric()?.hint }}. {{ 'Matches your current dashboard filters.' }}</p>
       </div>
       <div class="tc-actions">
-        <button type="button" class="btn sm ghost" (click)="exportCsv()"><i class="ti ti-download" aria-hidden="true"></i> Export CSV</button>
-        <button type="button" class="btn sm" (click)="closeOrganizations()" aria-label="Close organizations">Close <i class="ti ti-x" aria-hidden="true"></i></button>
-        <a class="btn sm" routerLink="/organizations" [queryParams]="{ from: 'overview' }">Open full list</a>
+        <button type="button" class="dash-btn secondary" (click)="exportCsv()"><i class="ti ti-download" aria-hidden="true"></i> Export CSV</button>
+        <a class="dash-btn primary" routerLink="/organizations" [queryParams]="{ from: 'overview' }">Open full list <i class="ti ti-arrow-right" aria-hidden="true"></i></a>
+        <button type="button" class="dash-close" (click)="closeOrganizations()" aria-label="Close" title="Close (Esc)"><i class="ti ti-x" aria-hidden="true"></i></button>
       </div>
     </header>
 
@@ -203,14 +177,14 @@
                 Organization <i class="ti" [class.ti-arrow-up]="sortKey() === 'name' && sortAsc()" [class.ti-arrow-down]="sortKey() === 'name' && !sortAsc()" aria-hidden="true"></i>
               </button>
             </th>
-            <th>Plan</th>
+            <th class="col-plan">Plan</th>
             <th>
               <button type="button" class="sort" (click)="sortBy('status')">
                 Status <i class="ti" [class.ti-arrow-up]="sortKey() === 'status' && sortAsc()" [class.ti-arrow-down]="sortKey() === 'status' && !sortAsc()" aria-hidden="true"></i>
               </button>
             </th>
-            <th>Billing</th>
-            <th>Onboarded</th>
+            <th class="col-billing">Billing</th>
+            <th class="col-onboarded">Onboarded</th>
             <th>
               <button type="button" class="sort" (click)="sortBy('end')">
                 Ends <i class="ti" [class.ti-arrow-up]="sortKey() === 'end' && sortAsc()" [class.ti-arrow-down]="sortKey() === 'end' && !sortAsc()" aria-hidden="true"></i>
@@ -223,13 +197,14 @@
             <td class="strong">
               <a class="row-link" [routerLink]="['/organizations', r.org.orgId]" [queryParams]="{ from: 'overview' }">{{ r.org.organizationName }}</a>
               <small>{{ r.org.domainName }}</small>
+              <small class="row-meta">{{ planName(r.subscription?.planId) }} · {{ billingLabel[billingOf(r)] }} · Onboarded {{ formatDate(r.org.createdDate) }}</small>
             </td>
-            <td>{{ planName(r.subscription?.planId) }}</td>
+            <td class="col-plan">{{ planName(r.subscription?.planId) }}</td>
             <td>
               <span class="spill"><i class="sdot" [style.background]="statusColor(r)" aria-hidden="true"></i>{{ statusLabel[statusOf(r)] }}</span>
             </td>
-            <td>{{ billingLabel[billingOf(r)] }}</td>
-            <td class="mono">{{ formatDate(r.org.createdDate) }}</td>
+            <td class="col-billing">{{ billingLabel[billingOf(r)] }}</td>
+            <td class="mono col-onboarded">{{ formatDate(r.org.createdDate) }}</td>
             <td class="mono">
               <span *ngIf="r.subscription; else noSub">{{ formatDate(r.subscription!.planEndDate) }}</span>
               <app-countdown *ngIf="r.subscription?.planStatus === 'ACTIVE'" [date]="r.subscription!.planEndDate"></app-countdown>

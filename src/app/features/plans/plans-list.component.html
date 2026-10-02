@@ -2,97 +2,153 @@
   <a class="btn primary" routerLink="/plans/new">Create custom plan</a>
 </app-page-header>
 
-<div class="filterbar">
-  <input class="input search" placeholder="Search plans…" [(ngModel)]="search" />
-  <select class="input select" [(ngModel)]="typeFilter">
-    <option value="">Any type</option>
-    <option value="DEFAULT">Default</option>
-    <option value="CUSTOM">Custom</option>
+<!-- At a glance; each tile is also a one-click filter. -->
+<div class="plan-stats" role="group" aria-label="Plan summary">
+  <button type="button" class="plan-stat" [class.on]="!hasFilters()" (click)="clearFilters()">
+    <span class="ps-icon total"><i class="ti ti-stack-2" aria-hidden="true"></i></span>
+    <span class="ps-text"><strong>{{ summary().total }}</strong><small>All plans</small></span>
+  </button>
+  <button type="button" class="plan-stat" [class.on]="usageFilter() === 'inUse'" (click)="showUsage('inUse')">
+    <span class="ps-icon in-use"><i class="ti ti-building" aria-hidden="true"></i></span>
+    <span class="ps-text"><strong>{{ summary().inUse }}</strong><small>In use by organizations</small></span>
+  </button>
+  <button type="button" class="plan-stat" [class.on]="usageFilter() === 'unused'" (click)="showUsage('unused')">
+    <span class="ps-icon unused"><i class="ti ti-circle-dashed" aria-hidden="true"></i></span>
+    <span class="ps-text"><strong>{{ summary().unused }}</strong><small>Not used yet</small></span>
+  </button>
+  <button type="button" class="plan-stat" [class.on]="billingFilter() === 'PREPAID'" (click)="showBilling('PREPAID')">
+    <span class="ps-icon default"><i class="ti ti-wallet" aria-hidden="true"></i></span>
+    <span class="ps-text"><strong>{{ summary().prepaid }}</strong><small>Prepaid</small></span>
+  </button>
+  <button type="button" class="plan-stat" [class.on]="billingFilter() === 'METERED'" (click)="showBilling('METERED')">
+    <span class="ps-icon custom"><i class="ti ti-gauge" aria-hidden="true"></i></span>
+    <span class="ps-text"><strong>{{ summary().metered }}</strong><small>Metered</small></span>
+  </button>
+</div>
+
+<div class="filterbar" role="search" aria-label="Find plans">
+  <label class="search-field">
+    <i class="ti ti-search" aria-hidden="true"></i>
+    <input class="input" type="search" placeholder="Search plan name, key or description…" aria-label="Search plans"
+           [ngModel]="search()" (ngModelChange)="search.set($event)" />
+  </label>
+
+  <div class="seg" role="radiogroup" aria-label="Plan type">
+    <button type="button" role="radio" *ngFor="let t of typeOptions()" [attr.aria-checked]="typeFilter() === t.value"
+            [class.on]="typeFilter() === t.value" (click)="typeFilter.set(t.value)">{{ t.label }}</button>
+  </div>
+
+  <select class="input select" aria-label="Plan state" [ngModel]="stateFilter()" (ngModelChange)="stateFilter.set($event)">
+    <option value="">Any state</option>
+    <option value="ACTIVE">Active</option>
+    <option value="DRAFT">Draft</option>
+    <option value="ARCHIVED">Archived</option>
   </select>
+
+  <label class="sort-field">
+    <span>Sort</span>
+    <select class="input select" aria-label="Sort plans" [ngModel]="sort()" (ngModelChange)="sort.set($event)">
+      <option value="name">Name A–Z</option>
+      <option value="orgs">Most organizations</option>
+      <option value="apps">Most applications</option>
+    </select>
+  </label>
 </div>
 
 <div class="view-bar">
-  <span class="view-count">{{ filtered().length }} {{ filtered().length === 1 ? 'plan' : 'plans' }}</span>
+  <span class="view-count">
+    {{ filtered().length }} of {{ summary().total }} {{ summary().total === 1 ? 'plan' : 'plans' }}
+    <button type="button" class="clear-link" *ngIf="hasFilters()" (click)="clearFilters()"><i class="ti ti-filter-off" aria-hidden="true"></i> Clear filters</button>
+  </span>
   <app-view-toggle [mode]="view()" label="Plan view" (modeChange)="setView($event)"></app-view-toggle>
 </div>
 
+<!-- Cards: one colour per plan type (accent, avatar, badge). State only shows when it isn't Active. -->
 <div class="plan-grid" *ngIf="view() === 'cards'">
   <a
-    class="plan-card"
+    class="plan-tile"
     *ngFor="let p of filtered()"
-    [class.is-default]="p.planType === 'DEFAULT'"
+    [style.--tone]="typeTone(p.planType)"
     [routerLink]="['/plans', p.planId]"
-    [queryParams]="showBack ? { from: 'overview' } : null">
+    [queryParams]="showBack ? { from: 'overview' } : null"
+    [attr.aria-label]="(p | planDisplayName) + ', ' + typeLabel(p.planType) + ' plan, ' + appCount(p.planId) + ' applications, ' + orgsInUse(p.planId) + ' organizations'">
 
-    <div class="pc-head">
-      <span class="pc-type">{{ p.planType }}</span>
-      <app-status-pill [label]="p.planState" [tone]="tone(p.planState)"></app-status-pill>
+    <div class="pt-head">
+      <span class="pt-avatar" aria-hidden="true">{{ initialOf(p) }}</span>
+      <div class="pt-title">
+        <h3>{{ p | planDisplayName }}</h3>
+        <code>{{ p.planName }}</code>
+      </div>
+      <i class="ti ti-arrow-up-right pt-go" aria-hidden="true"></i>
     </div>
 
-    <h3 class="pc-name">{{ p | planDisplayName }}</h3>
-    <code class="pc-key">{{ p.planName }}</code>
-
-    <!-- The primary application is what a subscription bills and de-duplicates against, so it
-         belongs in the card rather than buried in a run of meta text. -->
-    <span class="pc-app" *ngIf="primaryAppName(p.primaryAppId) as appName">
-      <i class="ti ti-app-window" aria-hidden="true"></i>{{ appName }}
-    </span>
-
-    <p class="pc-desc" *ngIf="p.description">{{ p.description }}</p>
-
-    <div class="pc-foot">
-      <span class="pc-stat">
-        <strong>{{ appCount(p.planId) }}</strong>
-        <small>applications</small>
+    <div class="pt-badges">
+      <span class="pt-type">{{ typeLabel(p.planType) }}</span>
+      <span class="pt-billing" [attr.data-billing]="p.billingMode">
+        <i class="ti" [class.ti-gauge]="p.billingMode === 'METERED'" [class.ti-wallet]="p.billingMode !== 'METERED'" aria-hidden="true"></i>{{ billingLabel(p.billingMode) }}
       </span>
-      <span class="pc-stat">
-        <strong>{{ orgsInUse(p.planId) }}</strong>
-        <small>organizations</small>
-      </span>
-      <span class="pc-billing">{{ p.billingMode }}</span>
+      <app-status-pill *ngIf="p.planState !== 'ACTIVE'" [label]="p.planState" [tone]="tone(p.planState)"></app-status-pill>
+    </div>
+
+    <p class="pt-desc" *ngIf="p.description">{{ p.description }}</p>
+
+    <div class="pt-app" [class.none]="!p.primaryAppId">
+      <i class="ti ti-app-window" aria-hidden="true"></i>
+      <span><small>Primary application</small>{{ p.primaryAppId ? primaryAppName(p.primaryAppId) : 'None set' }}</span>
+    </div>
+
+    <div class="pt-stats">
+      <div><strong>{{ appCount(p.planId) }}</strong><span>Applications</span></div>
+      <div [class.zero]="!orgsInUse(p.planId)"><strong>{{ orgsInUse(p.planId) }}</strong><span>{{ orgsInUse(p.planId) ? (orgsInUse(p.planId) === 1 ? 'Organization' : 'Organizations') : 'Not used yet' }}</span></div>
     </div>
   </a>
 </div>
 
-<div class="scroll-x" *ngIf="view() === 'list' && filtered().length">
-  <table class="dtable">
+<!-- List: same colours and badges as the cards, so a plan reads the same way in either view. -->
+<div class="plan-list" *ngIf="view() === 'list' && filtered().length">
+  <table class="dtable plan-table">
     <thead>
       <tr>
         <th>Plan</th>
-        <th>Type</th>
-        <th>State</th>
-        <th>Primary application</th>
-        <th class="num">Apps</th>
+        <th class="col-type">Type</th>
+        <th class="col-app">Primary application</th>
+        <th class="num col-apps">Apps</th>
         <th class="num">Organizations</th>
-        <th>Billing</th>
+        <th class="col-billing">Billing</th>
+        <th class="col-go" aria-hidden="true"></th>
       </tr>
     </thead>
     <tbody>
-      <tr
-        *ngFor="let row of listRows(); trackBy: trackByPlanId"
-        class="plan-row"
-        [attr.data-family]="row.familyColourIndex"
-      >
-        <td class="strong">
-          <span class="plan-cell">
-            <span class="plan-initial" aria-hidden="true">{{ row.initial }}</span>
-            <span class="plan-names">
-              <a class="row-link" [routerLink]="['/plans', row.plan.planId]" [queryParams]="showBack ? { from: 'overview' } : null">{{ row.plan | planDisplayName }}</a>
-              <code class="pc-key">{{ row.plan.planName }}</code>
-              <small class="row-desc" *ngIf="row.plan.description">{{ row.plan.description }}</small>
-            </span>
-          </span>
-        </td>
-        <td><span class="type-chip" [class.is-default]="row.plan.planType === 'DEFAULT'">{{ row.plan.planType }}</span></td>
-        <td><app-status-pill [label]="row.plan.planState" [tone]="tone(row.plan.planState)"></app-status-pill></td>
+      <tr *ngFor="let row of listRows(); trackBy: trackByPlanId" class="plan-row" [style.--tone]="typeTone(row.plan.planType)">
         <td>
-          <span class="primary-app">
-            <i class="ti ti-app-window" aria-hidden="true"></i>{{ primaryAppName(row.plan.primaryAppId) }}
+          <a class="plan-cell" [routerLink]="['/plans', row.plan.planId]" [queryParams]="showBack ? { from: 'overview' } : null">
+            <span class="pt-avatar sm" aria-hidden="true">{{ row.initial }}</span>
+            <span class="plan-names">
+              <span class="pn-name">{{ row.plan | planDisplayName }}
+                <app-status-pill *ngIf="row.plan.planState !== 'ACTIVE'" [label]="row.plan.planState" [tone]="tone(row.plan.planState)"></app-status-pill>
+              </span>
+              <code>{{ row.plan.planName }}</code>
+              <!-- Folded-away columns, shown on narrower screens. -->
+              <span class="row-meta">
+                <span class="pt-type">{{ typeLabel(row.plan.planType) }}</span>
+                <span class="pt-billing" [attr.data-billing]="row.plan.billingMode">{{ billingLabel(row.plan.billingMode) }}</span>
+                <span>{{ appCount(row.plan.planId) }} apps</span>
+              </span>
+            </span>
+          </a>
+        </td>
+        <td class="col-type"><span class="pt-type">{{ typeLabel(row.plan.planType) }}</span></td>
+        <td class="col-app"><span class="primary-app" [class.none]="!row.plan.primaryAppId"><i class="ti ti-app-window" aria-hidden="true"></i>{{ row.plan.primaryAppId ? primaryAppName(row.plan.primaryAppId) : 'None set' }}</span></td>
+        <td class="num mono col-apps">{{ appCount(row.plan.planId) }}</td>
+        <td class="num">
+          <span class="org-count" [class.zero]="!orgsInUse(row.plan.planId)">{{ orgsInUse(row.plan.planId) || '—' }}</span>
+        </td>
+        <td class="col-billing">
+          <span class="pt-billing" [attr.data-billing]="row.plan.billingMode">
+            <i class="ti" [class.ti-gauge]="row.plan.billingMode === 'METERED'" [class.ti-wallet]="row.plan.billingMode !== 'METERED'" aria-hidden="true"></i>{{ billingLabel(row.plan.billingMode) }}
           </span>
         </td>
-        <td class="num mono">{{ appCount(row.plan.planId) }}</td>
-        <td class="num mono">{{ orgsInUse(row.plan.planId) }}</td>
-        <td><span class="billing-chip" [attr.data-billing]="row.plan.billingMode">{{ row.plan.billingMode }}</span></td>
+        <td class="col-go"><a class="go-link" [routerLink]="['/plans', row.plan.planId]" [attr.aria-label]="'Open ' + (row.plan | planDisplayName)"><i class="ti ti-chevron-right" aria-hidden="true"></i></a></td>
       </tr>
     </tbody>
   </table>
@@ -101,5 +157,8 @@
 <app-empty-state
   *ngIf="!filtered().length"
   title="No plans match these filters"
-  message="Try a different search, or clear the type filter."
+  message="Try a different search, or clear the filters."
 ></app-empty-state>
+<div class="empty-actions" *ngIf="!filtered().length && hasFilters()">
+  <button type="button" class="btn ghost" (click)="clearFilters()"><i class="ti ti-filter-off" aria-hidden="true"></i> Clear filters</button>
+</div>

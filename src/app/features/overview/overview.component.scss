@@ -55,9 +55,6 @@ h1 { display: flex; align-items: center; gap: 12px; font: 650 28px/1.3 var(--k-f
 .runway-total strong { font: 600 25px var(--k-font-display); }
 .runway-total span { margin-left: 7px; color: #8b92a1; font-size: 11px; }
 .pastdue { font-size: 10px; }
-.meters { margin-top: 18px; padding-top: 12px; border-top: 1px solid #edf0f4; }
-.secondary-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 18px; }
-.secondary-grid .movement-card { grid-column: 1/-1; }
 .organization-dialog { width: min(1080px, calc(100vw - 32px)); max-height: 86vh; padding: 0; border: 1px solid #e0e4ec; border-radius: 16px; background: #fff; color: #354057; box-shadow: 0 25px 90px #19122c33; }
 .organization-dialog::backdrop { background: #20223766; backdrop-filter: blur(4px); }
 .table-card { padding: 25px; }
@@ -80,7 +77,7 @@ h1 { display: flex; align-items: center; gap: 12px; font: 650 28px/1.3 var(--k-f
 .tc-empty > i { font-size: 26px; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 @media (max-width: 1120px) { .metric-top { font-size: 11px; } .metric-card { padding: 14px 13px 0; } .performance-grid, .action-grid { grid-template-columns: minmax(0, 1.4fr) minmax(270px, 1fr); } .attention app-countdown { display: none; } .attention a { grid-template-columns: 30px minmax(0,1fr) auto; } .queue-action { display: none; } .scope { width: 100%; margin: 0; } }
-@media (max-width: 900px) { .kpi-grid { grid-template-columns: repeat(2, minmax(0,1fr)); } .performance-grid, .action-grid, .secondary-grid { grid-template-columns: 1fr; } .section-heading > span { display: none; } .tc-head { flex-direction: column; } }
+@media (max-width: 900px) { .kpi-grid { grid-template-columns: repeat(2, minmax(0,1fr)); } .performance-grid, .action-grid { grid-template-columns: 1fr; } .section-heading > span { display: none; } .tc-head { flex-direction: column; } }
 @media (max-width: 540px) { .page-heading { align-items: flex-start; } h1 { font-size: 23px; } .page-heading p { max-width: 28ch; } .export-button { font-size: 11px; padding: 8px; min-width: 0; } .export-word { display: none; } .export-button i { font-size: 16px; } .heading-dot, .eyebrow { display: none; } .filterbar { padding: 10px; } .filter-controls { gap: 7px; width: 100%; } .filterbar select { font-size: 11px; padding-right: 3px; } .metric-main strong { font-size: 30px; } .metric-top { gap: 5px; } .card-arrow { display: none; } .metric-description { line-height: 1.5; } .more-insights summary small { display: block; margin: 5px 0 0 24px; } .table-card { padding: 18px; } .organization-search span { display: none; } .issue { max-width: 120px; overflow: hidden; text-overflow: ellipsis; } }
 @media (prefers-reduced-motion: reduce) { .metric-card { transition: none; } }
 
@@ -99,8 +96,123 @@ h1 { display: flex; align-items: center; gap: 12px; font: 650 28px/1.3 var(--k-f
 .queue-empty { padding: 30px 10px; text-align: center; }
 @media (max-width: 540px) { .page-heading { padding: 20px 16px; } .sales-card { padding: 16px; } .queue-head h3 { font-size: 14px; } .metric-scope { display: none; } }
 
-.lifecycle-summary { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 1px; background: #e6e8ef; border: 1px solid #e6e8ef; border-radius: 12px; overflow: hidden; }
-.lifecycle-summary div { background: #fff; padding: 16px 20px; }
-.lifecycle-summary span { display: block; font-size: 11px; color: #727b8e; }
-.lifecycle-summary strong { display: block; font-size: 24px; margin-top: 6px; font-variant-numeric: tabular-nums; }
-@media(max-width:540px) { .lifecycle-summary { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+
+
+
+/* Customer mix: plan mix and acquisition channel side by side. */
+.mix-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 900px) { .mix-grid { grid-template-columns: 1fr; } }
+
+.channel-split { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 4px; }
+.cs-tile {
+  display: flex; flex-direction: column; gap: 10px; min-width: 0;
+  padding: 16px 16px 14px; text-align: left; cursor: pointer; color: inherit; font: inherit;
+  border: 1px solid #e4e6ed; border-top: 3px solid var(--c); border-radius: 12px;
+  background: linear-gradient(160deg, color-mix(in srgb, var(--c) 8%, white), white 70%);
+  transition: box-shadow .15s, border-color .15s, opacity .15s;
+}
+.cs-tile:hover { box-shadow: 0 6px 18px color-mix(in srgb, var(--c) 16%, transparent); }
+.cs-tile:focus-visible { outline: 2px solid var(--c); outline-offset: 2px; }
+.cs-tile.on { border-color: var(--c); box-shadow: 0 0 0 1px var(--c) inset; }
+.cs-tile.dim { opacity: .55; }
+.cs-label { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: #3a4459; }
+.cs-label i { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; font-size: 16px; color: var(--c); background: color-mix(in srgb, var(--c) 12%, white); }
+.cs-value { display: flex; align-items: baseline; gap: 10px; }
+.cs-value strong { font-size: 34px; line-height: 1; font-variant-numeric: tabular-nums; color: #1d2a44; }
+.cs-value span { font-size: 15px; font-weight: 600; color: var(--c); }
+.cs-facts { display: flex; gap: 14px; padding-top: 10px; border-top: 1px solid #edf0f4; font-size: 12px; color: #6b7487; }
+.cs-facts b { color: #1d2a44; font-variant-numeric: tabular-nums; }
+.cs-bar { display: flex; gap: 3px; height: 10px; margin-top: 18px; border-radius: 999px; overflow: hidden; background: #eef0f5; }
+.cs-bar span { min-width: 4px; }
+@media (max-width: 420px) { .channel-split { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { .cs-tile { transition: none; } }
+@media (max-width: 420px) { .kpi-grid { grid-template-columns: 1fr; } }
+
+/* Dashboard buttons: one primary action, tinted secondaries, a quiet round close. */
+.dash-btn {
+  display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 14px;
+  border-radius: 9px; border: 1px solid transparent; font: 600 12.5px var(--k-font-body);
+  text-decoration: none; white-space: nowrap; cursor: pointer;
+  transition: background-color .15s, border-color .15s, box-shadow .15s, transform .15s;
+}
+.dash-btn i { font-size: 15px; }
+.dash-btn.primary { background: linear-gradient(135deg, #6a3fb1, #8a4fb8); color: #fff; box-shadow: 0 4px 12px rgba(106, 63, 177, .28); }
+.dash-btn.primary:hover { box-shadow: 0 6px 18px rgba(106, 63, 177, .38); transform: translateY(-1px); }
+.dash-btn.secondary { background: #f4effb; border-color: #e0d3f1; color: #5b3596; }
+.dash-btn.secondary:hover { background: #ebe2f8; border-color: #c9b3e6; }
+.dash-btn:focus-visible, .dash-close:focus-visible { outline: 2px solid #8a4fb8; outline-offset: 2px; }
+.queue-head .dash-btn { height: 30px; padding: 0 11px; font-size: 12px; }
+
+.dash-close {
+  display: grid; place-items: center; width: 34px; height: 34px; margin-left: 4px;
+  border: 1px solid #e4e6ed; border-radius: 50%; background: #fff; color: #6b7487; cursor: pointer;
+  transition: background-color .15s, color .15s, border-color .15s;
+}
+.dash-close i { font-size: 16px; }
+.dash-close:hover { background: #fdecef; border-color: #f3c5cf; color: #b23b52; }
+.tc-actions { align-items: center; }
+
+@media (max-width: 540px) {
+  .tc-actions { width: 100%; }
+  .tc-actions .dash-btn { flex: 1 1 0; justify-content: center; }
+  .tc-actions .dash-close { position: absolute; top: 16px; right: 16px; }
+  .table-card { position: relative; }
+}
+@media (prefers-reduced-motion: reduce) { .dash-btn, .dash-close { transition: none; } }
+
+/* ── Readability + responsive pass ─────────────────────────────────────── */
+
+/* Filter dropdowns look like controls, not plain text. */
+.pill-select select {
+  height: 34px; padding: 0 30px 0 12px; border: 1px solid #e1e4ec; border-radius: 9px; background-color: #fafafd;
+  font-size: 12.5px; transition: border-color .15s, background-color .15s;
+}
+.pill-select select:hover { border-color: #c9b9e0; background-color: #fff; }
+.pill-select select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.basis.pill-select > span { font-size: 12.5px; }
+.scope { font-size: 12px; }
+
+/* Small print up a size: 10–11px was hard to read on any screen. */
+.metric-description { font-size: 12px; line-height: 1.45; }
+.metric-bottom, .metric-scope { font-size: 11.5px; }
+.who strong { font-size: 13px; }
+.who small { font-size: 11.5px; }
+.queue-hint, .queue-empty, .audit-note, .queue-due { font-size: 12px; }
+.queue-action { font-size: 11.5px; }
+.queue-tabs button { font-size: 12px; }
+.section-heading > span { font-size: 12px; }
+.tc-head p { font-size: 12.5px; }
+
+/* Organizations dialog: header stays visible while the list scrolls; table header too. */
+.organization-dialog { overflow: hidden; }
+.table-card { display: flex; flex-direction: column; max-height: 86vh; }
+.tc-body { flex: 1 1 auto; max-height: none; min-height: 0; }
+.tc-body thead th { position: sticky; top: 0; z-index: 1; background: #f7f6fb; }
+.row-meta { display: none; }
+
+@media (max-width: 900px) {
+  /* The queue tabs scroll sideways in one row instead of wrapping into several. */
+  .queue-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .queue-tabs::-webkit-scrollbar { display: none; }
+  .queue-tabs button { flex: none; }
+}
+
+@media (max-width: 760px) {
+  .tc-body table { min-width: 0; }
+  .col-plan, .col-billing, .col-onboarded { display: none; }
+  .tc-body td small.row-meta { display: block; }
+  .custom-range { flex-direction: column; align-items: stretch; }
+  .custom-range label { justify-content: space-between; }
+  .custom-range input { flex: 1; min-width: 0; }
+}
+
+@media (max-width: 540px) {
+  /* The dialog becomes a full-screen sheet on phones. */
+  .organization-dialog { width: 100vw; max-width: 100vw; height: 100dvh; max-height: 100dvh; margin: 0; border-radius: 0; border: 0; }
+  .table-card { max-height: 100dvh; height: 100%; }
+  .filter-controls { flex-wrap: wrap; }
+  .filter-divider { display: none; }
+  .pill-select, .pill-select select { flex: 1 1 0; min-width: 0; width: 100%; }
+  .scope { font-size: 11.5px; }
+}
+@media (prefers-reduced-motion: reduce) { .pill-select select { transition: none; } }
